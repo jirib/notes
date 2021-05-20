@@ -1,0 +1,750 @@
+# My cheatsheet
+
+## ACL
+
+- *mask* is maximum permission for users (other than the owner) and groups!
+- `chmod` incluences mask of ACL file/dir!
+- default ACL of a directory for inheritance
+
+## kernel
+
+### dracut
+
+``` shell
+man dracut.conf
+```
+
+`omit_dracutmodules+=" <dracut module> " to omit a module, see `/usr/lib/dracut/modules.d`.
+
+### /proc
+
+https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html
+
+
+## rpm
+
+``` shell
+rpm -K --nosignature <rpm_file>
+<rpm_file>: digests OK
+rpm -q --qf '%{NAME}-%{VERSION}-%{RELEASE} %{SIGPGP:pgpsig} %{SIGGPG:pgpsig}\n' -p <rpm_file>
+key=$(rpm -q --qf '%{NAME}-%{VERSION}-%{RELEASE} %{SIGPGP:pgpsig} %{SIGGPG:pgpsig}\n' -p <rpm_file> \
+    | awk '{ print $(NF-1) }' | rev | cut -c1-8 | rev)
+rpm -qa gpg-pubkey* | grep $key
+```
+
+## storage
+
+### multipath
+
+``` shell
+multipath -ll
+3600d023100049aaa714c80f5169c0158 dm-0 IFT,DS 1000 Series
+size=1000G features='2 queue_if_no_path retain_attached_hw_handler' hwhandler='1 alua' wp=rw
+`-+- policy='service-time 0' prio=50 status=active
+  |- 1:0:0:0 sda 8:0  active ready running
+  `- 1:0:3:0 sdb 8:16 active ready running
+
+```
+
+
+### health
+
+`smartctl -a <device>`
+
+### lvm
+
+
+
+## filesystems
+
+### btrfs
+
+``` shell
+btrfs subvolume list -p <path> # list subvolumes
+btrfs subvolume delete -i <subvol_id> <path> # remove subvolume
+
+btrfs device usage <path> # underlying block device and usage info
+
+btrfs-convert [-l <label>] <block_device> # convert eg. ext4 into btrfs
+btrfs-convert -r <block_device>           # rollback, files in btrfs will be lost!
+
+systemctl list-units -t timer --no-legend btrfs\* # list btrfs maintenance units
+egrep -v '^(\s*#|$)' /etc/sysconfig/btrfsmaintenance # SUSE btrfs maintenance conf
+```
+
+``` shell
+mount -o subvol=[<subvol_name> | <subvol_id>] <storage_dev> /<path>
+
+
+```
+
+#### disable copy-on-write (cow)
+
+> A subvolume may contain files that constantly change, such as
+> virtualized disk images, database files, or log files. If so,
+> consider disabling the copy-on-write feature for this volume, to
+> avoid duplication of disk blocks.
+
+``` shell
+grep '\bbtrfs\b.*nodatacow' /etc/fstab # check if cow disabled in /etc/fstab
+lsattr -d /var                         # check if cow disabled via attributes
+```
+
+#### snapper
+
+automatically triggered btrfs snapshots
+
+``` shell
+snapper list
+```
+
+### nfs
+
+
+## systemd
+
+### commands
+
+``` shell
+systemctl get-default # default target, similar to runlevel
+systemctl set-default <target> # set default target
+systemctl --failed # as --state=failed
+systemctl list-units --type=service --state=running
+systemctl daemon-reload # after configuration change
+systemctl mask <unit> # prevents unit start, even manually or as dep
+systemctl cat <unit> # shows unit files content as they are on the disk
+systemctl status <unit>
+
+systemctl --no-legend list-unit-files | \
+    awk '$2 == "enabled" { print $1 }' | sort # list enabled units
+```
+
+### unit files location
+
+* `/usr/local/lib/systemd/system` for system units installed by the
+  administrator, outside of the distribution package manager
+* `/etc/systemd/system` system units *created* by the administrator
+
+### override units via drop-in files
+
+`/etc/systemd/system/<unit>.d/override.conf` or via `systemctl edit <unit>`
+
+For unit types **different** than *oneshot* `ExecStart` must be cleared.
+
+``` shell
+systemctl show -p Type sshd
+Type=notify
+
+cat > /etc/systemd/system/sshd.service.d/override.conf <<EOF
+[Service]
+ExecStart=
+ExecStart=/usr/sbin/sshd -p 2222 -p 22 -D $SSHD_OPTS
+EOF
+
+systemctl daemon-reload
+systemctl restart sshd
+```
+
+### rescue, repair
+
+* single-user like mode
+
+`systemd.unit=rescue.target` as kernel boot param
+
+* emergency
+
+`systemd.unit=emergency.target` as kernel boot param
+
+Other tips:
+
+* `systemd.mask=swap.target`         # on SUSE
+* `system.device_wants_unit=off`     # on SUSE
+* `system.mask=dev-system-swap.swap` # on SUSE
+* `systemctl list-units --type=swap`
+* `systemd-escape -p --suffix=swap /dev/system/swap # returns 'dev-system-swap.swap'
+
+## journald
+
+``` shell
+journalctl -k # kernel messages
+journalctl -u sshd
+journalctl _SYSTEMD_UNIT=sshd
+journalctl /usr/lib/postfix/bin/cleanup # specific binary
+journalctl --list-boots #
+journalctl -b # messages since current boot
+
+journalctl --since now -f # `tail -f` journald alternative
+journalctl --since <start_time> --until <end_time> # xxxx-xx-xx yy:yy:yy
+
+journalctl _SYSTEMD_UNIT=sshd + _UID=1000
+
+journalctl -o verbose -u sshd # details about message
+```
+
+## mdraid
+
+``` shell
+readlink -f /dev/md/* # all mdraid device names
+mdadm -D /dev/<mddev> # details
+cat /proc/mdstat      # basic details
+mdadm --examine <physical_device>
+
+echo check > /sys/block/<mddev>/md/sync_action # trigger resync
+
+mdadm /dev/<mddev> --fail <realdev> # make realdev failed to be removed later
+mdadm /dev/<mddev> --remove <realdev> # remove realdev from mdraid
+
+mdadm --stop /dev/<mddev>                 # stop array
+mdadm --zero-superblock <physical_device> # remove metadata
+```
+
+*MDADM_MAIL* variable in `/etc/sysconfig/mdadm` and activation of
+`mdmonitor.service` unit to get mail notifications (on SLES).
+
+## SUSE
+
+### registration
+
+``` shell
+SUSEConnect -r <activation_key> -e <email>
+```
+
+### packages via zypper
+
+#### repos
+
+``` shell
+zypper lr # list repos
+zypper lr -d <repo> # details about a repo
+zypper mr -e <repo>
+zypper mr -e --all # enable all repos
+```
+
+#### patterns
+
+``` shell
+zypper pt
+zypper in -t pattern <pattern_name>
+
+```
+
+``` shell
+zypper search --provides --type package -x view
+```
+
+#### packages
+
+``` shell
+zypper rm -u <package> # removes package and all deps
+zypper se --provides -x /usr/bin/gnat # search package owning path
+```
+
+#### patches
+
+``` shell
+zypper lp
+zypper pchk
+```
+
+### networking
+
+``` shell
+echo 'default <ip> - -' > /etc/sysconfig/network/routes
+cat > /etc/sysconfig/network/ifcfg-eth0 <<EOF
+IPADDR='<ip/mask>'
+BOOTPROTO='static'
+STARTMODE='auto'
+EOF
+```
+
+## firewall
+
+### iptables
+
+#### iptables replace rule
+
+```
+# iptables --line-numbers -nL FORWARD 33
+33   ACCEPT     all  --  10.64.0.0/10         10.64.0.252
+# iptables -R FORWARD 33 -s 10.64.0/15 -d 10.64.0.252 -j ACCEPT
+```
+
+### firewalld
+
+``` shell
+firewall-cmd --state
+firewall-cmd --get-active-zones
+firewall-cmd --get-default-zone
+```
+
+``` shell
+firewall-cmd --reload # reload from permanent configuration
+
+```
+
+## backup
+
+### borg
+
+``` shell
+borg -V        # on remote machine
+mkdir ~/backup # on remote machine
+```
+``` shell
+borg -V
+
+BORG_REPO="ssh://backup.home.arpa/./backup"
+BORG_RSH="ssh -o BatchMode=yes -o Compression=no"
+BORG_RSH+=" -o Ciphers=aes128-ctr -o MACs=umac-64-etm@openssh.com" # better use ssh_config
+export BORG_REPO BORG_RSH
+
+borg init
+borg info
+
+cat > ${HOME}/.config/borg/home_patternfile <<EOF
+exclude_dir
+EOF
+
+borg create -stats \
+    --list \
+    --info \
+    --progress \
+    --show-rc \
+    --patterns-from ${HOME}/.config/borg/home_patternfile \
+    --exclude-caches \
+    "::home-{now:%Y%m%d%H%M%SZ}" \
+    /home
+
+borg list --last 1
+borg info ::$(borg list --last 1 | awk '{ print $1 }')
+```
+
+``` shell
+borg list ::$(borg list --last 1 | awk '{ print $1 }') <path>
+borg extract --strip-components <digit> ::$(borg list --last 1 | awk '{ print $1 }') <path>
+```
+
+## development
+
+### git
+
+#### SSH
+
+If one uses different SSH keys for various projects (which are hosted
+on same remote host and use same remote username,
+ie. `$HOME/.ssh/config` setting won't work), one could use
+`GIT_SSH_COMMAND` environment variable.
+
+This is especially useful for initial `git clone`.
+
+``` shell
+GIT_SSH_COMMAND="ssh -i <keyfile>" git clone <user>@<server>:project/repo.github
+grep ssh .git/confg                           # no SSH settings configured
+git config core.sshCommand "ssh -i <keyfile>" # set SSH settings per repo
+```
+
+#### submodules
+
+``` shell
+git clone <repo_url>
+# after initial cloning, repo does not have submodules
+grep path .gitmodules ; [[ -z $(ls -A <submodule_path) ]] && \
+    echo empty || echo exists
+        path = <submodule_path>
+empty
+git submodule init
+git submodule update
+[[ -z $(ls -A <submodule_path>) ]] && echo empty || echo exists
+exists
+```
+
+## graphics
+
+### ImageMagick
+
+convert a specific page of a PDF into eg. PNG
+
+``` shell
+convert 'file.pdf[0]' \
+    -density 600 \
+    -background white \
+    -alpha remove \
+    -resize 100% \
+    -compress zip +adjoin
+    /tmp/file.png
+```
+
+ImageMagick policy blocking action with PDF files.
+
+``` shell
+convert: attempt to perform an operation not allowed by the security policy `PDF' @ error/constitute.c/IsCoderAuthoriz
+ed/422.
+```
+
+Update `polixy.xml`.
+
+``` shell
+xmllint --xpath '/policymap/policy[@pattern="PDF"]' /etc/ImageMagick-7/policy.xml
+<policy xmlns="" domain="coder" rights="read | write" pattern="PDF"/>
+```
+
+## clusters
+
+### pacemaker/corosync
+
+#### terminology
+
+- *RTO* - recovery time objective, target time to recover normal
+  activities after a failure
+- *RPO* - recovery point objective, amount of data that can be lost
+- *node* - member of a cluster
+- *ccm* - consensus cluster membership, determination of cluster members
+  and sharing this information
+- *quorum* - majority (eg. 50% + 1) defines a cluster partition has
+  quorum (is "quorate")
+- *epoch* - version of cluste metadata
+- *split brain* - competing cluster "groups" that do not know about each
+  other
+- *fencing* - prevention of access to shared resource, eg. via STONITH
+
+- *resources*, anything managed by cluster (eg. IP, service,
+  filesystems...), defined in CIB, use RA scripts, active/passive or
+  active/active
+
+- *primitive resource* - single instance on one node
+- *group resource* - group of one or more privitive resources as a
+  single entity, managed as whole, order is important!
+- *clone resource* - resources running simultaneously on multiple nodes at the same time
+  - *anonymous clone* - exactly the same primitive runs on each node
+  - *globally unique clone* - distinct primitives run on each node, unique identity (eg. unique IP)
+- *multi-state resource* - special clone resource, active or passive,
+  promote/demote for active/passive
+
+
+#### architecture
+
+- *corosync* - messaging and membership layer (can replicate data across cluster?)
+- *pacemaker* - cluster resource manager, CRM, part of resource allocation layer, `crmd` is main process
+- *CIB* - cluster information base, configuration, current status,
+  pacemaker, part of resource allocation layer; shared copy of state, versioned
+- *DC* - designated coordinator, member managing the master copy of
+  the *CIB*, so-called master node, communicate changes of the CIB
+  copy to other nodes via CRM
+- *PE* - policy engine, running on DC, the brain of the cluster,
+  monitors CIB and calculates changes required to align with desired
+  state, informs CRM
+- *LRM* - local resource manager, instructed from CRM what to do
+- *RA* - resource agent, logic to start/stop/monitor a resource,
+  called from LRM and return values are passed to the CRM, ideally
+  OCF, LSB, systemd service units or STONITH
+- *OCF* - open cluster framework, standardized resource agents
+- *STONITH* - "shoot the other node in the head", fencing resource
+  agent, eg. via IPMI…
+- *DLM* - distributed lock manager, cluster wide locking (`ocf:pacemaker:controld`)
+- *CLVM* - cluster logical volume manager, `lvmlockd`, protects LVM
+  metadata on shared storage
+
+#### management
+
+by default *root* and *haclient* group members can manage cluster
+
+``` shell
+crm_mon # general overview, part of pacemaker
+crm_mon [-n | --group-by-node ]
+crm_mon -nforA # incl. fail, counts, operations...
+cibadmin [-Q | --query] # expert xml administration, part of pacemaker
+```
+
+``` shell
+crm
+crm status # similar to *crm_mon*, part of crmsh
+
+crm resource # interactive shell for resources
+crm configure [edit] # configuration edit via editor
+                     # do not forget commit changes!
+crm move     # careful, creates constraints
+crm resource constraints <resource> # show resource constraints
+```
+
+``` shell
+crm cluster property maintenance-mode=true # global cluster property, no modulesonitoring
+```
+
+``` shell
+corosync-cfgtool -R # tell all nodes to reload corosync config
+```
+
+and web-based hawk (suse) *7630/tcp*
+
+##### order constraints
+
+```
+crm configure edit
+
+< order <id> Mandatory: <resource>:<status> <resource>:<action>
+
+# an example
+
+crm configure edit
+
+< order o-mariadb_before_webserver Mandatory: g-mariadb:start g-webserver:start
+```
+
+##### location constraints
+
+```
+crm configure edit
+
+< location <id> <resource> <infinity>: [<node> | <resource>:<state>]
+
+# an example
+
+crm configure edit
+
+< location l-mariadb_pref_node1 g-mariadb 100: node1
+
+# an example of never collocate
+
+crm configure edit
+
+< location l-mariadb_never_with_webserver -inf: g-mariadb:Started g-webserver:Started
+```
+
+##### acls
+
+- same users and userids on all nodes
+- users must be in *haclient* user group
+- users need to have rights to run `/usr/bin/crm`
+
+##### troubleshooting
+
+logs must be gathered from all nodes
+
+``` shell
+hb_report -f <start_time> <filename> # tarball with information
+hb_report -f $(date --rfc-3339=date) # ./YYYY-MM-DD.tar.bz2
+```
+
+``` shell
+crm cluster health | tee output
+```
+
+resource action failure increases *failcount* on a node
+
+``` shell
+crm resource failcount <resource> show <node>
+
+crm resource failcount <resource> delete <node> # reset
+crm resource cleanup <resource> <node>          # same stuff
+```
+
+``` shell
+crm_simulate -x <pe_file> -S # what was going on during life of cluster
+```
+
+simulating a cluster network failure via iptables:
+https://www.suse.com/support/kb/doc/?id=000018699
+
+##### backup
+
+``` shell
+crm configure show > <backup_file> # remove node specific stuff
+
+# something like this
+crm configure show | \
+  perl -pe 's/\\\n/ /' | \
+  perl -ne 'print unless m/^property cib-bootstrap-options:/' | \
+  perl -pe 's/ {2,}/ \\\n    /g'
+
+cibadmin -E --force # remove cluster configuration
+crm configure < <backup_file>
+```
+
+#### resource agents
+
+``` shell
+crm ra classes # list RA classes
+```
+
+hack to print ocf-based RA required paramenters and other stuff
+
+```
+/usr/lib/ocf/resource.d/linbit/drbd meta-data | \
+  xmllint --xpath '//*/parameter[@required="1"]' -
+<parameter name="drbd_resource" unique="1" required="1">
+<longdesc lang="en">
+The name of the drbd resource from the drbd.conf file.
+</longdesc>
+<shortdesc lang="en">drbd resource name</shortdesc>
+<content type="string"/>
+</parameter>
+
+/usr/lib/ocf/resource.d/linbit/drbd meta-data | \
+  xmllint --xpath '//*/actions/action[@name="monitor"]' -
+<action name="monitor" timeout="20" interval="20" role="Slave"/>
+<action name="monitor" timeout="20" interval="10" role="Master"/>
+```
+
+``` shell
+crm resource [trace | untrace] <resource>
+```
+
+tracing logs in `/var/lib/heartbeat/trace_ra` (SUSE), filenames as
+`<resource>.<action>.<date>`.
+
+#### fencing
+
+``` shell
+crm node fence <node>
+```
+
+``` shell
+stonith_admin -L
+```
+
+##### sbd
+
+*SBD* - storage based death aka STONITH block device
+
+*SBD_STARTMODE=clean* in `/etc/sysconfig/sdb` (SUSE) to prevent
+starting cluster if non-clean state exists on SBD
+
+``` shell
+sbd -d <block_dev> message <node> test # testing communication
+sbd -d <block_dev> list                # query
+
+> <ide> <node> <message> <source of message>
+
+sbd -d <block_dev> message <node> clear # clear sbd state for a node, restart pacemaker!
+```
+
+### csync2
+
+file syncronization, `/etc/csync2/csync2.cfg`, *30865/tcp*, key-based authentication
+
+``` shell
+systemctl cat csync2.socket # at suse
+[Socket]
+ListenStream=30865
+Accept=yes
+
+[Install]
+WantedBy=sockets.target
+```
+
+``` shell
+csync2 -xv
+```
+
+### drbd
+
+*distributed block device*, ie. replicated local block device over
+network, by default *7789/tcp* and above (till *7799/tcp*) is used.
+
+configs `/etc/drbd.{conf,d/}`
+
+``` shell
+drbdadm [create | up | status] <resource>
+drbdadm new-current-uuid --clear-bitmap <resource>/0
+```
+
+#### drbd in cluster
+
+RA is in *drbd-utils* package on SUSE
+
+```
+primitive p-drbd_<resource> ocf:linbit:drbd \
+  params drbd_resource=<drbd_resource> \
+  op monitor interval=15 role=Master \
+  op monitor interval=30 role=Slave
+
+ms ms-drbd_<resource> \
+  meta master-max=1 \
+    master-node-max=1 \
+    clone-max=2 \
+    clone-node-max=1 \
+    notify=true
+```
+
+…but that is, of course, just the basic of whole cluster setup.
+
+## GRUB
+
+### commands
+
+``` shell
+set # list all set variables
+lsmod
+insmod <module>
+
+```
+
+## coreboot
+
+https://doc.coreboot.org/tutorial/part1.html
+
+``` shell
+git clone <repo>
+make help_toolchain
+make crossgcc-<arch> # wait for looong time
+make -C payloads/coreinfo olddefconfig
+make -C payloads/coreinfo
+make menuconfig    # increase ROM size if needed
+make savedefconfig
+make
+```
+
+## gtk
+
+### file-chrooser
+
+``` shell
+dconf write /org/gtk/settings/file-chooser/sort-directories-first true # dirs first
+cat  ~/.config/gtk-3.0/bookmarks # output: file://<absolute_path> <label>
+```
+
+## desktop
+
+### kernel modules
+
+``` shell
+echo "blacklist pcspkr" > /etc/modprobe.d/bell.conf
+rmmod pcspkr
+```
+
+### systemd stuff
+
+``` shell
+mkdir /etc/systemd/logind.conf.d
+echo 'HandleLidSwitch=ignore' >> \
+  /etc/systemd/logind.conf.d/lid.conf
+systemctl restart systemd-logind # does not work on SUSE
+```
+
+### default apps
+
+``` shell
+xdg-mime query filetype <file>     # returns mime type
+xdg-mime query default <mime_type> # returns desktop file
+```
+
+## printing
+
+### cups
+
+``` shell
+lpstat -p -d              # list printers and default one
+lpoptions -d <printer>    # set default printer
+lpoptions -l -p <printer> # list printer options
+
+lpstat -l -e | grep <printer> # show connection to a printer
+
+lp [-d <printer>] <file>   # print a file
+lpr [-P <printer>] <file>  # print a file
+
+grep 'Printer' /sys/bus/usb/devices/*/* 2>/dev/null # list usb printers
+udevadm info -p <sysfs_path>                        # show properties of usb device
+grep -rH '' /sys/bus/usb/devices/*/ieee1284_id 2>/dev/null # IEEE 1284 info
+```
+See http://www.undocprint.org/formats/communication_protocols/ieee_1284
+See https://www.cups.org/doc/options.html
