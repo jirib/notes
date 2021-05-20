@@ -34,6 +34,17 @@ rpm -qa gpg-pubkey* | grep $key
 
 ## storage
 
+``` shell
+cat /sys/block/<dev>/queue/hw_sector_size
+cat /sys/block/<dev>/{queue/{scheduler,add_random,rq_affinity},device/timeout} # some tunning values
+```
+
+### udev
+
+``` shell
+udevadm info -q property -n <dev> # info about a device
+```
+
 ### multipath
 
 ``` shell
@@ -46,6 +57,23 @@ size=1000G features='2 queue_if_no_path retain_attached_hw_handler' hwhandler='1
 
 ```
 
+explanation for above lines:
+
+- `3600d023100049aaa714c80f5169c0158 dm-0 IFT,DS 1000 Series`
+  `wwwid sysfs-name vendor,product`
+- `size=1000G features='2 queue_if_no_path retain_attached_hw_handler' hwhandler='1 alua' wp=rw`
+  `size=<value> features='<number> <values comma separated>' hwhandler='0|1 <value> wp=<value of write permissions if know>`
+
+- *hardware handler* - is a kernel module that performs
+  hardware-specific actions when switching path groups and dealing
+  with I/O errors; `1|0 driver`
+  *alua* - defines a standard set of SCSI commands for discovering path priorities to LUNs on SANs
+  ``` shell
+  udevadm info -q property -n <dev> | grep TPG
+  sg_rtpg -vvd <dev> 2>/dev/null | grep 'asymmetric access state'
+  ```
+
+https://www.learnitguide.net/2016/06/understand-multipath-command-output.html
 
 ### health
 
