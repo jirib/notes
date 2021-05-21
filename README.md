@@ -9,7 +9,7 @@
 ## kernel
 
 ``` shell
-echo "blacklist pcspkr" > /etc/modprobe.d/bell.conf
+echo "blacklist pcspkr" > /etc/modprobe.d/bell.conf # blacklist a module
 rmmod pcspkr
 ```
 
@@ -31,7 +31,7 @@ grep -H '' /sys/module/iwlwifi/parameters/* # a module parameters
 /sys/module/iwlwifi/parameters/swcrypto:0
 /sys/module/iwlwifi/parameters/uapsd_disable:3
 
-systool -vm iwlwifi | awk '/^\s*Parameters:/{p=1}/^ *$/{p=0}p'
+systool -vm iwlwifi | awk '/^\s*Parameters:/{p=1}/^ *$/{p=0}p' # a module params
   Parameters:
     11n_disable         = "0"
     amsdu_size          = "0"
@@ -53,10 +53,16 @@ systool -vm iwlwifi | awk '/^\s*Parameters:/{p=1}/^ *$/{p=0}p'
 ### dracut
 
 ``` shell
+lsinitrd [<initrd_file>] # list initrd content
+lsinitrd -f <file> [<initrd_file>] # display content of a file in initrd
+```
+
+``` shell
 man dracut.conf
 ```
 
-`omit_dracutmodules+=" <dracut module> " to omit a module, see `/usr/lib/dracut/modules.d`.
+`omit_dracutmodules+=" <dracut module> "` to omit a module, see
+`/usr/lib/dracut/modules.d`.
 
 ### /proc
 
@@ -75,6 +81,9 @@ rpm -qa gpg-pubkey* | grep $key
 ```
 
 ## storage
+
+*GPT* - GRUB booting from GPT requires *BIOS boot partition* (ef02) on
+BIOS systems or *EFI system partition* (ef00) on EFI systems.
 
 ``` shell
 cat /sys/block/<dev>/queue/hw_sector_size
@@ -123,7 +132,14 @@ https://www.learnitguide.net/2016/06/understand-multipath-command-output.html
 
 ### lvm
 
-
+``` shell
+pvs -o +pv_used                               # show spage used in PVs
+pvmove /dev/<pv>                              # moving data from PV to other PV
+pvmove -n </dev/<vg>/<lv> /dev/<pv> /dev/<pv> # moving extents of to other PV
+vgreduce <vg> <unused_pv>                     # removing a PV from VG
+pvremove <unused_pv>
+pvs -o help # list of options
+```
 
 ## filesystems
 
@@ -268,10 +284,36 @@ mdadm --stop /dev/<mddev>                 # stop array
 mdadm --zero-superblock <physical_device> # remove metadata
 ```
 
+``` shell
+# creating a mirror with only one disk (eg. for a migration)
+mdadm --create /dev/mv/<name> --level=mirror --raid-devices=2 <realdev> missing # name will be symlink
+echo 'CREATE names=yes' > /etc/mdadm.conf # careful!
+madadm --detail --scan >> /etc/mdadm.conf
+
+mdadm /dev/md/<name> --add <real_dev> # add disk to array
+watch -n 1 cat /proc/mdstat # watch recovery
+```
+
+``` shell
+mdadm --monitor -d 1800 -m root@localhost --scan -c /etc/mdadm.conf # manually starting monitor
+```
+
+but on various distros *udev* would call `mdmonitor.service` when
+putting an array online
+
+``` shell
+grep -Rh mdmonitor.service /usr/lib/udev/rules.d # udev starting monitoring of array
+ENV{MD_LEVEL}=="raid[1-9]*", ENV{SYSTEMD_WANTS}+="mdmonitor.service"
+```
+
 *MDADM_MAIL* variable in `/etc/sysconfig/mdadm` and activation of
 `mdmonitor.service` unit to get mail notifications (on SLES).
 
 ## SUSE
+
+### installation
+
+*linuxrc* is *init* instead of *systemd*
 
 ### registration
 
@@ -739,6 +781,13 @@ ms ms-drbd_<resource> \
 …but that is, of course, just the basic of whole cluster setup.
 
 ## GRUB
+
+`/etc/default/grub_installdevice` is used in various distros (SLES) by
+tools to install GRUB on boot disk.
+
+``` shell
+grub2-install -v <boot_device>
+```
 
 ### commands
 
