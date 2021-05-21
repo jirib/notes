@@ -8,6 +8,48 @@
 
 ## kernel
 
+``` shell
+echo "blacklist pcspkr" > /etc/modprobe.d/bell.conf
+rmmod pcspkr
+```
+
+``` shell
+grep -H '' /sys/module/iwlwifi/parameters/* # a module parameters
+/sys/module/iwlwifi/parameters/11n_disable:0
+/sys/module/iwlwifi/parameters/amsdu_size:0
+/sys/module/iwlwifi/parameters/bt_coex_active:Y
+/sys/module/iwlwifi/parameters/debug:0
+/sys/module/iwlwifi/parameters/disable_11ac:N
+/sys/module/iwlwifi/parameters/disable_11ax:N
+/sys/module/iwlwifi/parameters/enable_ini:Y
+/sys/module/iwlwifi/parameters/fw_restart:Y
+/sys/module/iwlwifi/parameters/led_mode:0
+/sys/module/iwlwifi/parameters/nvm_file:(null)
+/sys/module/iwlwifi/parameters/power_level:0
+/sys/module/iwlwifi/parameters/power_save:N
+/sys/module/iwlwifi/parameters/remove_when_gone:N
+/sys/module/iwlwifi/parameters/swcrypto:0
+/sys/module/iwlwifi/parameters/uapsd_disable:3
+
+systool -vm iwlwifi | awk '/^\s*Parameters:/{p=1}/^ *$/{p=0}p'
+  Parameters:
+    11n_disable         = "0"
+    amsdu_size          = "0"
+    bt_coex_active      = "Y"
+    debug               = "0"
+    disable_11ac        = "N"
+    disable_11ax        = "N"
+    enable_ini          = "Y"
+    fw_restart          = "Y"
+    led_mode            = "0"
+    nvm_file            = "(null)"
+    power_level         = "0"
+    power_save          = "N"
+    remove_when_gone    = "N"
+    swcrypto            = "0"
+    uapsd_disable       = "3"
+```
+
 ### dracut
 
 ``` shell
@@ -733,12 +775,30 @@ cat  ~/.config/gtk-3.0/bookmarks # output: file://<absolute_path> <label>
 
 ## desktop
 
-### kernel modules
+### pulseaudio
 
 ``` shell
-echo "blacklist pcspkr" > /etc/modprobe.d/bell.conf
-rmmod pcspkr
+pactl list sinks | egrep '(^(Sink)|\s+(State|Name|Description|Driver):)'
+Sink #0
+        State: RUNNING
+        Name: alsa_output.usb-Lenovo_ThinkPad_USB-C_Dock_Gen2_USB_Audio_000000000000-00.analog-stereo
+        Description: ThinkPad USB-C Dock Gen2 USB Audio Analog Stereo
+        Driver: module-alsa-card.c
+Sink #1
+        State: SUSPENDED
+        Name: alsa_output.usb-Logitech_Logitech_Wireless_Headset_4473D65FB53E-00.analog-stereo
+        Description: H600 [Wireless Headset] Analog Stereo
+        Driver: module-alsa-card.c
+Sink #2
+        State: SUSPENDED
+        Name: alsa_output.pci-0000_06_00.6.HiFi__hw_Generic_1__sink
+        Description: Family 17h (Models 10h-1fh) HD Audio Controller Speaker + Headphones
+        Driver: module-alsa-card.c
 ```
+
+### kernel modules
+
+
 
 ### systemd stuff
 
