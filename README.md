@@ -69,6 +69,15 @@ man dracut.conf
 https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html
 
 
+## virtualization
+
+### qemu
+
+``` shell
+qemu-nbd --connect=/dev/nbd0 <qemu_image> # connect eg. a qcow2 image
+qemu-nbd -d /dev/nbd0
+```
+
 ## rpm
 
 ``` shell
@@ -89,12 +98,76 @@ BIOS systems or *EFI system partition* (ef00) on EFI systems.
 cat /sys/block/<dev>/queue/hw_sector_size
 cat /sys/block/<dev>/{queue/{scheduler,add_random,rq_affinity},device/timeout} # some tunning values
 ```
-
 ### udev
 
 ``` shell
 udevadm info -q property -n <dev> # info about a device
 ```
+
+### iscsi
+
+- *initiator*, an originating end of SCSI connection (eg. iSCSI client)
+- *iqn*, iSCSI qualified name
+- *target*, a receiving end of SCSI connection (eg. iSCSI server)
+- *portal*, (network) portal, combination of SCSI endpoint with IP and
+  TCP port (on a target)
+- *tpg*, target port group, combination of IP and TCP port of a target
+- *CHAP*, protocol used to negotiate authentication (does not send
+  plain-text secret!)
+
+#### initiator
+
+``` shell
+lsmod | grep iscsi
+```
+
+##### discovery
+
+``` shell
+# libiscsi-utils
+iscsi-ls iscsi://<ip>[:port]             # discover targets
+iscsi-ls --show-luns iscsi://<ip>[:port]
+```
+
+``` shell
+# open-iscsi
+iscsiadm -m discovery -p <ip>[:port] -t [sendtargets|st] # discovery
+
+```
+
+##### node
+
+operations related to node (initiator)
+
+``` shell
+iscsiadm -m node -T <target> [-p <ip>[:port]] -o new # add new record to node db,
+                                                     # ie. if not already known by discovery
+iscsiadm -m node -l [-T <target>]                    # login to all or specific node entry
+```
+
+``` shell
+iscsiadm -m node # node records
+> <ip:port>,<tpg_number> <iqn>
+
+iscsiadm -m node -T <target> # details about a node record
+iscsiadm -m node -T <target> -n node.startup -v automatic -o update # auto-enable iscsi lun
+```
+
+``` shell
+iscsiadm -m node -u [-T <target>] # logout from all or specific node entry
+iscsiadm -m node -T <target> -o delete # remote an entry from node db
+```
+
+##### session
+
+``` shell
+iscsiadm -m session [-P 3] # list initiator session
+udevadm info -q property -n /dev/<scsi_lun>
+```
+
+#### target
+
+
 
 ### multipath
 
@@ -125,6 +198,24 @@ explanation for above lines:
   ```
 
 https://www.learnitguide.net/2016/06/understand-multipath-command-output.html
+
+multipath issue in logs
+
+```
+May 24 18:22:24 t14s kernel: sd 0:0:0:1: alua: port group 00 state A non-preferred supports TOlUSNA
+May 24 18:25:41 t14s kernel:  connection7:0: ping timeout of 5 secs expired, recv timeout 5, last rx 4495125049, last ping 4495126336, now 4495127616
+May 24 18:25:41 t14s kernel:  connection7:0: detected conn error (1022)
+May 24 18:25:41 t14s kernel: sd 1:0:0:1: [sdb] tag#4 FAILED Result: hostbyte=DID_TRANSPORT_DISRUPTED driverbyte=DRIVER_OK cmd_age=7s
+May 24 18:25:41 t14s kernel: sd 1:0:0:1: [sdb] tag#4 CDB: Test Unit Ready 00 00 00 00 00 00
+...
+May 24 18:25:46 t14s multipathd[21267]: 36001405fbcc04a11155470eac0f2ff53: sdb - tur checker reports path is down
+May 24 18:25:46 t14s multipathd[21267]: checker failed path 8:16 in map 36001405fbcc04a11155470eac0f2ff53
+May 24 18:25:46 t14s multipathd[21267]: 36001405fbcc04a11155470eac0f2ff53: remaining active paths: 1
+May 24 18:25:46 t14s kernel:  session7: session recovery timed out after 5 secs
+May 24 18:25:46 t14s kernel: sd 1:0:0:1: rejecting I/O to offline device
+May 24 18:25:46 t14s kernel: device-mapper: multipath: 254:9: Failing path 8:16.
+
+```
 
 ### health
 
@@ -175,6 +266,45 @@ mount -o subvol=[<subvol_name> | <subvol_id>] <storage_dev> /<path>
 grep '\bbtrfs\b.*nodatacow' /etc/fstab # check if cow disabled in /etc/fstab
 lsattr -d /var                         # check if cow disabled via attributes
 ```
+
+### nfs
+
+On SUSE `/usr/sbin/rpc.nfsd` reads `/etc/nfs.conf` which loads
+`/etc/sysconfig/nfs`.
+
+``` shell
+# usually nfsv3 commands
+rpcbind -p   # list registered services in rpcbind
+showmount -e # list remote exports
+```
+
+Firewalling NFS needs special handling (mostly because many daemons/ports for NFSv3).
+
+``` shell
+# SUSE
+egrep -v '^(\s*#| *$)' /etc/sysconfig/nfs | egrep '_(TCP|UDP)*PORT'
+MOUNTD_PORT="20048"
+STATD_PORT="33081"
+LOCKD_TCPPORT="38287"
+LOCKD_UDPPORT="36508"
+```
+
+#### nfsv4
+
+- *NFSv4* does NOT require `rpcbind`, no longer requirement of separate
+  TCP callback connection (ie. server does not need to contact the
+  client directly by itself); mounting and locking protocols are part
+  of NFSv4
+- in-kernel *nfsd* listening on 2049/{tcp,udp}
+
+info about NFSv4-only setup https://www.suse.com/support/kb/doc/?id=000019530
+
+#### nfsv3
+
+- *NFSv3* does require `rpcbind` (previously `portmapper`) and has
+  couple of separate processes (rpc.mountd, prpc.statd), in-kernel
+  *lockd* thread (nlockmgr) which require special firewall handling
+- *autofs* requires NFSv3 daemons for operation
 
 #### snapper
 
@@ -310,6 +440,21 @@ ENV{MD_LEVEL}=="raid[1-9]*", ENV{SYSTEMD_WANTS}+="mdmonitor.service"
 `mdmonitor.service` unit to get mail notifications (on SLES).
 
 ## SUSE
+
+### support
+
+- latest *SP* (service pack), 6 monts to update to latest SP after it
+  has been released
+- latest updates in older SP if *LTTS* (long term technical support),
+  LTTS adds 3 years period of support of an old SP end of general
+  support date
+- *Extended Service Pack Support* (ESPOS), LTTS-kind 3.5 yr support
+  bounded to a specific product release (eg. SLES for SAP 12 SP5
+- *LV1*, problem determination, troubleshooting based on documentation
+- *LV2*, problem isolation, analysis, reproduction
+- *LV3*, problem resolution, engineering engagement, resolution of
+  defects reported by LV2
+- *PTF*, Program Temporary Fixes
 
 ### installation
 
@@ -472,6 +617,12 @@ exists
 
 ## graphics
 
+### ghostscript
+
+``` shell
+ps2pdf -dPDFSETTINGS=/ebook <orig_pdf> <new_pdf> # shrink size of a pdf
+```
+z
 ### ImageMagick
 
 convert a specific page of a PDF into eg. PNG
@@ -844,10 +995,6 @@ Sink #2
         Description: Family 17h (Models 10h-1fh) HD Audio Controller Speaker + Headphones
         Driver: module-alsa-card.c
 ```
-
-### kernel modules
-
-
 
 ### systemd stuff
 
