@@ -240,7 +240,10 @@ pvs -o help # list of options
 btrfs subvolume list -p <path> # list subvolumes
 btrfs subvolume delete -i <subvol_id> <path> # remove subvolume
 
-btrfs device usage <path> # underlying block device and usage info
+btrfs device usage <path>    # underlying block device and usage info
+
+btrfs filesystem show <path> # usage info
+btrfs filesystem balance start
 
 btrfs-convert [-l <label>] <block_device> # convert eg. ext4 into btrfs
 btrfs-convert -r <block_device>           # rollback, files in btrfs will be lost!
@@ -251,8 +254,6 @@ egrep -v '^(\s*#|$)' /etc/sysconfig/btrfsmaintenance # SUSE btrfs maintenance co
 
 ``` shell
 mount -o subvol=[<subvol_name> | <subvol_id>] <storage_dev> /<path>
-
-
 ```
 
 #### disable copy-on-write (cow)
@@ -306,6 +307,12 @@ info about NFSv4-only setup https://www.suse.com/support/kb/doc/?id=000019530
   *lockd* thread (nlockmgr) which require special firewall handling
 - *autofs* requires NFSv3 daemons for operation
 
+#### troubleshooting
+
+``` shell
+grep -RH '' /proc/fs/nfsd/ 2>/dev/null
+```
+
 #### snapper
 
 automatically triggered btrfs snapshots
@@ -313,9 +320,6 @@ automatically triggered btrfs snapshots
 ``` shell
 snapper list
 ```
-
-### nfs
-
 
 ## systemd
 
@@ -971,6 +975,39 @@ make
 ``` shell
 dconf write /org/gtk/settings/file-chooser/sort-directories-first true # dirs first
 cat  ~/.config/gtk-3.0/bookmarks # output: file://<absolute_path> <label>
+```
+
+## networking
+
+### http(s) proxy
+
+``` shell
+pip install --user proxy.py
+openssl req -x509 -newkey rsa:4096 -keyout key.pem -out cert.pem -days 365 -nodes
+proxy --hostname 127.0.0.1 --port 8080 --key-file key.pem --cert-file cert.pem --log-level DEBUG
+```
+
+``` shell
+curl --proxy-insecure --proxy https://127.0.0.1:8080 http://api.ipify.org
+*   Trying 127.0.0.1:8080...
+* Connected to 127.0.0.1 (127.0.0.1) port 8080 (#0)
+* TLSv1.3 (OUT), TLS handshake, Client hello (1):
+* TLSv1.3 (IN), TLS handshake, Server hello (2):
+* TLSv1.3 (IN), TLS handshake, Encrypted Extensions (8):
+* TLSv1.3 (IN), TLS handshake, Certificate (11):
+* TLSv1.3 (IN), TLS handshake, CERT verify (15):
+* TLSv1.3 (IN), TLS handshake, Finished (20):
+* TLSv1.3 (OUT), TLS change cipher, Change cipher spec (1):
+* TLSv1.3 (OUT), TLS handshake, Finished (20):
+* SSL connection using TLSv1.3 / TLS_AES_256_GCM_SHA384
+* Proxy certificate:
+*  subject: C=AU; ST=Some-State; O=Internet Widgits Pty Ltd
+*  start date: May 25 10:00:18 2021 GMT
+*  expire date: May 25 10:00:18 2022 GMT
+*  issuer: C=AU; ST=Some-State; O=Internet Widgits Pty Ltd
+*  SSL certificate verify result: self signed certificate (18), continuing anyway.
+> GET http://api.ipify.org/ HTTP/1.1
+...
 ```
 
 ## desktop
