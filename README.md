@@ -327,6 +327,34 @@ hang.
 grep -RH '' /proc/fs/nfsd/ 2>/dev/null
 ```
 
+``` shell
+rpcdebug -m <module> # status of debugging; 'nfs' (client), 'nfsd' (server)
+rpcdebug -m <module> -s   # enable debugging for module
+rpcdebug -m <module> -c   # disable debugging for module
+```
+
+example:
+
+``` shell
+rpcdebug -m nfs -s # enable client debugging
+> May 26 13:10:04 t14s kernel: nfs: server 192.168.1.2 not responding, timed out
+> ...
+> May 26 13:10:55 t14s kernel: nfs: server 192.168.1.2 not responding, timed out
+> May 26 13:10:55 t14s kernel: nfs41_sequence_process: Error 1 free the slot
+> May 26 13:10:55 t14s kernel: nfs4_free_slot: slotid 8 highest_used_slotid 16
+> May 26 13:10:55 t14s kernel: nfs41_sequence_call_done ERROR -110
+> May 26 13:10:55 t14s kernel: nfs4_schedule_lease_recovery: scheduling lease recovery for server 192.168.1.2
+> May 26 13:10:55 t14s kernel: nfs41_sequence_call_done rpc_cred 00000000984b403b
+> May 26 13:10:55 t14s kernel: <-- nfs41_sequence_call_done
+> May 26 13:10:55 t14s kernel: nfs4_schedule_state_renewal: requeueing work. Lease period = 5
+> May 26 13:11:00 t14s kernel: nfs4_renew_state: start
+> May 26 13:11:00 t14s kernel: <-- nfs41_proc_async_sequence status=0
+> May 26 13:11:00 t14s kernel: nfs4_renew_state: done
+> May 26 13:11:00 t14s kernel: --> nfs4_alloc_slot used_slots=1feff highest_used=16 max_slots=30
+> May 26 13:11:00 t14s kernel: <-- nfs4_alloc_slot used_slots=1ffff highest_used=16 slotid=8
+> May 26 13:11:00 t14s kernel: encode_sequence: sessionid=1622022536:2419640730:1:0 seqid=1 slotid=8 max_slotid=16 cache_this=0
+```
+
 #### snapper
 
 automatically triggered btrfs snapshots
