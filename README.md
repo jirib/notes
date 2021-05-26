@@ -279,6 +279,10 @@ rpcbind -p   # list registered services in rpcbind
 showmount -e # list remote exports
 ```
 
+``` shell
+exportfs -s # see exports
+```
+
 Firewalling NFS needs special handling (mostly because many daemons/ports for NFSv3).
 
 ``` shell
@@ -306,6 +310,16 @@ info about NFSv4-only setup https://www.suse.com/support/kb/doc/?id=000019530
   couple of separate processes (rpc.mountd, prpc.statd), in-kernel
   *lockd* thread (nlockmgr) which require special firewall handling
 - *autofs* requires NFSv3 daemons for operation
+
+`rpc.mountd` registers every successful mount request of clients into
+`/var/lib/nfs/rmtab`. If a client doesn't unmount a NFS filesystem
+before shutting down, there would be salve inforation in `rmtab`.
+
+when a NFS server shuts down/reboots, `rpc.mountd` consults `rmtab`
+and notifies clients that the server is to be
+shutdown/rebooted. out-of-date `rmtab` does not cause shutdown to
+hang.
+
 
 #### troubleshooting
 
@@ -788,7 +802,8 @@ crm configure edit
 logs must be gathered from all nodes
 
 ``` shell
-hb_report -f <start_time> <filename> # tarball with information
+hb_report -f <start_time> <filename> # tarball with information,
+                                     # run on each node separately!
 hb_report -f $(date --rfc-3339=date) # ./YYYY-MM-DD.tar.bz2
 ```
 
