@@ -324,6 +324,9 @@ hang.
 #### troubleshooting
 
 ``` shell
+grep -RH '^address: ' /proc/fs/nfsd/clients/*/info # list clients
+cat /var/lib/nfs/rpc_pipefs/nfsd4_cb/clnt*/info    # more brief info
+
 grep -RH '' /proc/fs/nfsd/ 2>/dev/null
 ```
 
@@ -336,23 +339,30 @@ rpcdebug -m <module> -c   # disable debugging for module
 example:
 
 ``` shell
-rpcdebug -m nfs -s # enable client debugging
-> May 26 13:10:04 t14s kernel: nfs: server 192.168.1.2 not responding, timed out
-> ...
-> May 26 13:10:55 t14s kernel: nfs: server 192.168.1.2 not responding, timed out
-> May 26 13:10:55 t14s kernel: nfs41_sequence_process: Error 1 free the slot
-> May 26 13:10:55 t14s kernel: nfs4_free_slot: slotid 8 highest_used_slotid 16
-> May 26 13:10:55 t14s kernel: nfs41_sequence_call_done ERROR -110
-> May 26 13:10:55 t14s kernel: nfs4_schedule_lease_recovery: scheduling lease recovery for server 192.168.1.2
-> May 26 13:10:55 t14s kernel: nfs41_sequence_call_done rpc_cred 00000000984b403b
-> May 26 13:10:55 t14s kernel: <-- nfs41_sequence_call_done
-> May 26 13:10:55 t14s kernel: nfs4_schedule_state_renewal: requeueing work. Lease period = 5
-> May 26 13:11:00 t14s kernel: nfs4_renew_state: start
-> May 26 13:11:00 t14s kernel: <-- nfs41_proc_async_sequence status=0
-> May 26 13:11:00 t14s kernel: nfs4_renew_state: done
-> May 26 13:11:00 t14s kernel: --> nfs4_alloc_slot used_slots=1feff highest_used=16 max_slots=30
-> May 26 13:11:00 t14s kernel: <-- nfs4_alloc_slot used_slots=1ffff highest_used=16 slotid=8
-> May 26 13:11:00 t14s kernel: encode_sequence: sessionid=1622022536:2419640730:1:0 seqid=1 slotid=8 max_slotid=16 cache_this=0
+# sles 15 sp2 recovers when NFSv4 server gets rebooted
+
+rpcdebug -m nfs -s -v # enable client debugging
+
+> May 26 15:06:55 localhost kernel: nfs4_renew_state: start
+> May 26 15:06:55 localhost kernel: nfs4_renew_state: done
+> May 26 15:06:55 localhost kernel: nfs4_schedule_lease_recovery: scheduling lease recovery for server 192.168.1.2
+> May 26 15:06:55 localhost kernel: nfs4_schedule_state_renewal: requeueing work. Lease period = 5
+> May 26 15:06:55 localhost kernel: nfs4_recovery_handle_error: failed to handle error -13 for server 192.168.1.2
+> May 26 15:06:55 localhost kernel: NFS: state manager: check lease failed on NFSv4 server 192.168.1.2 with error 13
+> May 26 15:07:00 localhost kernel: nfs4_renew_state: start
+> May 26 15:07:00 localhost kernel: nfs4_renew_state: done
+> May 26 15:07:00 localhost kernel: nfs4_schedule_lease_recovery: scheduling lease recovery for server 192.168.1.2
+> May 26 15:07:00 localhost kernel: nfs4_schedule_state_renewal: requeueing work. Lease period = 5
+> May 26 15:07:00 localhost kernel: nfs4_recovery_handle_error: handled error -10022 for server 192.168.1.2
+> May 26 15:07:00 localhost kernel: NFS call  setclientid auth=UNIX, 'Linux NFSv4.0 localhost/192.168.1.2'
+> May 26 15:07:00 localhost kernel: NFS reply setclientid: 0
+> May 26 15:07:00 localhost kernel: NFS call  setclientid_confirm auth=UNIX, (client ID d547ae6045ec2dbd)
+> May 26 15:07:00 localhost kernel: NFS reply setclientid_confirm: 0
+> May 26 15:07:00 localhost kernel: --> nfs4_get_lease_time_prepare
+> May 26 15:07:00 localhost kernel: --> nfs4_alloc_slot used_slots=0000 highest_used=4294967295 max_slots=1024
+> May 26 15:07:00 localhost kernel: <-- nfs4_alloc_slot used_slots=0001 highest_used=0 slotid=0
+> May 26 15:07:00 localhost kernel: <-- nfs4_get_lease_time_prepare
+...
 ```
 
 #### snapper
@@ -775,8 +785,33 @@ crm move     # careful, creates constraints
 crm resource constraints <resource> # show resource constraints
 ```
 
+maintenances
+
+- *maintenance mode* - global cluster property, no resource
+  monitoring, no action on resource state change
+- *node maintenance* - monitoring operations will cease for the node,
+  no action on node state change
+- *resource maintenace* - no monitoring of a resource, useful for
+  changes in resource without cluster interference
+- *is-managed* mode - like resource maintenace mode except cluster
+  still monitors resource, reports any failures but does not do any
+  action
+- *stanby* node mode - a node cannot run resource
+
 ``` shell
-crm cluster property maintenance-mode=true # global cluster property, no modulesonitoring
+crm cluster property maintenance-mode=<true|false> # global maintenance
+
+crm node maintenance <node> # node maintenance start
+crm node ready <node>       # node maintenance stop
+
+crm resource meta <resource> set maintenace true  # resource maintenance start
+crm resource meta <resource> set maintenace false # resource maintenance stop
+
+crm resource maintenance <on|off> # ???
+crm resource <manage|unmanage> <resource> # set/unsets is-managed mode, ie. *unmanaged*
+
+crm node standby <node> # put node into standby mode (moving away resources)
+crm node online <node> # put node online to allow hosting resources
 ```
 
 ``` shell
@@ -855,7 +890,7 @@ crm_simulate -x <pe_file> -S # what was going on during life of cluster
 simulating a cluster network failure via iptables:
 https://www.suse.com/support/kb/doc/?id=000018699
 
-##### backup
+##### backup and restore
 
 ``` shell
 crm configure show > <backup_file> # remove node specific stuff
