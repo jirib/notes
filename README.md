@@ -833,6 +833,7 @@ for ((i=0; i < ${#ips[@]}; i++)); do
         nodeid: $((i + 1 ))
     }
   EOF
+done
 
 # closing config
 echo '}' >> /etc/corosync/corosync.conf
