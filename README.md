@@ -783,13 +783,14 @@ xmllint --xpath '/policymap/policy[@pattern="PDF"]' /etc/ImageMagick-7/policy.xm
 ``` shell
 corosync-keygen # create authkey on first node and distribute to others
 
-cat > /etc/corosync/corosync.conf <<EOF
+# jinja template
+cat > /tmp/corosync.j2 <<EOF
 totem {
     version: 2
     secauth: on
     crypto_hash: sha256
     crypto_cipher: aes256
-    cluster_name: hacluster
+    cluster_name: {{ cluster_name | default('hacluster') }}
     token: 5000
     token_retransmits_before_loss_const: 10
     join: 60
@@ -821,24 +822,29 @@ quorum {
     two_node: 0
 }
 nodelist {
+{%- for ip in ips %}
+    node {
+        ring0_addr: {{ ip }}
+        nodeid: {{ loop.index }}
+    }
+{%- endfor %}
+}
 EOF
 
-ips=(192.168.122.{189..191}) # range of ips
+pip3 install --user jinja2                # install jinja template system
 
-# add hosts section
-for ((i=0; i < ${#ips[@]}; i++)); do
-  cat >> /etc/corosync/corosync.conf <<-EOF
-    node {
-        ring0_addr: 192.168.122.${ips[$i]}
-        nodeid: $((i + 1 ))
-    }
-  EOF
-done
+export IPS=$(echo 192.168.122.{189..191}) # export IPS env variable
 
-# closing config
-echo '}' >> /etc/corosync/corosync.conf
+# generate config to stdout
+python3 -c 'import os; \
+  import sys; \
+  from jinja2 import Template; \
+  ips=os.environ["IPS"].split(); \
+  data=sys.stdin.read(); \
+  t = Template(data); \
+  print(t.render(ips=ips))' < /tmp/envsubst.j2
 
-# distribute above config to all nodes!
+# DO NOT FORGET to distribute above config to all nodes!
 
 systemctl start corosync # on all nodes
 
