@@ -848,8 +848,10 @@ corosync-cmapctl runtime.totem.pg.mrp.srp.members # list members and state
 corosync-quorumtool -l # list nodes
 corosync-quorumtool -s # show quorum status of corosync ring
 
-systemctl start pacemaker
-corosync-cpgtool # see if pacemaker is known to corosync
+systemctl start pacemaker # on all nodes
+corosync-cpgtool          # see if pacemaker is known to corosync
+
+crm_mon -1 # show cluster status
 ```
 
 
