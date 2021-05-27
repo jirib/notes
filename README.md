@@ -78,6 +78,20 @@ qemu-nbd --connect=/dev/nbd0 <qemu_image> # connect eg. a qcow2 image
 qemu-nbd -d /dev/nbd0
 ```
 
+### libvirt
+
+#### virsh
+
+``` shell
+virsh vol-create-as <pool> <new_vol> <size>G --format <new_format> \
+  --backing-vol <backing_vol> --backing-vol-format <old_format>      # create vol based on a template
+
+virsh define <(virsh dumpxml <template> | \
+  sed -e '/uuid/d' \
+    -e 's/template/ha-01/g' \
+    -e 's/\(52:54:00:64:3e\):16/\1:01/')     # create vm based on template vm
+```
+
 ## rpm
 
 ``` shell
@@ -739,7 +753,6 @@ xmllint --xpath '/policymap/policy[@pattern="PDF"]' /etc/ImageMagick-7/policy.xm
 - *multi-state resource* - special clone resource, active or passive,
   promote/demote for active/passive
 
-
 #### architecture
 
 - *corosync* - messaging and membership layer (can replicate data across cluster?)
@@ -763,9 +776,88 @@ xmllint --xpath '/policymap/policy[@pattern="PDF"]' /etc/ImageMagick-7/policy.xm
 - *CLVM* - cluster logical volume manager, `lvmlockd`, protects LVM
   metadata on shared storage
 
+#### setup
+
+*a three node cluster*
+
+``` shell
+corosync-keygen # create authkey on first node and distribute to others
+
+cat > /etc/corosync/corosync.conf <<EOF
+totem {
+    version: 2
+    secauth: on
+    crypto_hash: sha256
+    crypto_cipher: aes256
+    cluster_name: hacluster
+    token: 5000
+    token_retransmits_before_loss_const: 10
+    join: 60
+    consensus: 6000
+    max_messages: 20
+    interface {
+        ringnumber: 0
+        mcastport:   5405
+        ttl: 1
+    }
+    transport: udpu
+}
+logging {
+    fileline: off
+    to_stderr: no
+    to_logfile: no
+    logfile: /var/log/cluster/corosync.log
+    to_syslog: yes
+    debug: off
+    timestamp: on
+    logger_subsys {
+        subsys: QUORUM
+        debug: off
+    }
+}
+quorum {
+    provider: corosync_votequorum
+    expected_votes: 1
+    two_node: 0
+}
+nodelist {
+EOF
+
+ips=(192.168.122.{189..191}) # range of ips
+
+# add hosts section
+for ((i=0; i < ${#ips[@]}; i++)); do
+  cat >> /etc/corosync/corosync.conf <<-EOF
+    node {
+        ring0_addr: 192.168.122.${ips[$i]}
+        nodeid: $((i + 1 ))
+    }
+  EOF
+
+# closing config
+echo '}' >> /etc/corosync/corosync.conf
+
+# distribute above config to all nodes!
+
+systemctl start corosync # on all nodes
+
+corosync-cmapctl nodelist.node'                   # list corosync nodes
+corosync-cmapctl runtime.totem.pg.mrp.srp.members # list members and state
+
+corosync-quorumtool -l # list nodes
+corosync-quorumtool -s # show quorum status of corosync ring
+
+systemctl start pacemaker
+corosync-cpgtool # see if pacemaker is known to corosync
+```
+
+
 #### management
 
-by default *root* and *haclient* group members can manage cluster
+- by default *root* and *haclient* group members can manage cluster
+- some `crm` actions require SSH working between nodes, either
+  passwordless root or via a user configured with `crm options user
+  <user>` (then it requires passwordless `sudoers` rule)
 
 ``` shell
 crm_mon # general overview, part of pacemaker
@@ -785,7 +877,11 @@ crm move     # careful, creates constraints
 crm resource constraints <resource> # show resource constraints
 ```
 
-maintenances
+``` shell
+corosync-cfgtool -R # tell all nodes to reload corosync config
+```
+
+#### maintenances
 
 - *maintenance mode* - global cluster property, no resource
   monitoring, no action on resource state change
@@ -796,7 +892,7 @@ maintenances
 - *is-managed* mode - like resource maintenace mode except cluster
   still monitors resource, reports any failures but does not do any
   action
-- *stanby* node mode - a node cannot run resource
+- *standby* node mode - a node cannot run resource
 
 ``` shell
 crm cluster property maintenance-mode=<true|false> # global maintenance
@@ -807,16 +903,28 @@ crm node ready <node>       # node maintenance stop
 crm resource meta <resource> set maintenace true  # resource maintenance start
 crm resource meta <resource> set maintenace false # resource maintenance stop
 
-crm resource maintenance <on|off> # ???
+crm resource maintenance <on|off> # (un)sets meta maintenance attribute
 crm resource <manage|unmanage> <resource> # set/unsets is-managed mode, ie. *unmanaged*
 
 crm node standby <node> # put node into standby mode (moving away resources)
 crm node online <node> # put node online to allow hosting resources
 ```
 
+##### reboot node scenario
+
+node in *standby mode*
+
 ``` shell
-corosync-cfgtool -R # tell all nodes to reload corosync config
+crm -w node standby # on the node to be rebooted
+crm status          # search for 'Node <node>: standby'
+crm cluster stop    # stopping cluster services
+reboot
+
+crm cluster status  # check cluster services have started
+crm cluster start
+crm cluster status
 ```
+
 
 and web-based hawk (suse) *7630/tcp*
 
