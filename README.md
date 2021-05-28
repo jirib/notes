@@ -862,6 +862,8 @@ corosync-quorumtool -l # list nodes
 corosync-quorumtool -s # show quorum status of corosync ring
 ```
 
+pacemaker part...
+
 ``` shell
 systemctl start pacemaker # on all nodes
 corosync-cpgtool          # see if pacemaker is known to corosync
@@ -874,7 +876,11 @@ cibadmin -Q -o nodes      # list nodes in pacemaker
 cibadmin -Q -o crm_config # list cluster options configuration in pacemaker
 crm_verify -LV            # check configuration used by cluster, verbose
                           # can show important info
+```
 
+fencing part...
+
+``` shell
 stonith_admin -L          # no fence device configured yet
 
 crm configure property stonith-enabled=false \
@@ -888,19 +894,37 @@ crm cib new <shadow_cib>  # creates /var/lib/pacemaker/cib/shadow.<shadow_cib>
 
 # create fencing devices for nodes
 for i in {1..3} ; do
-  crm -c fencing configure \
+  crm -c <shadow_cib> configure \
     primitive stonith-<node>-${i} stonith:fence_virsh \
       params ssh=true ip=<libvirt_host> username=<username> \
       identity_file=<ssh_private_key> plug=<vm/domain>-${i} \
       action=off
 done
 
-# ???
-# set location contains
+# in 3-node cluster each fencing device needs to run twice
+# thus clone resource is needed
 for i in {1..3} ; do
-  crm -c fencing configure \
-    location l-stonith-<node>-${i} stonith-<node>-${i} -inf: <node>-${i}
+  crm -c <shadow_cib> configure \
+    clone c-stonith-<node>${i} stonith-<node>${i} \
+    meta clone-node-max=1 clone-max=2 notify=true
 done
+
+# ensure closed fencing device resources are started on right nodes
+for i in {1..3} ; do
+  crm -c <shadow_cib> configure \
+    location l-c-stonith-<node>${i} c-stonith-<node>${i} -inf: <node>${i}
+done
+
+# reenable stonith again
+crm -c <shadow_cib> configure property stonith-enabled=true
+
+# simulate current configuration
+crm -c <shadow_cib> cib cibstatus simulate
+
+# import shadow cib into cluster
+crm cib commit <shadow_cib>
+
+crm_mon -nforA1 # show cluster configuration with fencing
 ```
 
 #### management
@@ -948,7 +972,7 @@ corosync-cfgtool -R # tell all nodes to reload corosync config
 - *standby* node mode - a node cannot run resource
 
 ``` shell
-crm cluster property maintenance-mode=<true|false> # global maintenance
+crm configure property maintenance-mode=<true|false> # global maintenance
 
 crm node maintenance <node> # node maintenance start
 crm node ready <node>       # node maintenance stop
