@@ -834,9 +834,10 @@ nodelist {
 {%- endfor %}
 }
 EOF
-
 pip3 install --user jinja2                # install jinja template system
+```
 
+``` shell
 export ips=$(echo 192.168.122.{189..191}) # export ips env variable
 export cluster_name=clustertest           # export cluster_name env variable
 
@@ -847,9 +848,11 @@ python3 -c 'import os; \
   data=sys.stdin.read(); \
   t = Template(data); \
   print(t.render(os=os))' < /tmp/envsubst.j2
+```
 
-# DO NOT FORGET to distribute above config to all nodes!
+Do NOT forget to distribute `corosync.conf` to all nodes!
 
+``` shell
 systemctl start corosync # on all nodes
 
 corosync-cmapctl nodelist.node                    # list corosync nodes
@@ -857,13 +860,48 @@ corosync-cmapctl runtime.totem.pg.mrp.srp.members # list members and state
 
 corosync-quorumtool -l # list nodes
 corosync-quorumtool -s # show quorum status of corosync ring
+```
 
+``` shell
 systemctl start pacemaker # on all nodes
 corosync-cpgtool          # see if pacemaker is known to corosync
 
 crm_mon -1 # show cluster status
 ```
 
+``` shell
+cibadmin -Q -o nodes      # list nodes in pacemaker
+cibadmin -Q -o crm_config # list cluster options configuration in pacemaker
+crm_verify -LV            # check configuration used by cluster, verbose
+                          # can show important info
+
+stonith_admin -L          # no fence device configured yet
+
+crm configure property stonith-enabled=false \
+  property no-quorum-policy=ignore             # temporarily disabling fencing
+                                               # and quorum check until cluster is ready
+crm_verify -LV            # configuration check does not show warnings about fencing
+
+# first try with shadow CIB (configuration)
+
+crm cib new <shadow_cib>  # creates /var/lib/pacemaker/cib/shadow.<shadow_cib>
+
+# create fencing devices for nodes
+for i in {1..3} ; do
+  crm -c fencing configure \
+    primitive stonith-<node>-${i} stonith:fence_virsh \
+      params ssh=true ip=<libvirt_host> username=<username> \
+      identity_file=<ssh_private_key> plug=<vm/domain>-${i} \
+      action=off
+done
+
+# ???
+# set location contains
+for i in {1..3} ; do
+  crm -c fencing configure \
+    location l-stonith-<node>-${i} stonith-<node>-${i} -inf: <node>-${i}
+done
+```
 
 #### management
 
@@ -881,7 +919,9 @@ cibadmin [-Q | --query] # expert xml administration, part of pacemaker
 
 ``` shell
 crm
-crm status # similar to *crm_mon*, part of crmsh
+crm help <topic>    # generic syntax for help
+crm status          # similar to *crm_mon*, part of crmsh
+crm resource status # show status of resources
 
 crm resource # interactive shell for resources
 crm configure [edit] # configuration edit via editor
@@ -1030,6 +1070,9 @@ crm configure < <backup_file>
 
 ``` shell
 crm ra classes # list RA classes
+crm ra list ocf # list ocf RA class resources
+crm ra list ocf <providers> # list ocf:<provider> RAs
+crm ra info [<class>:[<provider>:]]<type> # show RA info and options
 ```
 
 hack to print ocf-based RA required paramenters and other stuff
@@ -1061,8 +1104,30 @@ tracing logs in `/var/lib/heartbeat/trace_ra` (SUSE), filenames as
 #### fencing
 
 ``` shell
-crm node fence <node>
+stonith_admin -L # list registered fencing devices
+stonith_admin -I # list available fencing devices
 ```
+
+stonith device helpers are either programs available as
+`/usr/sbin/fence_<device>`, scripts in
+`/usr/lib64/stonith/plugins/external/` or libs in
+`/usr/lib64/stonith/plugins/stonith2`.
+
+``` shell
+stonith_admin -M -a <fence_device_agent> # show docs
+```
+
+``` shell
+# testing fence_virsh for libvirt VMs
+
+fence_virsh -x -a <libvirt_host> -l <username> \
+  -k <ssh_private_key> -o status -v -n <vm/domain>
+```
+
+crm node fence <node>
+
+
+fence_virsh -a host -l <user> -x -k <ssh_private_key> -o <action> -v -n
 
 ``` shell
 stonith_admin -L
@@ -1268,3 +1333,10 @@ grep -rH '' /sys/bus/usb/devices/*/ieee1284_id 2>/dev/null # IEEE 1284 info
 ```
 See http://www.undocprint.org/formats/communication_protocols/ieee_1284
 See https://www.cups.org/doc/options.html
+
+## shell
+
+``` shell
+echo one two three | xargs -n1 # multiple columns into one
+
+```
