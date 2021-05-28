@@ -248,6 +248,10 @@ pvs -o help # list of options
 
 ## filesystems
 
+``` shell
+mount | column -t # more readable mount output
+```
+
 ### btrfs
 
 ``` shell
@@ -848,7 +852,7 @@ python3 -c 'import os; \
 
 systemctl start corosync # on all nodes
 
-corosync-cmapctl nodelist.node'                   # list corosync nodes
+corosync-cmapctl nodelist.node                    # list corosync nodes
 corosync-cmapctl runtime.totem.pg.mrp.srp.members # list members and state
 
 corosync-quorumtool -l # list nodes
