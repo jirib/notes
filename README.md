@@ -794,7 +794,7 @@ totem {
     secauth: on
     crypto_hash: sha256
     crypto_cipher: aes256
-    cluster_name: {{ cluster_name | default('hacluster') }}
+    cluster_name: {{ os.environ["cluster_name"] | default('hacluster') }}
     token: 5000
     token_retransmits_before_loss_const: 10
     join: 60
@@ -826,7 +826,7 @@ quorum {
     two_node: 0
 }
 nodelist {
-{%- for ip in ips %}
+{%- for ip in os.environ["ips"].split() %}
     node {
         ring0_addr: {{ ip }}
         nodeid: {{ loop.index }}
@@ -837,16 +837,16 @@ EOF
 
 pip3 install --user jinja2                # install jinja template system
 
-export IPS=$(echo 192.168.122.{189..191}) # export IPS env variable
+export ips=$(echo 192.168.122.{189..191}) # export ips env variable
+export cluster_name=clustertest           # export cluster_name env variable
 
-# generate config to stdout
+# generate config and print to stdout
 python3 -c 'import os; \
   import sys; \
   from jinja2 import Template; \
-  ips=os.environ["IPS"].split(); \
   data=sys.stdin.read(); \
   t = Template(data); \
-  print(t.render(ips=ips))' < /tmp/envsubst.j2
+  print(t.render(os=os))' < /tmp/envsubst.j2
 
 # DO NOT FORGET to distribute above config to all nodes!
 
