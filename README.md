@@ -782,6 +782,88 @@ xmllint --xpath '/policymap/policy[@pattern="PDF"]' /etc/ImageMagick-7/policy.xm
 
 #### setup
 
+*a two node cluster*
+
+``` shell
+corosync-keygen # create authkey on first node and distribute to others
+
+# jinja template
+cat > /tmp/corosync.j2 <<EOF
+totem {
+    version: 2
+    secauth: on
+    crypto_hash: sha256
+    crypto_cipher: aes256
+    cluster_name: {{ os.environ["cluster_name"] | default('hacluster') }}
+    token: 5000
+    token_retransmits_before_loss_const: 10
+    join: 60
+    consensus: 6000
+    max_messages: 20
+    interface {
+        ringnumber: 0
+        mcastport:   5405
+        ttl: 1
+    }
+    transport: udpu
+}
+logging {
+    fileline: off
+    to_stderr: no
+    to_logfile: no
+    logfile: /var/log/cluster/corosync.log
+    to_syslog: yes
+    debug: off
+    timestamp: on
+    logger_subsys {
+        subsys: QUORUM
+        debug: off
+    }
+}
+quorum {
+    provider: corosync_votequorum
+    two_node: 1
+}
+nodelist {
+{%- for ip in os.environ["ips"].split() %}
+    node {
+        ring0_addr: {{ ip }}
+        nodeid: {{ loop.index }}
+    }
+{%- endfor %}
+}
+EOF
+pip3 install --user jinja2                # install jinja template system
+```
+
+``` shell
+export ips=$(echo 192.168.122.{189..190}) # export ips env variable
+
+# generate config and print to stdout
+python3 -c 'import os; \
+  import sys; \
+  from jinja2 import Template; \
+  data=sys.stdin.read(); \
+  t = Template(data); \
+  print(t.render(os=os))' < /tmp/envsubst.j2
+```
+
+``` shell
+lsmod | egrep "(w|dog)"                            # check for watchdog kernel modules
+modprobe softdog                                   # load kernel module
+echo '<module> /etc/modules-load.d/watchdog.conf # add module to auto-load
+systemctl restart systemd-modules-load             # ...
+ls -l /dev/watchdog*                               # check watchdog devices
+sbd query-watchdog                                 # check if sbd finds watcdog devices
+sbd -w <watchdog_device> test-watchdog             # test if reset via watchdog works,
+                                                   # this RESETS node!
+
+sbd -d /dev/<shared_lun> create                    # prepares shared lun for SBD
+sbd -d /dev/<shared_lun> dump                      # info about SBD
+
+
+```
+
 *a three node cluster*
 
 ``` shell
@@ -969,7 +1051,8 @@ corosync-cfgtool -R # tell all nodes to reload corosync config
 - *is-managed* mode - like resource maintenace mode except cluster
   still monitors resource, reports any failures but does not do any
   action
-- *standby* node mode - a node cannot run resource
+- *standby* node mode - a node cannot run resources but still
+  participates in quorum decisions
 
 ``` shell
 crm configure property maintenance-mode=<true|false> # global maintenance
@@ -985,6 +1068,17 @@ crm resource <manage|unmanage> <resource> # set/unsets is-managed mode, ie. *unm
 
 crm node standby <node> # put node into standby mode (moving away resources)
 crm node online <node> # put node online to allow hosting resources
+```
+
+##### update service resource example
+
+``` shell
+crm resource ban <service_resource> <node> # prevent resource from running on the node
+                                           # where service resouce is going to be updated,
+                                           # moves resource out of node
+...
+crm resource clear <service_resource>      # ...
+...
 ```
 
 ##### reboot node scenario
