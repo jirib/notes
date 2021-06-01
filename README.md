@@ -784,210 +784,28 @@ xmllint --xpath '/policymap/policy[@pattern="PDF"]' /etc/ImageMagick-7/policy.xm
 
 #### setup
 
-*a two node cluster*
+See a [two node cluster example](two_node_cluster.md).
+
+#### management
+
+- by default *root* and *haclient* group members can manage cluster
+- some `crm` actions require SSH working between nodes, either
+  passwordless root or via a user configured with `crm options user
+  <user>` (then it requires passwordless `sudoers` rule)
+
+##### corosync
 
 ``` shell
-corosync-keygen # create authkey on first node and distribute to others
-
-# jinja template
-cat > /tmp/corosync.j2 <<EOF
-totem {
-    version: 2
-    secauth: on
-    crypto_hash: sha256
-    crypto_cipher: aes256
-    cluster_name: {{ os.environ["cluster_name"] | default('hacluster') }}
-    token: 5000
-    token_retransmits_before_loss_const: 10
-    join: 60
-    consensus: 6000
-    max_messages: 20
-    interface {
-        ringnumber: 0
-        mcastport:   5405
-        ttl: 1
-    }
-    transport: udpu
-}
-logging {
-    fileline: off
-    to_stderr: no
-    to_logfile: no
-    logfile: /var/log/cluster/corosync.log
-    to_syslog: yes
-    debug: off
-    timestamp: on
-    logger_subsys {
-        subsys: QUORUM
-        debug: off
-    }
-}
-quorum {
-    provider: corosync_votequorum
-    two_node: 1
-}
-nodelist {
-{%- for ip in os.environ["ips"].split() %}
-    node {
-        ring0_addr: {{ ip }}
-        nodeid: {{ loop.index }}
-    }
-{%- endfor %}
-}
-EOF
-pip3 install --user jinja2                # install jinja template system
-```
-
-``` shell
-export ips=$(echo 192.168.122.{189..190}) # export ips env variable
-
-# generate config and print to stdout
-python3 -c 'import os; \
-  import sys; \
-  from jinja2 import Template; \
-  data=sys.stdin.read(); \
-  t = Template(data); \
-  print(t.render(os=os))' < /tmp/envsubst.j2
-```
-
-``` shell
-# using iSCSI shared lun
-
-iscsiadm -m discovery -t st -p <portal>[:port]     # discover targets
-iscsiadm -m node -T <target> -l                    # login to the target
-```
-
-tune *[iSCSI
-timeouts](https://www.suse.com/c/implmenting-mpio-over-iscsi-considerations-common-issues-and-clustering-concerns/)*
-for cluster
-
-``` shell
-iscsiadm -m node -T <target> -o update \
-  -n node.session.timeo.replacement_timeout -v 5   # update replacement value
-for i in node,conn[0].timeo.noop_out_{interval,timeout}; do
-  iscsiadm -m node -T <target> -o update \
-  -n ${i} -v 2                                     # update noop values
-```
-
-``` shell
-lsmod | egrep "(w|dog)"                            # check for watchdog kernel modules
-modprobe softdog                                   # load kernel module
-echo '<module> /etc/modules-load.d/watchdog.conf # add module to auto-load
-systemctl restart systemd-modules-load             # ...
-ls -l /dev/watchdog*                               # check watchdog devices
-
-sed 's/^#*\(SBD_DEVICE\)=.*/\1="<shared_lun>"/' \
-  /etc/sysconfig/sbd                               # device sbd device
-
-sbd query-watchdog                                 # check if sbd finds watcdog devices
-sbd -w <watchdog_device> test-watchdog             # test if reset via watchdog works,
-                                                   # this RESETS node!
-
-sbd -d /dev/<shared_lun> create                    # prepares shared lun for SBD
-sbd -d /dev/<shared_lun> dump                      # info about SBD
-
-systemctl enable sbd                               # MUST be enabled, creates dependency
-                                                   # on cluster stack services
-systemctl list-dependencies sbd --reverse --all    # check sbd is part of cluster stack
-
-sbd -d /dev/<shared_lun> list                      # list nodes slots and messages
-
-# to make following tests work, sbd has to be running (as part of corosync)
-sbd -d /dev/<shared_lun>  message <node> test      # node's sbd would log the test
-
-crm configure primitive stonith-sbd stonith:external/sbd \
-  params pcmk_delay_max=30                         # add fencing device resource,
-                                                   # do not forget pcmk_delay_max force
-                                                   # two node cluster!
-crm configure property stonith-timeout=<value>     # stonith-timeout >= sbd's msgwait + 20%,
-                                                   # only on resource, no cloning!
-```
-
-
-
-
-
-*a three node cluster*
-
-``` shell
-corosync-keygen # create authkey on first node and distribute to others
-
-# jinja template
-cat > /tmp/corosync.j2 <<EOF
-totem {
-    version: 2
-    secauth: on
-    crypto_hash: sha256
-    crypto_cipher: aes256
-    cluster_name: {{ os.environ["cluster_name"] | default('hacluster') }}
-    token: 5000
-    token_retransmits_before_loss_const: 10
-    join: 60
-    consensus: 6000
-    max_messages: 20
-    interface {
-        ringnumber: 0
-        mcastport:   5405
-        ttl: 1
-    }
-    transport: udpu
-}
-logging {
-    fileline: off
-    to_stderr: no
-    to_logfile: no
-    logfile: /var/log/cluster/corosync.log
-    to_syslog: yes
-    debug: off
-    timestamp: on
-    logger_subsys {
-        subsys: QUORUM
-        debug: off
-    }
-}
-quorum {
-    provider: corosync_votequorum
-    expected_votes: 1
-    two_node: 0
-}
-nodelist {
-{%- for ip in os.environ["ips"].split() %}
-    node {
-        ring0_addr: {{ ip }}
-        nodeid: {{ loop.index }}
-    }
-{%- endfor %}
-}
-EOF
-pip3 install --user jinja2                # install jinja template system
-```
-
-``` shell
-export ips=$(echo 192.168.122.{189..191}) # export ips env variable
-export cluster_name=clustertest           # export cluster_name env variable
-
-# generate config and print to stdout
-python3 -c 'import os; \
-  import sys; \
-  from jinja2 import Template; \
-  data=sys.stdin.read(); \
-  t = Template(data); \
-  print(t.render(os=os))' < /tmp/envsubst.j2
-```
-
-Do NOT forget to distribute `corosync.conf` to all nodes!
-
-``` shell
-systemctl start corosync # on all nodes
-
 corosync-cmapctl nodelist.node                    # list corosync nodes
 corosync-cmapctl runtime.totem.pg.mrp.srp.members # list members and state
 
 corosync-quorumtool -l # list nodes
 corosync-quorumtool -s # show quorum status of corosync ring
+
+corosync-cfgtool -R # tell all nodes to reload corosync config
 ```
 
-pacemaker part...
+##### pacemaker
 
 ``` shell
 systemctl start pacemaker # on all nodes
@@ -1003,61 +821,7 @@ crm_verify -LV            # check configuration used by cluster, verbose
                           # can show important info
 ```
 
-fencing part...
-
-``` shell
-stonith_admin -L          # no fence device configured yet
-
-crm configure property stonith-enabled=false \
-  property no-quorum-policy=ignore             # temporarily disabling fencing
-                                               # and quorum check until cluster is ready
-crm_verify -LV            # configuration check does not show warnings about fencing
-
-# first try with shadow CIB (configuration)
-
-crm cib new <shadow_cib>  # creates /var/lib/pacemaker/cib/shadow.<shadow_cib>
-
-# create fencing devices for nodes
-for i in {1..3} ; do
-  crm -c <shadow_cib> configure \
-    primitive stonith-<node>-${i} stonith:fence_virsh \
-      params ssh=true ip=<libvirt_host> username=<username> \
-      identity_file=<ssh_private_key> plug=<vm/domain>-${i} \
-      action=off
-done
-
-# in 3-node cluster each fencing device needs to run twice
-# thus clone resource is needed
-for i in {1..3} ; do
-  crm -c <shadow_cib> configure \
-    clone c-stonith-<node>${i} stonith-<node>${i} \
-    meta clone-node-max=1 clone-max=2 notify=true
-done
-
-# ensure closed fencing device resources are started on right nodes
-for i in {1..3} ; do
-  crm -c <shadow_cib> configure \
-    location l-c-stonith-<node>${i} c-stonith-<node>${i} -inf: <node>${i}
-done
-
-# reenable stonith again
-crm -c <shadow_cib> configure property stonith-enabled=true
-
-# simulate current configuration
-crm -c <shadow_cib> cib cibstatus simulate
-
-# import shadow cib into cluster
-crm cib commit <shadow_cib>
-
-crm_mon -nforA1 # show cluster configuration with fencing
-```
-
-#### management
-
-- by default *root* and *haclient* group members can manage cluster
-- some `crm` actions require SSH working between nodes, either
-  passwordless root or via a user configured with `crm options user
-  <user>` (then it requires passwordless `sudoers` rule)
+general cluster mgmt
 
 ``` shell
 crm_mon # general overview, part of pacemaker
@@ -1077,10 +841,6 @@ crm configure [edit] # configuration edit via editor
                      # do not forget commit changes!
 crm move     # careful, creates constraints
 crm resource constraints <resource> # show resource constraints
-```
-
-``` shell
-corosync-cfgtool -R # tell all nodes to reload corosync config
 ```
 
 #### maintenances
@@ -1138,7 +898,6 @@ crm cluster status  # check cluster services have started
 crm cluster start
 crm cluster status
 ```
-
 
 and web-based hawk (suse) *7630/tcp*
 
@@ -1302,10 +1061,21 @@ stonith_admin -L
 starting cluster if non-clean state exists on SBD
 
 ``` shell
-sbd -d <block_dev> message <node> test # testing communication
-sbd -d <block_dev> list                # query
+sbd query-watchdog                                 # check if sbd finds watcdog devices
+sbd -w <watchdog_device> test-watchdog             # test if reset via watchdog works,
+                                                   # this RESETS node!
 
-> <ide> <node> <message> <source of message>
+sbd -d /dev/<shared_lun> create                    # prepares shared lun for SBD
+sbd -d /dev/<shared_lun> dump                      # info about SBD
+
+systemctl enable sbd                               # MUST be enabled, creates dependency
+                                                   # on cluster stack services
+systemctl list-dependencies sbd --reverse --all    # check sbd is part of cluster stack
+
+sbd -d /dev/<shared_lun> list                      # list nodes slots and messages
+
+# to make following tests work, sbd has to be running (as part of corosync)
+sbd -d /dev/<shared_lun>  message <node> test      # node's sbd would log the test
 
 sbd -d <block_dev> message <node> clear # clear sbd state for a node, restart pacemaker!
 ```
