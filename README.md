@@ -407,6 +407,8 @@ systemctl status <unit>
 
 systemctl --no-legend list-unit-files | \
     awk '$2 == "enabled" { print $1 }' | sort # list enabled units
+
+systemctl list-dependencies <unit> --reverse --all # list unit dependency
 ```
 
 ### unit files location
@@ -849,11 +851,34 @@ python3 -c 'import os; \
 ```
 
 ``` shell
+# using iSCSI shared lun
+
+iscsiadm -m discovery -t st -p <portal>[:port]     # discover targets
+iscsiadm -m node -T <target> -l                    # login to the target
+```
+
+tune *[iSCSI
+timeouts](https://www.suse.com/c/implmenting-mpio-over-iscsi-considerations-common-issues-and-clustering-concerns/)*
+for cluster
+
+``` shell
+iscsiadm -m node -T <target> -o update \
+  -n node.session.timeo.replacement_timeout -v 5   # update replacement value
+for i in node,conn[0].timeo.noop_out_{interval,timeout}; do
+  iscsiadm -m node -T <target> -o update \
+  -n ${i} -v 2                                     # update noop values
+```
+
+``` shell
 lsmod | egrep "(w|dog)"                            # check for watchdog kernel modules
 modprobe softdog                                   # load kernel module
 echo '<module> /etc/modules-load.d/watchdog.conf # add module to auto-load
 systemctl restart systemd-modules-load             # ...
 ls -l /dev/watchdog*                               # check watchdog devices
+
+sed 's/^#*\(SBD_DEVICE\)=.*/\1="<shared_lun>"/' \
+  /etc/sysconfig/sbd                               # device sbd device
+
 sbd query-watchdog                                 # check if sbd finds watcdog devices
 sbd -w <watchdog_device> test-watchdog             # test if reset via watchdog works,
                                                    # this RESETS node!
@@ -861,8 +886,26 @@ sbd -w <watchdog_device> test-watchdog             # test if reset via watchdog 
 sbd -d /dev/<shared_lun> create                    # prepares shared lun for SBD
 sbd -d /dev/<shared_lun> dump                      # info about SBD
 
+systemctl enable sbd                               # MUST be enabled, creates dependency
+                                                   # on cluster stack services
+systemctl list-dependencies sbd --reverse --all    # check sbd is part of cluster stack
 
+sbd -d /dev/<shared_lun> list                      # list nodes slots and messages
+
+# to make following tests work, sbd has to be running (as part of corosync)
+sbd -d /dev/<shared_lun>  message <node> test      # node's sbd would log the test
+
+crm configure primitive stonith-sbd stonith:external/sbd \
+  params pcmk_delay_max=30                         # add fencing device resource,
+                                                   # do not forget pcmk_delay_max force
+                                                   # two node cluster!
+crm configure property stonith-timeout=<value>     # stonith-timeout >= sbd's msgwait + 20%,
+                                                   # only on resource, no cloning!
 ```
+
+
+
+
 
 *a three node cluster*
 
