@@ -698,7 +698,7 @@ exists
 ``` shell
 ps2pdf -dPDFSETTINGS=/ebook <orig_pdf> <new_pdf> # shrink size of a pdf
 ```
-z
+
 ### ImageMagick
 
 convert a specific page of a PDF into eg. PNG
