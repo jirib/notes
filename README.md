@@ -50,7 +50,21 @@ systool -vm iwlwifi | awk '/^\s*Parameters:/{p=1}/^ *$/{p=0}p' # a module params
     uapsd_disable       = "3"
 ```
 
-### dracut
+### dracut / initramfs
+
+``` shell
+rpm -ql dracut | egrep 'systemd/dracut-.*\.(service|sh)$' | \
+  grep -v shutdown                                            # dracut initramfs "hooks"
+man 7 dracut.cmdline
+```
+
+useful kernel parameters
+
+```
+rd.break[=<stage>] # either stop before a dracut hook or in switch_root shell,
+                   # ie. latest stage in initramfs before pivot_root is performed
+rd.udev.debug      # tracing of udev actions
+```
 
 ``` shell
 lsinitrd [<initrd_file>] # list initrd content
@@ -91,6 +105,67 @@ virsh define <(virsh dumpxml <template> | \
     -e 's/template/ha-01/g' \
     -e 's/\(52:54:00:64:3e\):16/\1:01/')     # create vm based on template vm
 ```
+
+##### mpio
+
+it seems libvirt allows multipath only on *raw* format disks, thus
+keep that in mind; SLES sets mpio during installation.
+
+```
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='raw' cache='none'/>
+      <source file='<path>' index='2'/>
+      <backingStore/>
+      <target dev='sdb' bus='scsi'/>
+      <shareable/>
+      <serial>1234</serial>
+      <wwn>5000c50015ea71ad</wwn>
+      <boot order='1'/>
+      <alias name='scsi0-0-0-1'/>
+      <address type='drive' controller='0' bus='0' target='0' unit='1'/>
+    </disk>
+    <disk type='file' device='disk'>
+      <driver name='qemu' type='raw' cache='none'/>
+      <source file='<path>' index='1'/>
+      <backingStore/>
+      <target dev='sdc' bus='scsi'/>
+      <shareable/>
+      <serial>1234</serial>
+      <wwn>5000c50015ea71ad</wwn>
+      <alias name='scsi0-0-0-2'/>
+      <address type='drive' controller='0' bus='0' target='0' unit='2'/>
+    </disk>
+    <controller type='scsi' index='0' model='virtio-scsi'>
+      <alias name='scsi0'/>
+      <address type='pci' domain='0x0000' bus='0x00' slot='0x08' function='0x0'/>
+    </controller>
+```
+
+and via "internal" iscsi driver
+
+```
+<disk type="network" device="lun">
+      <driver name="qemu" type="raw" cache="none"/>
+      <source protocol="iscsi" name="<target>/<lun>" index="2">
+        <host name="<ip>" port="<port>"/>
+      </source>
+      <target dev="sdb" bus="scsi"/>
+      <boot order="1"/>
+      <alias name="scsi0-0-0-1"/>
+      <address type="drive" controller="0" bus="0" target="0" unit="1"/>
+    </disk>
+<disk type="network" device="lun">
+      <driver name="qemu" type="raw" cache="none"/>
+      <source protocol="iscsi" name="<taget>/<lun>" index="1">
+        <host name="<ip>" port="<port>"/>
+      </source>
+      <target dev="sdc" bus="scsi"/>
+      <boot order="2"/>
+      <alias name="scsi0-0-0-2"/>
+      <address type="drive" controller="0" bus="0" target="0" unit="2"/>
+    </disk>
+```
+
 
 ## rpm
 
@@ -181,9 +256,39 @@ udevadm info -q property -n /dev/<scsi_lun>
 
 #### target
 
+non-interactive way of `targetcli`
 
+``` shell
+targetcli <path> <command> [<args>]
+```
+
+##### setup
+
+``` shell
+targetcli /iscsi/ create [<target_name>]                            # create target,
+                                                                    # returns target name if not defined
+targetcli /iscsi/<target_name>/tpg1/portals/ create [<ip>] [<port>] # create target and optionally bind to
+                                                                    # specific IP and port
+targetcli /iscsi/<target_name>/tpg1/luns create <backing_object> \
+  [<lun_number>]                                                    # add lun to target portal group
+```
+
+##### targetcli commands examples
+
+``` shell
+targetcli /backstores/fileio/ create sle15sp2-mpath-01-test /home/iscsi/sle15sp2-mpath-01-test.raw
+targetcli /backstores/fileio/sle15sp2-mpath-01-test info
+aio: False
+dev: /home/iscsi/sle15sp2-mpath-01-test.raw
+name: sle15sp2-mpath-01-test
+plugin: fileio
+size: 0
+write_back: True
+wwn: 24869f9a-886f-4180-867e-0704da992c45
+```
 
 ### multipath
+
 
 ``` shell
 multipath -ll
@@ -238,12 +343,24 @@ May 24 18:25:46 t14s kernel: device-mapper: multipath: 254:9: Failing path 8:16.
 ### lvm
 
 ``` shell
+lvmconfig # print current lvm configuration
+
+```
+
+``` shell
 pvs -o +pv_used                               # show spage used in PVs
 pvmove /dev/<pv>                              # moving data from PV to other PV
 pvmove -n </dev/<vg>/<lv> /dev/<pv> /dev/<pv> # moving extents of to other PV
 vgreduce <vg> <unused_pv>                     # removing a PV from VG
 pvremove <unused_pv>
 pvs -o help # list of options
+```
+
+#### thinpool
+
+``` shell
+lvcreate -L <size> -T -n <name> <vg> # create a thin pool
+
 ```
 
 ## filesystems
@@ -454,6 +571,11 @@ Other tips:
 * `system.mask=dev-system-swap.swap` # on SUSE
 * `systemctl list-units --type=swap`
 * `systemd-escape -p --suffix=swap /dev/system/swap # returns 'dev-system-swap.swap'
+
+### troubleshooting
+
+- emergency shell - systemd after `pivot_root`
+- `systemd.log_level=debug systemd.log_target=console systemd.log_location=true systemd.show_status=true`
 
 ## journald
 
@@ -809,7 +931,9 @@ corosync-cfgtool -R # tell all nodes to reload corosync config
 
 ``` shell
 systemctl start pacemaker # on all nodes
-corosync-cpgtool          # see if pacemaker is known to corosync
+corosync-cpgtool          # see if pacemaker is known to corosync,
+                          # these are symlinks to pacemaker daemons,
+                          # see `ls -l /usr/lib/pacemaker/'
 
 crm_mon -1 # show cluster status
 ```
@@ -970,6 +1094,20 @@ crm_simulate -x <pe_file> -S # what was going on during life of cluster
 
 simulating a cluster network failure via iptables:
 https://www.suse.com/support/kb/doc/?id=000018699
+
+``` shell
+# pacemaker 1.x
+grep -P \
+  '^<YYYY>-<MM>-<DD>T<HH>:\d+:.* (corosync|attrd|crmd|cib|lrmd|pengine|stonith|controld|systemd)' \
+  messages # grep log file for cluster messages
+```
+
+``` shell
+# pacemaker 2.x
+grep -P \
+  '^<YYYY>-<MM>-<DD>T<HH>:\d+:.* (corosync|pacemaker-(attrd|based|controld|execd|schedulerd|fenced)|stonith|systemd)' \
+  messages # grep log file for cluster messages
+```
 
 ##### backup and restore
 
@@ -1147,6 +1285,10 @@ lsmod
 insmod <module>
 
 ```
+### troubleshooting
+
+- if not correctly installed or missing a module -> GRUB rescue
+- if no `grub.cfg` is found -> GRUB shell
 
 ## coreboot
 
