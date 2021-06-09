@@ -920,6 +920,10 @@ xmllint --xpath '/policymap/policy[@pattern="PDF"]' /etc/ImageMagick-7/policy.xm
 
 See a [two node cluster example](two_node_cluster.md).
 
+#### scenarios
+
+See a [two_node_cluster_example scenarios](two_node_cluster.md#scenarios).
+
 #### management
 
 - by default *root* and *haclient* group members can manage cluster
@@ -932,9 +936,11 @@ See a [two node cluster example](two_node_cluster.md).
 ``` shell
 corosync-cmapctl nodelist.node                    # list corosync nodes
 corosync-cmapctl runtime.totem.pg.mrp.srp.members # list members and state
+corosync-cmapctl runtime.votequorum               # runtime info about quorum
 
-corosync-quorumtool -l # list nodes
-corosync-quorumtool -s # show quorum status of corosync ring
+corosync-quorumtool -l          # list nodes
+corosync-quorumtool -s          # show quorum status of corosync ring
+corosync-quorumtool -e <number> # change number of extected votes
 
 corosync-cfgtool -R # tell all nodes to reload corosync config
 ```
@@ -1418,6 +1424,41 @@ grep -rH '' /sys/bus/usb/devices/*/ieee1284_id 2>/dev/null # IEEE 1284 info
 ```
 See http://www.undocprint.org/formats/communication_protocols/ieee_1284
 See https://www.cups.org/doc/options.html
+
+### texlive
+
+idea taken from [Void
+Linux](https://github.com/void-linux/void-packages/blob/master/srcpkgs/texlive2021-bin/template),
+some tips in Void Linux
+[texlive](https://docs.voidlinux.org/config/texlive.html)
+documentation
+
+``` shell
+zypper in cairo libpixman-1-0 libgraphite2-3 gd libpoppler110 libsigsegv2 \
+  libzzip-0-13 libpng libjpeg-turbo freetype icu libharfbuzz0 wget perl ghostscript xz
+cat > /etc/profile.d/texlive.sh <<EOF
+#location of the TeXLive binaries
+export PATH=$PATH:/opt/texlive/<version>/bin/x86_64-linux
+EOF
+
+mkdir -p /opt/texlive<version>-installer
+curl -Ls https://mirror.ctan.org/systems/texlive/tlnet/install-tl-unx.tar.gz | \
+  bsdtar --strip-components=1 -xvf - -C /opt/texlive<version>-installer
+cat > /opt/texlive<version>-installer/local.profile <<EOF
+TEXDIR ../texlive/2021
+TEXMFCONFIG ~/.texlive2021/texmf-config
+TEXMFHOME ~/texmf
+TEXMFLOCAL ../texlive/texmf-local
+TEXMFSYSCONFIG ../texlive/2021/texmf-config
+TEXMFSYSVAR ../texlive/2021/texmf-var
+TEXMFVAR ~/.texlive2021/texmf-var
+selected_scheme scheme-small
+EOF
+cd /opt/textlive<version>-install && ./install-tl -profile local.profile
+
+. /etc/profile.d/texlive.sh
+tlmgr paper a4 # change global default paper size
+```
 
 ## shell
 
