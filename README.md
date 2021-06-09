@@ -781,6 +781,18 @@ borg extract --strip-components <digit> ::$(borg list --last 1 | awk '{ print $1
 
 ## development
 
+### C / C++
+
+``` shell
+nm -D <shared_library> | awk '$2 == "T" { print $NF }' | sort -u # get global library symbols
+objdump -T <shared_library> | \
+  awk 'NR>4 && $2 == "g" && NF ~ /^[a-z]/ { print $NF }' | \
+  sort -u                                                        # get global library symbols
+readelf -sW <shared_library> | \
+  awk '$5 == "GLOBAL" && $7 ~ /[0-9]+/ { sub(/@.*/,""); print $NF }' | \
+  sort -u                                                        # get global library symbols
+```
+
 ### git
 
 #### SSH
