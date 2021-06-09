@@ -166,3 +166,70 @@ crm configure primitive p-<name> IPaddr2 \
 crm configure primitive p-<name> Dummy         # a fake service resource
 crm configure group g-<name> p-<name> p-<name> # group IP and service into resource group
 ```
+
+## scenarios
+
+### both nodes die, only one node boots and should start resources
+
+- both are unclean, resources not started because there's no quorum
+- in *two_node* mode, *wait_for_all* is enabled by default so there's
+  no split brain
+```
+Jun 09 13:46:07 sle15sp2-ha-01 corosync[1990]:   [TOTEM ] adding new UDPU member {192.168.122.189}
+Jun 09 13:46:07 sle15sp2-ha-01 corosync[1990]:   [TOTEM ] adding new UDPU member {192.168.122.190}
+Jun 09 13:46:07 sle15sp2-ha-01 corosync[1990]:   [TOTEM ] A new membership (192.168.122.189:256) was formed. Members joined: 1
+Jun 09 13:46:07 sle15sp2-ha-01 corosync[1990]:   [VOTEQ ] Waiting for all cluster members. Current votes: 1 expected_votes: 2
+Jun 09 13:46:07 sle15sp2-ha-01 corosync[1990]:   [CPG   ] downlist left_list: 0 received
+Jun 09 13:46:07 sle15sp2-ha-01 corosync[1990]:   [VOTEQ ] Waiting for all cluster members. Current votes: 1 expected_votes: 2
+Jun 09 13:46:07 sle15sp2-ha-01 corosync[1990]:   [VOTEQ ] Waiting for all cluster members. Current votes: 1 expected_votes: 2
+Jun 09 13:46:07 sle15sp2-ha-01 corosync[1990]:   [QUORUM] Members[1]: 1
+Jun 09 13:46:07 sle15sp2-ha-01 corosync[1990]:   [MAIN  ] Completed service synchronization, ready to provide service.
+Jun 09 13:46:07 sle15sp2-ha-01 corosync[1972]: Starting Corosync Cluster Engine (corosync): [  OK  ]
+```
+- clearing state of other node (down one)
+``` shell
+Jun 09 13:46:09 sle15sp2-ha-01 pacemaker-attrd[2006]:  notice: Pacemaker node attribute manager successfully started and accepting connections
+Jun 09 13:46:09 sle15sp2-ha-01 pacemaker-attrd[2006]:  notice: Setting #attrd-protocol[sle15sp2-ha-01]: (unset) -> 2
+Jun 09 13:46:09 sle15sp2-ha-01 pacemaker-attrd[2006]:  notice: Recorded local node as attribute writer (was unset)
+```
+- still alive node does not have quorum (in *two_node* mode
+  *expected_votes* is *2* and *wait_for_all* is still active)
+``` shell
+Jun 09 13:46:09 sle15sp2-ha-01 pacemaker-controld[2008]:  warning: Quorum lost
+Jun 09 13:46:09 sle15sp2-ha-01 pacemaker-controld[2008]:  notice: Node sle15sp2-ha-01 state is now member
+Jun 09 13:46:09 sle15sp2-ha-01 pacemaker-controld[2008]:  notice: Pacemaker controller successfully started and accepting connections
+Jun 09 13:46:09 sle15sp2-ha-01 pacemaker-controld[2008]:  notice: State transition S_STARTING -> S_PENDING
+Jun 09 13:46:10 sle15sp2-ha-01 pacemaker-controld[2008]:  notice: Fencer successfully connected
+Jun 09 13:46:30 sle15sp2-ha-01 pacemaker-controld[2008]:  warning: Input I_DC_TIMEOUT received in state S_PENDING from crm_timer_popped
+Jun 09 13:46:30 sle15sp2-ha-01 pacemaker-controld[2008]:  notice: State transition S_ELECTION -> S_INTEGRATION
+Jun 09 13:46:30 sle15sp2-ha-01 pacemaker-controld[2008]:  notice: Updating quorum status to false (call=22)
+```
+- let's make active node quorable via `corosync-quorumtool -e 1` (see
+  `corosync-quorumtool -s` before to understand what would happen)
+``` shell
+Jun 09 13:47:12 sle15sp2-ha-01 corosync[1990]:   [QUORUM] This node is within the primary component and will provide service.
+Jun 09 13:47:12 sle15sp2-ha-01 corosync[1990]:   [QUORUM] Members[1]: 1
+```
+- active node is quorable now, starts resources
+- starting other node (down one) would add node into the cluster as
+  member and update quorum *votes*)
+``` shell
+2021-06-09T14:09:02.405132+02:00 sle15sp2-ha-01 corosync[1990]:   [TOTEM ] A new membership (192.168.122.189:260) was formed. Members joined: 2
+2021-06-09T14:09:02.409119+02:00 sle15sp2-ha-01 corosync[1990]:   [CPG   ] downlist left_list: 0 received
+2021-06-09T14:09:02.409803+02:00 sle15sp2-ha-01 corosync[1990]:   [CPG   ] downlist left_list: 0 received
+2021-06-09T14:09:02.410526+02:00 sle15sp2-ha-01 corosync[1990]:   [QUORUM] Members[2]: 1 2
+2021-06-09T14:09:02.410841+02:00 sle15sp2-ha-01 corosync[1990]:   [MAIN  ] Completed service synchronization, ready to provide service.
+```
+- WTF did it *move*?
+``` shell
+2021-06-09T14:09:04.424772+02:00 sle15sp2-ha-01 pacemaker-attrd[2006]:  notice: Setting #attrd-protocol[sle15sp2-ha-02]: (unset) -> 2
+2021-06-09T14:09:05.468468+02:00 sle15sp2-ha-01 pacemaker-controld[2008]:  notice: State transition S_IDLE -> S_INTEGRATION
+2021-06-09T14:09:05.483417+02:00 sle15sp2-ha-01 pacemaker-controld[2008]:  notice: Updating quorum status to true (call=68)
+2021-06-09T14:09:05.485886+02:00 sle15sp2-ha-01 hawk-apiserver[1556]: level=info msg="[CIB]: 2:70:24"
+2021-06-09T14:09:05.489050+02:00 sle15sp2-ha-01 hawk-apiserver[1556]: level=info msg="[CIB]: 2:70:25"
+2021-06-09T14:09:05.492801+02:00 sle15sp2-ha-01 hawk-apiserver[1556]: message repeated 2 times: [ level=info msg="[CIB]: 2:70:25"]
+2021-06-09T14:09:06.488531+02:00 sle15sp2-ha-01 pacemaker-schedulerd[2007]:  notice: Watchdog will be used via SBD if fencing is required and stonith-watchdog-timeout is nonzero
+2021-06-09T14:09:06.488682+02:00 sle15sp2-ha-01 pacemaker-schedulerd[2007]:  notice:  * Move       p-IP_254        ( sle15sp2-ha-01 -> sle15sp2-ha-02 )
+2021-06-09T14:09:06.488741+02:00 sle15sp2-ha-01 pacemaker-schedulerd[2007]:  notice:  * Move       p-Dummy         ( sle15sp2-ha-01 -> sle15sp2-ha-02 )
+2021-06-09T14:09:06.488793+02:00 sle15sp2-ha-01 pacemaker-schedulerd[2007]:  notice: Calculated transition 4, saving inputs in /var/lib/pacemaker/pengine/pe-input-58.bz2
+```
