@@ -44,6 +44,131 @@ domains = ldap
 homedir_substring = /home
 ```
 
+### nscd, nss-pam-ldapd, pam_ldap
+
+#### rhel7
+
+``` shell
+yum install nscd nss-pam-ldapd pam_ldap
+authconfig --savebackup=<backup_dir> \
+  --enableldap \
+  --enableldapauth \
+  --ldapserver=ldap://<ldap_server> \
+  --ldapbasedn="ou=people,dc=example,dc=com" \
+  --enableldaptls \
+  --enablemkhomedir \
+  --enablecache \
+  --disablesssd \
+  --updateall
+```
+
+``` shell
+# /etc/nslcd.conf
+uid nslcd
+gid ldap
+uri ldap://<ldap_server>
+base ou=people,dc=example,dc=com
+ssl start_tls
+tls_cacertdir /etc/openldap/cacerts
+
+# /etc/nsswitch.conf
+passwd: files ldap
+shadow: files ldap
+group: files ldap
+hosts: files dns myhostname
+bootparams: nisplus [NOTFOUND=return] files
+ethers: files
+netmasks: files
+networks: files
+protocols: files
+rpc: files
+services: files
+netgroup: files ldap
+publickey: nisplus
+automount: files ldap
+aliases: files nisplus
+
+# /etc/openldap/ldap.conf
+TLS_CACERTDIR /etc/openldap/cacerts
+SASL_NOCANON on
+URI ldap://<ldap_server>
+BASE ou=people,dc=example,dc=com
+
+# /etc/pam.d/password-auth-ac
+auth required pam_env.so
+auth required pam_faildelay.so delay=2000000
+auth sufficient pam_unix.so nullok try_first_pass
+auth requisite pam_succeed_if.so uid >= 1000 quiet_success
+auth sufficient pam_ldap.so use_first_pass
+auth required pam_deny.so
+account required pam_unix.so broken_shadow
+account sufficient pam_localuser.so
+account sufficient pam_succeed_if.so uid < 1000 quiet
+account [default=bad success=ok user_unknown=ignore] pam_ldap.so
+account required pam_permit.so
+password requisite pam_pwquality.so try_first_pass local_users_only retry=3 authtok_type=
+password sufficient pam_unix.so sha512 shadow nullok try_first_pass use_authtok
+password sufficient pam_ldap.so use_authtok
+password required pam_deny.so
+session optional pam_keyinit.so revoke
+session required pam_limits.so
+-session optional pam_systemd.so
+session optional pam_mkhomedir.so umask=0077
+session [success=1 default=ignore] pam_succeed_if.so service in crond quiet use_uid
+session required pam_unix.so
+session optional pam_ldap.so
+
+# /etc/pam.d/system-auth-ac
+auth required pam_env.so
+auth required pam_faildelay.so delay=2000000
+auth sufficient pam_unix.so nullok try_first_pass
+auth requisite pam_succeed_if.so uid >= 1000 quiet_success
+auth sufficient pam_ldap.so use_first_pass
+auth required pam_deny.so
+account required pam_unix.so broken_shadow
+account sufficient pam_localuser.so
+account sufficient pam_succeed_if.so uid < 1000 quiet
+account [default=bad success=ok user_unknown=ignore] pam_ldap.so
+account required pam_permit.so
+password requisite pam_pwquality.so try_first_pass local_users_only retry=3 authtok_type=
+password sufficient pam_unix.so sha512 shadow nullok try_first_pass use_authtok
+password sufficient pam_ldap.so use_authtok
+password required pam_deny.so
+session optional pam_keyinit.so revoke
+session required pam_limits.so
+-session optional pam_systemd.so
+session optional pam_mkhomedir.so umask=0077
+session [success=1 default=ignore] pam_succeed_if.so service in crond quiet use_uid
+session required pam_unix.so
+session optional pam_ldap.so
+```
+
+``` shell
+systemctl --no-legend list-unit-files | awk '$2 == "enabled" && /(nscd|nslcd)/ { print $1 }'
+nscd.service
+nslcd.service
+nscd.socket
+```
+
+failing *nslcd* because of TLS issue
+
+``` shell
+localhost:slcd: [8b4567] no available LDAP server found, sleeping 1 seconds
+nslcd: [7b23c6] DEBUG: ldap_initialize(ldaps://<ldap_server>)
+nslcd: [7b23c6] DEBUG: ldap_set_rebind_proc()
+nslcd: [7b23c6] DEBUG: ldap_set_option(LDAP_OPT_PROTOCOL_VERSION,3)
+nslcd: [7b23c6] DEBUG: ldap_set_option(LDAP_OPT_DEREF,0)
+nslcd: [7b23c6] DEBUG: ldap_set_option(LDAP_OPT_TIMELIMIT,0)
+nslcd: [7b23c6] DEBUG: ldap_set_option(LDAP_OPT_TIMEOUT,0)
+nslcd: [7b23c6] DEBUG: ldap_set_option(LDAP_OPT_NETWORK_TIMEOUT,0)
+nslcd: [7b23c6] DEBUG: ldap_set_option(LDAP_OPT_REFERRALS,LDAP_OPT_ON)
+nslcd: [7b23c6] DEBUG: ldap_set_option(LDAP_OPT_RESTART,LDAP_OPT_ON)
+nslcd: [7b23c6] DEBUG: ldap_set_option(LDAP_OPT_X_TLS,LDAP_OPT_X_TLS_HARD)
+nslcd: [7b23c6] DEBUG: ldap_simple_bind_s("uid=<user>,ou=people,dc=example,dc=com","***") (uri="ldaps://<ldap_server>")
+nslcd: [7b23c6] failed to bind to LDAP server ldaps://<ldap_server>: Can't contact LDAP server: error:14090086:SSL routines:ssl3_get_server_certificate:certificate verify failed (unable to get local issuer certificate)
+nslcd: [7b23c6] DEBUG: ldap_unbind()
+```
+
 ### sssd
 
 *sssd* validates CN in TLS cert!
