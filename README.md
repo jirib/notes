@@ -1,10 +1,61 @@
 # My cheatsheet
 
-## ACL
+## acl
 
 - *mask* is maximum permission for users (other than the owner) and groups!
 - `chmod` incluences mask of ACL file/dir!
 - default ACL of a directory for inheritance
+
+## authentication
+
+### 389ds
+
+``` shell
+dsidm localhost client_config sssd.conf | \
+  sed '1d' | \
+  egrep -v '^(\s*[;#]| *$)' | \
+  sed 's!//.*!//<fqdn>:636!'                 # get 389ds configuration for sssd
+[domain/ldap]
+cache_credentials = True
+id_provider = ldap
+auth_provider = ldap
+access_provider = ldap
+chpass_provider = ldap
+ldap_schema = rfc2307
+ldap_search_base = dc=example,dc=com
+ldap_uri = ldapi://<fqdn>:636
+ldap_tls_reqcert = demand
+ldap_tls_cacertdir = /etc/openldap/certs
+enumerate = false
+access_provider = ldap
+ldap_user_member_of = memberof
+ldap_user_gecos = cn
+ldap_user_uuid = nsUniqueId
+ldap_group_uuid = nsUniqueId
+ldap_account_expire_policy = rhds
+ldap_access_order = filter, expire
+ldap_user_ssh_public_key = nsSshPublicKey
+ignore_group_members = False
+[sssd]
+services = nss, pam, ssh, sudo
+config_file_version = 2
+domains = ldap
+[nss]
+homedir_substring = /home
+```
+
+### sssd
+
+*sssd* validates CN in TLS cert!
+
+``` shell
+# journalctl -u sssd -p err --since='2021-06-10 15:49:37' --no-pager
+-- Logs begin at Thu 2021-06-10 13:35:58 CEST, end at Thu 2021-06-10 15:50:56 CEST. --
+Jun 10 15:49:37 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
+Jun 10 15:50:50 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
+Jun 10 15:50:52 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
+Jun 10 15:50:56 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
+```
 
 ## kernel
 
@@ -104,6 +155,19 @@ virsh define <(virsh dumpxml <template> | \
   sed -e '/uuid/d' \
     -e 's/template/ha-01/g' \
     -e 's/\(52:54:00:64:3e\):16/\1:01/')     # create vm based on template vm
+```
+
+#### virt-install
+
+manual installation from CentOS mirror
+
+``` shell
+virt-install \
+  --name centos7-01 \
+  --memory 2048 --disk size=20,target.bus=scsi \
+  --vcpus 2 \
+  --os-variant centos7.0 \
+  --location=http://mirror.slu.cz/centos/7/os/x86_64/
 ```
 
 ##### mpio
@@ -1458,6 +1522,16 @@ cd /opt/textlive<version>-install && ./install-tl -profile local.profile
 
 . /etc/profile.d/texlive.sh
 tlmgr paper a4 # change global default paper size
+```
+
+putting pages from two documents side by side
+
+``` shell
+# pdfseparate is from poppler-tools
+
+pdfseparate <pdf_file1> temp-%04d-file1.pdf
+pdfseparate <pdf_file2> temp-%04d-file2.pdf
+pdfjam temp-*-*.pdf --nup 2x1 --landscape --outfile <out_file>
 ```
 
 ## shell
