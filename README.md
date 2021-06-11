@@ -174,7 +174,7 @@ nslcd: [7b23c6] DEBUG: ldap_unbind()
 *sssd* validates CN in TLS cert!
 
 ``` shell
-# journalctl -u sssd -p err --since='2021-06-10 15:49:37' --no-pager
+journalctl -u sssd -p err --since='2021-06-10 15:49:37' --no-pager
 -- Logs begin at Thu 2021-06-10 13:35:58 CEST, end at Thu 2021-06-10 15:50:56 CEST. --
 Jun 10 15:49:37 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
 Jun 10 15:50:50 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
