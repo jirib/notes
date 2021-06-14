@@ -182,7 +182,43 @@ Jun 10 15:50:52 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS
 Jun 10 15:50:56 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
 ```
 
+## dhcp
+
+### isc dhcpd
+
+
+## dns
+
+### named / bind
+
+dynamic DNS updates
+
+``` shell
+key "<key>" {
+    algorithm HMAC-MD5;
+    secret <secret>";
+};
+
+zone "<forward_zone>" IN {
+        type master;
+        allow-transfer { <dhcp_server>; };
+        file "<zone_file>";
+        forwarders {};
+        allow-update { key "<key>"; };
+};
+
+zone "<reverse_zone>" IN {
+     type master;
+     allow-transfer { <dhcp_server>; };
+     file "<zone_file>";
+     allow-update { key "<key>"; };
+     forwarders {};
+};
+```
+
 ## kernel
+
+### modules
 
 ``` shell
 echo "blacklist pcspkr" > /etc/modprobe.d/bell.conf # blacklist a module
@@ -224,6 +260,17 @@ systool -vm iwlwifi | awk '/^\s*Parameters:/{p=1}/^ *$/{p=0}p' # a module params
     remove_when_gone    = "N"
     swcrypto            = "0"
     uapsd_disable       = "3"
+```
+
+### procfs
+
+what are open files limits of an existing process?
+
+``` shell
+grep '^Max open files' /proc/$(pgrep -f /usr/sbin/cupsd)/limits | column -t
+> Max  open  files  4096  4096  files
+systemctl show -p LimitNOFILE cups
+> LimitNOFILE=4096
 ```
 
 ### dracut / initramfs
@@ -395,8 +442,13 @@ udevadm info -q property -n <dev> # info about a device
 
 #### initiator
 
+- *discovery/discoverydb*, query/find target
+- *node*, log into a target
+- *session*, get info about current session or establish new session
+- *iface/host*, settings to connect to a target
+
 ``` shell
-lsmod | grep iscsi
+lsmod | grep scsi_transport_iscsi # should be loaded by distro tools
 ```
 
 ##### discovery
@@ -432,6 +484,18 @@ iscsiadm -m node -T <target> -n node.startup -v automatic -o update # auto-enabl
 ```
 
 ``` shell
+# no all targets must be started automatically, see what iscsi.service unit on
+# SUSE is doing
+
+systemctl cat iscsi | grep ^ExecStart
+ExecStart=/sbin/iscsiadm -m node --loginall=automatic -W
+ExecStart=/sbin/iscsiadm -m node --loginall=onboot -W
+ExecStart=/sbin/iscsiadm -m fw -l -W
+
+iscsiadm -m node -T <target> -l # login
+```
+
+``` shell
 iscsiadm -m node -u [-T <target>] # logout from all or specific node entry
 iscsiadm -m node -T <target> -o delete # remote an entry from node db
 ```
@@ -444,6 +508,19 @@ udevadm info -q property -n /dev/<scsi_lun>
 ```
 
 #### target
+
+usually there's a service restoring configuration for in-kernel LIO
+target
+
+``` shell
+# SUSE
+[[ -e /etc/sysconfig/target ]] && egrep -v '^(\s*[;#]| *$)' /etc/sysconfig/target
+
+systemctl --no-pager show -p ExecStart -p EnvironmentFiles -p Environment target
+ExecStart={ path=/usr/bin/targetctl ; argv[]=/usr/bin/targetctl restore $CONFIG_FILE ; ignore_errors=no ; start_time=[n/1] ; stop_time=[n/a] ; pid=0 ; code=(null) ; status=0/0 }
+Environment=CONFIG_FILE=/etc/target/saveconfig.json
+EnvironmentFiles=/etc/sysconfig/target (ignore_errors=yes)
+```
 
 non-interactive way of `targetcli`
 
@@ -1141,8 +1218,17 @@ systemctl start pacemaker # on all nodes
 corosync-cpgtool          # see if pacemaker is known to corosync,
                           # these are symlinks to pacemaker daemons,
                           # see `ls -l /usr/lib/pacemaker/'
+```
+
+###### pacemaker cli
+
+``` shell
+crmadmin -N # show member nodes
+crmadmin -D # show designated coordinator (DC)
 
 crm_mon -1 # show cluster status
+
+# pacemaker cli tools
 ```
 
 ``` shell
@@ -1160,6 +1246,8 @@ crm_mon [-n | --group-by-node ]
 crm_mon -nforA # incl. fail, counts, operations...
 cibadmin [-Q | --query] # expert xml administration, part of pacemaker
 ```
+
+###### crm (crmsh)
 
 ``` shell
 crm
@@ -1603,6 +1691,9 @@ lpoptions -d <printer>    # set default printer
 lpoptions -l -p <printer> # list printer options
 
 lpstat -l -e | grep <printer> # show connection to a printer
+
+lpstat -o <printer>    # list jobs on printer
+lprm -P <printer> <id> # kill job on printer
 
 lp [-d <printer>] <file>   # print a file
 lpr [-P <printer>] <file>  # print a file
