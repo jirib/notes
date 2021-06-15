@@ -546,9 +546,11 @@ in MPIO we usually want iSCSI connection go over multiple separate
 interfaces
 
 ``` shell
-iscsiadm -m iface -P 1             # list initiator interfaces
-iscsiadm -m iface -I iface0 -o new # add new interface named 'iface0'
-
+iscsiadm -m iface -P 1                                               # list initiator interfaces
+iscsiadm -m iface -I <name> -o new                                   # add new interface named '<name>'
+iscsiadm -m iface -I <name> -o update -n iface.hwaddress -v <hwaddr> # assing logical iface to hardware
+                                                                     # address
+iscsiadm -m iface -I <name>                                          # show logical iface details
 ```
 
 #### target
