@@ -182,6 +182,37 @@ Jun 10 15:50:52 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS
 Jun 10 15:50:56 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
 ```
 
+## containers
+
+### docker
+
+#### making all containers to use a proxy
+
+``` shell
+cat > /root/.docker/config.json <<EOF
+{
+  "proxies": {
+    "default": {
+      "httpProxy": "<url>",
+      "httpsProxy": "<url>"
+    }
+  }
+}
+EOF
+
+systemctl restart docker
+```
+
+``` shell
+# a test proxy
+pip install --user proxy.py
+proxy --hostname 0.0.0.0 --port 8080 --log-level DEBUG
+
+# a test container
+docker run -d -it opensuse/leap:15.2 /bin/bash -c 'while :; do sleep 1; done'
+docker exec -it <container> /usr/bin/zypper ref # and see traffic in proxy stdout
+```
+
 ## dhcp
 
 ### isc dhcpd
@@ -505,6 +536,17 @@ iscsiadm -m node -T <target> -o delete # remote an entry from node db
 ``` shell
 iscsiadm -m session [-P 3] # list initiator session
 udevadm info -q property -n /dev/<scsi_lun>
+```
+
+##### iface
+
+in MPIO we usually want iSCSI connection go over multiple separate
+interfaces
+
+``` shell
+iscsiadm -m iface -P 1             # list initiator interfaces
+iscsiadm -m iface -I iface0 -o new # add new interface named 'iface0'
+
 ```
 
 #### target
