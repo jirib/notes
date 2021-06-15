@@ -210,6 +210,8 @@ proxy --hostname 0.0.0.0 --port 8080 --log-level DEBUG
 
 # a test container
 docker run -d -it opensuse/leap:15.2 /bin/bash -c 'while :; do sleep 1; done'
+docker exec -it <container> /bin/bash -c 'echo $http_proxy'
+> <url>
 docker exec -it <container> /usr/bin/zypper ref # and see traffic in proxy stdout
 ```
 
