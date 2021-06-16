@@ -717,6 +717,22 @@ docker exec -it <container> /bin/bash -c 'echo $http_proxy'
 docker exec -it <container> /usr/bin/zypper ref # and see traffic in proxy stdout
 ```
 
+#### making docker daemon to use a proxy
+
+``` shell
+# cat /etc/systemd/system/docker.service.d/override.conf
+[Service]
+Environment="HTTP_PROXY=http://127.0.0.1:8080"
+Environment="HTTPS_PROXY=http://127.0.0.1:8080"
+Environment="NO_PROXY=localhost,127.0.0.1"
+
+# systemctl daemon-reload
+# systemctl restart docker
+
+# systemctl show -p Environment docker
+Environment=HTTP_PROXY=http://127.0.0.1:8080 HTTPS_PROXY=https://127.0.0.1:8080 NO_PROXY=localhost,127.0.0.1
+```
+
 ## desktop
 
 ### gtk
