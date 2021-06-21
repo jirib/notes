@@ -1,5 +1,6 @@
 # Two node cluster example
 
+- unicast corosync communication
 - iSCSI-based shared LUN for SBD fencing device
 - fencing triggered via kernel's watchdog
 - floating IP
@@ -186,7 +187,7 @@ Jun 09 13:46:07 sle15sp2-ha-01 corosync[1990]:   [QUORUM] Members[1]: 1
 Jun 09 13:46:07 sle15sp2-ha-01 corosync[1990]:   [MAIN  ] Completed service synchronization, ready to provide service.
 Jun 09 13:46:07 sle15sp2-ha-01 corosync[1972]: Starting Corosync Cluster Engine (corosync): [  OK  ]
 ```
-- clearing state of other node (down one)
+- clearing state of other node (down one) - `crm node clearstate <node2>`
 ``` shell
 Jun 09 13:46:09 sle15sp2-ha-01 pacemaker-attrd[2006]:  notice: Pacemaker node attribute manager successfully started and accepting connections
 Jun 09 13:46:09 sle15sp2-ha-01 pacemaker-attrd[2006]:  notice: Setting #attrd-protocol[sle15sp2-ha-01]: (unset) -> 2
