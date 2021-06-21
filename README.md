@@ -279,9 +279,6 @@ Jun 10 15:50:50 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS
 Jun 10 15:50:52 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
 Jun 10 15:50:56 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
 ```
-
-
-
 ## backup
 
 ### borg
@@ -419,6 +416,19 @@ See a [two_node_cluster_example scenarios](two_node_cluster.md#scenarios).
   <user>` (then it requires passwordless `sudoers` rule)
 
 ##### corosync
+
+- *multicast*, when used check that switch is configured correctly
+  (see [IGMP snooping](https://en.wikipedia.org/wiki/IGMP_snooping) -
+  forwarding only to *valid* ports instead of broadcasting)
+  ```
+  # for virtual bridge (not openvswitch!)
+  grep -H '' /sys/class/net/<bridge_name>/bridge/multicast_snooping
+  /sys/class/net/docker0/bridge/multicast_snooping:1
+
+  # for openvswitch
+  ovs-vsctl list bridge | grep mcast_snooping_enable
+  ```
+- *unicast*, usually better
 
 ``` shell
 corosync-cmapctl nodelist.node                    # list corosync nodes
@@ -1198,6 +1208,11 @@ xmllint --xpath '/policymap/policy[@pattern="PDF"]' /etc/ImageMagick-7/policy.xm
 <policy xmlns="" domain="coder" rights="read | write" pattern="PDF"/>
 ```
 
+## hardware
+
+### udev
+
+
 ## kernel
 
 ### configuration
@@ -1369,8 +1384,6 @@ grep -H '' /sys/class/net/bond0/bonding/{slaves,mode,miimon,lacp_rate,ad_select}
 default *bonding* mode is *balance-rr*, see
 [bonding.txt](https://www.kernel.org/doc/Documentation/networking/bonding.txt)
 for details
-
-in virtual environment Open vSwitch can be used for *LACP* mode
 
 ### http(s) proxy
 
@@ -1876,6 +1889,8 @@ EOF
 ### cups
 
 ``` shell
+lpstat -t                 # test configuration
+
 lpstat -p -d              # list printers and default one
 lpoptions -d <printer>    # set default printer
 lpoptions -l -p <printer> # list printer options
@@ -1940,6 +1955,25 @@ pdfseparate <pdf_file2> temp-%04d-file2.pdf
 pdfjam temp-*-*.pdf --nup 2x1 --landscape --outfile <out_file>
 ```
 
+## schedulers
+
+### cron
+
+#### random delay for a job
+
+``` shell
+man 5 crontab | sed -n '/RANDOM_DELAY/,/^$/p' | fmt -w80
+       The RANDOM_DELAY variable allows delaying job startups by random
+       amount of minutes with upper limit specified by the variable. The
+       random scaling factor is determined during the cron daemon startup
+       so it remains constant for the whole run time of the daemon.
+```
+
+``` shell
+# system crontab file, see escaped '%' !!!
+@daily <username> sleep $(($RANDOM \% 3600 )) && <some command>
+```
+
 ## shell
 
 ``` shell
@@ -1963,6 +1997,31 @@ shutdown system down  4.18.0-80.el8.x8 Mon Aug 31 06:33:01 2020 - Mon Aug 31 06:
 # ungraceful shutdown has only 'reboot' pseudo user
 reboot   system boot  4.18.0-147.5.1.e Tue Sep  1 07:16:25 2020   still running
 reboot   system boot  4.18.0-147.5.1.e Mon Aug  3 07:10:56 2020   still running
+```
+
+### validate LACP on switch
+
+``` shell
+# TODO: review
+tshark -i <bonded_iface> -c 1 -f "ether proto 0x88cc" -Y "lldp" -O lldp
+...
+        Chassis Id: JuniperN_cb:d6:80 (f8:c0:01:cb:d6:80)
+        Port Id: 757
+        System Name = rack10-sw03-lab.brq
+    System Description = Juniper Networks, Inc. ex4200-48t , version 12.3R6.6 Build date: 2014-03-13 08:38:30 UTC
+    Port Description = ge-1/0/6.0
+        0000 100. .... .... = TLV Type: Port Description (4)
+        .... ...0 0000 1010 = TLV Length: 10
+        Port Description: ge-1/0/6.0
+    IEEE 802.3 - Link Aggregation
+        1111 111. .... .... = TLV Type: Organization Specific (127)
+        .... ...0 0000 1001 = TLV Length: 9
+        Organization Unique Code: IEEE 802.3 (0x00120f)
+        IEEE 802.3 Subtype: Link Aggregation (0x03)
+        Aggregation Status: 0x01
+            .... ...1 = Aggregation Capability: Yes
+            .... ..0. = Aggregation Status: Disabled
+        Aggregated Port Id: 0
 ```
 
 ## virtualization
@@ -2072,13 +2131,13 @@ lsmod openvswitch                # kernel modules are in net/openvswitch
 ``` shell
 ovs-vsctl add-br <name>
 ovs-vsctl show
+
+# TODO: SUSE
+man ifcfg-ovs-bridge
 ```
 
 ``` shell
-man ifcfg-ovs-bridge # on SUSE with wicked, see
-                     # `readlink /etc/systemd/system/network.service'
-
-# networkmanager style
+# TODO: networkmanager style
 
 nmcli c add type ovs-bridge \
   conn.interface virtual0 con-name virtual0
@@ -2088,4 +2147,10 @@ nmcli c add type ovs-port \
   conn.interface virtual0 master virtual0 con-name ovs-port-virtual0 \
   conn.zone libvirt \
   ipv4.method manual ipv4.address <cidr> ipv6.method disabled
+```
+
+``` shell
+# check/set igmp snooping
+ovs-vsctl list bridge | grep mcast_snooping_enable
+ovs-vsctl set bridge virtual0 mcast_snooping_enable=<value>
 ```
