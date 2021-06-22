@@ -945,6 +945,14 @@ grep '\bbtrfs\b.*nodatacow' /etc/fstab # check if cow disabled in /etc/fstab
 lsattr -d /var                         # check if cow disabled via attributes
 ```
 
+#### snapper
+
+automatically triggered btrfs snapshots
+
+``` shell
+snapper list
+```
+
 ### nfs
 
 On SUSE `/usr/sbin/rpc.nfsd` reads `/etc/nfs.conf` which loads
@@ -1094,14 +1102,6 @@ details about `nfsstat` can be found at this
 | layoutcommit | Commit Writes Made |
 | layoutreturn | Release Layout |
 | getdevlist | Get All Devices |
-
-#### snapper
-
-automatically triggered btrfs snapshots
-
-``` shell
-snapper list
-```
 
 ## firewall
 
