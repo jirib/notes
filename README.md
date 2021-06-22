@@ -1047,6 +1047,8 @@ rpcdebug -m nfs -s -v # enable client debugging
 details about `nfsstat` can be found at this
 [blog](https://web.archive.org/web/20210622120310/https://www.cyberithub.com/nfsstat-command-examples-in-linux-cheatsheet/)
 
+| information | description |
+| --- | --- |
 | calls | Total Number of RPC Calls made. |
 | retrans | The number of times a call had to be retransmitted due to a time-out while waiting for a reply from the server. |
 | authrefrsh | The number of times the NFS client has called call_refresh() which is basically going out to the RPC server (portmap, rpcbind, etc) and validating its credentials with the server. |
