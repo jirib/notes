@@ -1042,6 +1042,57 @@ rpcdebug -m nfs -s -v # enable client debugging
 ...
 ```
 
+##### nfsstat
+
+details about `nfsstat` can be found at this
+[blog](https://web.archive.org/web/20210622120310/https://www.cyberithub.com/nfsstat-command-examples-in-linux-cheatsheet/)
+
+| calls | Total Number of RPC Calls made. |
+| retrans | The number of times a call had to be retransmitted due to a time-out while waiting for a reply from the server. |
+| authrefrsh | The number of times the NFS client has called call_refresh() which is basically going out to the RPC server (portmap, rpcbind, etc) and validating its credentials with the server. |
+| null | do nothing (debug). Check this IETF RFC Document to know more about this. |
+| read | read from file. Check this IETF RFC Document to know more about this. |
+| write | write to file |
+| commit | commit cached data to stable storage |
+| open | open a file |
+| open_conf | Confirm Open |
+| open_noat | Open Named Attribute Directory |
+| open_dgrd | Reduce Open File Access |
+| close | Close File |
+| setattr | set file attributes |
+| fsinfo | get static file system information |
+| renew | renew a lease |
+| setclntid | Negotiate Client ID |
+| lock | Create Lock |
+| lockt | Test For Lock |
+| locku | lookup file name |
+| access | check access permission |
+| getattr | get file attributes |
+| lookup | Lookup Filename |
+| remove | Remove a File |
+| rename | Rename a File or Directory |
+| link | Create Link to an Object |
+| symlink | Create a Symbolic Link |
+| create | Create a File |
+| pathconf | Retrieve POSIX Information |
+| readlink | Read from Symbolic Link |
+| readdir | Read from Directory |
+| delegreturn | Return Delegations |
+| getacl | Get Access List |
+| setacl | Set Access List |
+| fs_locations | Locations where this file system may be found. |
+| secinfo | obtain available security |
+| exchange_id | Instantiate Client ID |
+| create_ses | creation new session and confirm Client ID |
+| destroy_ses | destroy session |
+| sequence | Supply Per-Procedure |
+| reclaim_comp | Indicates Reclaim Finished. |
+| layoutget | Get Layout Information |
+| getdevinfo | Get Device Information |
+| layoutcommit | Commit Writes Made |
+| layoutreturn | Release Layout |
+| getdevlist | Get All Devices |
+
 #### snapper
 
 automatically triggered btrfs snapshots
