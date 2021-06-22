@@ -1670,6 +1670,7 @@ Other tips:
 
 - emergency shell - systemd after `pivot_root`
 - `systemd.log_level=debug systemd.log_target=console systemd.log_location=true systemd.show_status=true`
+- `systemd-analyze set-log-level <level>` - change logging level
 
 #### desktop stuff
 
@@ -1842,6 +1843,9 @@ man cupsd.conf | egrep -A 1 'MaxJobs(PerPrinter)* number' | fmt -w80
             per printer.  The default is "0" which allows up to MaxJobs jobs
             per printer.
 ```
+#### tips
+
+- https://access.redhat.com/solutions/305283
 
 ### texlive
 
