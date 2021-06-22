@@ -1972,7 +1972,8 @@ aa-complain <profile> # not enforcing but logging mode
 ## auditd
 
 - [audit system reference](https://access.redhat.com/articles/4409591)
-  (description of event fields, record types)
+  (description of event fields, record types), or
+  [`audit.h](https://github.com/torvalds/linux/blob/master/include/uapi/linux/audit.h)
 - `audit=0` as kernel boot parameter to suppress audit messages
 - `audit=1`
 
