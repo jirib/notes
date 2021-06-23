@@ -1717,7 +1717,7 @@ Other tips:
 * `system.device_wants_unit=off`     # on SUSE
 * `system.mask=dev-system-swap.swap` # on SUSE
 * `systemctl list-units --type=swap`
-* `systemd-escape -p --suffix=swap /dev/system/swap # returns 'dev-system-swap.swap'
+* `systemd-escape -p --suffix=swap /dev/system/swap` # returns 'dev-system-swap.swap'
 
 #### troubleshooting
 
