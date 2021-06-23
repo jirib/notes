@@ -955,30 +955,6 @@ snapper list
 
 ### nfs
 
-On SUSE `/usr/sbin/rpc.nfsd` reads `/etc/nfs.conf` which loads
-`/etc/sysconfig/nfs`.
-
-``` shell
-# usually nfsv3 commands
-rpcbind -p   # list registered services in rpcbind
-showmount -e # list remote exports
-```
-
-``` shell
-exportfs -s # see exports
-```
-
-Firewalling NFS needs special handling (mostly because many daemons/ports for NFSv3).
-
-``` shell
-# SUSE
-egrep -v '^(\s*#| *$)' /etc/sysconfig/nfs | egrep '_(TCP|UDP)*PORT'
-MOUNTD_PORT="20048"
-STATD_PORT="33081"
-LOCKD_TCPPORT="38287"
-LOCKD_UDPPORT="36508"
-```
-
 #### nfsv4
 
 - *NFSv4* does NOT require `rpcbind`, no longer requirement of separate
@@ -1005,6 +981,43 @@ and notifies clients that the server is to be
 shutdown/rebooted. out-of-date `rmtab` does not cause shutdown to
 hang.
 
+#### SUSE specific
+
+On SUSE `/usr/sbin/rpc.nfsd` reads `/etc/nfs.conf` which loads
+`/etc/sysconfig/nfs`.
+
+#### server
+
+``` shell
+exportfs -s # see exports
+```
+
+``` shell
+# usually nfsv3 commands
+rpcbind -p   # list registered services in rpcbind
+showmount -e # list remote exports
+```
+
+Firewalling NFS needs special handling (mostly because many daemons/ports for NFSv3).
+
+``` shell
+# SUSE
+egrep -v '^(\s*#| *$)' /etc/sysconfig/nfs | egrep '_(TCP|UDP)*PORT'
+MOUNTD_PORT="20048"
+STATD_PORT="33081"
+LOCKD_TCPPORT="38287"
+LOCKD_UDPPORT="36508"
+```
+
+#### client
+
+``` shell
+# usually nfsv3 commands
+rpcbind -p <nfs_server>   # list registered services in rpcbind
+showmount -e <nfs_server> # list remote exports
+```
+
+
 
 #### troubleshooting
 
@@ -1021,34 +1034,76 @@ rpcdebug -m <module> -s   # enable debugging for module
 rpcdebug -m <module> -c   # disable debugging for module
 ```
 
-example:
-
-``` shell
-# sles 15 sp2 recovers when NFSv4 server gets rebooted
-
-rpcdebug -m nfs -s -v # enable client debugging
-
-> May 26 15:06:55 localhost kernel: nfs4_renew_state: start
-> May 26 15:06:55 localhost kernel: nfs4_renew_state: done
-> May 26 15:06:55 localhost kernel: nfs4_schedule_lease_recovery: scheduling lease recovery for server 192.168.1.2
-> May 26 15:06:55 localhost kernel: nfs4_schedule_state_renewal: requeueing work. Lease period = 5
-> May 26 15:06:55 localhost kernel: nfs4_recovery_handle_error: failed to handle error -13 for server 192.168.1.2
-> May 26 15:06:55 localhost kernel: NFS: state manager: check lease failed on NFSv4 server 192.168.1.2 with error 13
-> May 26 15:07:00 localhost kernel: nfs4_renew_state: start
-> May 26 15:07:00 localhost kernel: nfs4_renew_state: done
-> May 26 15:07:00 localhost kernel: nfs4_schedule_lease_recovery: scheduling lease recovery for server 192.168.1.2
-> May 26 15:07:00 localhost kernel: nfs4_schedule_state_renewal: requeueing work. Lease period = 5
-> May 26 15:07:00 localhost kernel: nfs4_recovery_handle_error: handled error -10022 for server 192.168.1.2
-> May 26 15:07:00 localhost kernel: NFS call  setclientid auth=UNIX, 'Linux NFSv4.0 localhost/192.168.1.2'
-> May 26 15:07:00 localhost kernel: NFS reply setclientid: 0
-> May 26 15:07:00 localhost kernel: NFS call  setclientid_confirm auth=UNIX, (client ID d547ae6045ec2dbd)
-> May 26 15:07:00 localhost kernel: NFS reply setclientid_confirm: 0
-> May 26 15:07:00 localhost kernel: --> nfs4_get_lease_time_prepare
-> May 26 15:07:00 localhost kernel: --> nfs4_alloc_slot used_slots=0000 highest_used=4294967295 max_slots=1024
-> May 26 15:07:00 localhost kernel: <-- nfs4_alloc_slot used_slots=0001 highest_used=0 slotid=0
-> May 26 15:07:00 localhost kernel: <-- nfs4_get_lease_time_prepare
-...
-```
+- `bg / fg`, see `nfs(5)` and `systemd.mount(5)`. kernel
+  **differentiates** between network problem and permnission problem,
+  thus when using *bg* and networks starts working and mounting NFS
+  export faces permissions issue, then there is *no more* retry
+  ```
+  # sle12sp5
+  # first attempt to mount the NFS export with 'bg', firewall on the server blocking access
+  Jun 23 12:59:47 linux-u93p mount[1770]: mount to NFS server '192.168.122.1' failed: Connection refused, retrying
+  Jun 23 12:59:49 linux-u93p mount[1770]: mount to NFS server '192.168.122.1' failed: Connection refused, retrying
+  ...
+  # after 3 mins expired (thus > 2 mins for 'fg')
+  Jun 23 13:03:53 linux-u93p kernel: NFS: nfs mount opts='hard,bg,addr=192.168.122.1,vers=3,proto=tcp,mountvers=3,mountproto=tcp,mountport=20048'
+  Jun 23 13:03:53 linux-u93p kernel: NFS: parsing nfs mount option 'hard'
+  Jun 23 13:03:53 linux-u93p kernel: NFS: parsing nfs mount option 'bg'
+  Jun 23 13:03:53 linux-u93p kernel: NFS: ignoring mount option 'bg'
+  Jun 23 13:03:53 linux-u93p kernel: NFS: parsing nfs mount option 'addr=192.168.122.1'
+  Jun 23 13:03:53 linux-u93p kernel: NFS: parsing nfs mount option 'vers=3'
+  Jun 23 13:03:53 linux-u93p kernel: NFS: parsing nfs mount option 'proto=tcp'
+  Jun 23 13:03:53 linux-u93p kernel: NFS: parsing nfs mount option 'mountvers=3'
+  Jun 23 13:03:53 linux-u93p kernel: NFS: parsing nfs mount option 'mountproto=tcp'
+  Jun 23 13:03:53 linux-u93p kernel: NFS: parsing nfs mount option 'mountport=20048'
+  Jun 23 13:03:53 linux-u93p kernel: NFS: MNTPATH: '/tmp'
+  Jun 23 13:03:53 linux-u93p kernel: NFS: sending MNT request for 192.168.122.1:/tmp
+  Jun 23 13:03:53 linux-u93p kernel: NFS: received 1 auth flavors
+  Jun 23 13:03:53 linux-u93p kernel: NFS: auth flavor[0]: 1
+  Jun 23 13:03:53 linux-u93p kernel: NFS: MNT request succeeded
+  Jun 23 13:03:53 linux-u93p kernel: NFS: attempting to use auth flavor 1
+  Jun 23 13:03:53 linux-u93p kernel: NFS: get client cookie (0xffff9650aff5bc00/0xffff9650a52c0500)
+  Jun 23 13:03:53 linux-u93p systemd[1]: systemd-udevd.service: Got notification message from PID 444 (WATCHDOG=1)
+  Jun 23 13:03:53 linux-u93p kernel: NFS call fsinfo
+  Jun 23 13:03:53 linux-u93p kernel: NFS reply fsinfo: 0
+  Jun 23 13:03:53 linux-u93p kernel: NFS call pathconf
+  Jun 23 13:03:53 linux-u93p kernel: NFS reply pathconf: 0
+  Jun 23 13:03:53 linux-u93p kernel: NFS call getattr
+  Jun 23 13:03:53 linux-u93p kernel: NFS reply getattr: 0
+  Jun 23 13:03:53 linux-u93p kernel: Server FSID: 274b5220933e3e91:0
+  Jun 23 13:03:53 linux-u93p kernel: do_proc_get_root: call fsinfo
+  Jun 23 13:03:53 linux-u93p kernel: do_proc_get_root: reply fsinfo: 0
+  Jun 23 13:03:53 linux-u93p kernel: do_proc_get_root: reply getattr: 0
+  Jun 23 13:03:53 linux-u93p kernel: NFS: nfs_fhget(0:78/256 fh_crc=0x86d0b24e ct=1)
+  ...
+  Jun 23 13:03:53 linux-u93p systemd[1]: libmount event [rescan: yes]
+  Jun 23 13:03:53 linux-u93p systemd[1]: mnt.mount: Changed dead -> mounted
+  ...
+  Jun 23 13:03:53 linux-u93p systemd[1]: Received SIGCHLD from PID 1770 (mount.nfs).
+  Jun 23 13:03:53 linux-u93p systemd[1]: Child 1770 (mount.nfs) died (code=exited, status=0/SUCCESS)
+  Jun 23 13:03:53 linux-u93p systemd[1]: systemd-logind.service: Got notification message from PID 817 (WATCHDOG=1)
+  Jun 23 13:04:10 linux-u93p kernel: NFS: revalidating (0:78/256)
+  Jun 23 13:04:10 linux-u93p kernel: NFS call getattr
+  Jun 23 13:04:10 linux-u93p kernel: NFS reply getattr: 0
+  Jun 23 13:04:10 linux-u93p kernel: NFS: nfs_update_inode(0:78/256 fh_crc=0x86d0b24e ct=2 info=0x27e7f)
+  Jun 23 13:04:10 linux-u93p kernel: NFS: (0:78/256) revalidation complete
+  Jun 23 13:04:10 linux-u93p kernel: NFS: nfs_weak_revalidate: inode 256 is valid
+  Jun 23 13:04:10 linux-u93p kernel: NFS call access
+  Jun 23 13:04:10 linux-u93p kernel: NFS: nfs_update_inode(0:78/256 fh_crc=0x86d0b24e ct=2 info=0x27e7f)
+  Jun 23 13:04:10 linux-u93p kernel: NFS reply access: 0
+  Jun 23 13:04:10 linux-u93p kernel: NFS: permission(0:78/256), mask=0x24, res=0
+  Jun 23 13:04:10 linux-u93p kernel: NFS: open dir(/)
+  Jun 23 13:04:10 linux-u93p kernel: NFS: revalidating (0:78/256)
+  Jun 23 13:04:10 linux-u93p kernel: NFS call getattr
+  Jun 23 13:04:10 linux-u93p systemd[1]: systemd-journald.service: Got notification message from PID 419 (WATCHDOG=1)
+  Jun 23 13:04:10 linux-u93p kernel: NFS reply getattr: 0
+  Jun 23 13:04:10 linux-u93p kernel: NFS: nfs_update_inode(0:78/256 fh_crc=0x86d0b24e ct=2 info=0x27e7f)
+  Jun 23 13:04:10 linux-u93p kernel: NFS: (0:78/256) revalidation complete
+  Jun 23 13:04:10 linux-u93p kernel: NFS: nfs_weak_revalidate: inode 256 is valid
+  Jun 23 13:04:10 linux-u93p kernel: NFS: nfs_weak_revalidate: inode 256 is valid
+  Jun 23 13:04:10 linux-u93p kernel: NFS: nfs_weak_revalidate: inode 256 is valid
+  Jun 23 13:04:10 linux-u93p kernel: NFS call fsstat
+  Jun 23 13:04:10 linux-u93p kernel: NFS reply fsstat: 0
+  ```
 
 ##### nfsstat
 
