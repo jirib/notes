@@ -981,12 +981,10 @@ and notifies clients that the server is to be
 shutdown/rebooted. out-of-date `rmtab` does not cause shutdown to
 hang.
 
-#### SUSE specific
+#### server
 
 On SUSE `/usr/sbin/rpc.nfsd` reads `/etc/nfs.conf` which loads
 `/etc/sysconfig/nfs`.
-
-#### server
 
 ``` shell
 exportfs -s # see exports
@@ -1016,8 +1014,6 @@ LOCKD_UDPPORT="36508"
 rpcbind -p <nfs_server>   # list registered services in rpcbind
 showmount -e <nfs_server> # list remote exports
 ```
-
-
 
 #### troubleshooting
 
