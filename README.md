@@ -347,6 +347,9 @@ corosync-cfgtool -R # tell all nodes to reload corosync config
 
 ##### pacemaker
 
+important cluster settings
+
+-
 ``` shell
 systemctl start pacemaker # on all nodes
 corosync-cpgtool          # see if pacemaker is known to corosync,
@@ -375,10 +378,11 @@ crm_verify -LV            # check configuration used by cluster, verbose
 general cluster mgmt
 
 ``` shell
-crm_mon # general overview, part of pacemaker
+crm_mon                                                 # general overview, part of pacemaker
 crm_mon [-n | --group-by-node ]
-crm_mon -nforA # incl. fail, counts, operations...
-cibadmin [-Q | --query] # expert xml administration, part of pacemaker
+crm_mon -nforA                                          # incl. fail, counts, operations...
+cibadmin [-Q | --query]                                 # expert xml administration, part of pacemaker
+crm_attribute --type <scope> --name <attribute> --query # another query solution
 ```
 
 ###### crm (crmsh)
@@ -527,7 +531,7 @@ https://www.suse.com/support/kb/doc/?id=000018699
 ``` shell
 # pacemaker 1.x
 grep -P \
-  '^<YYYY>-<MM>-<DD>T<HH>:\d+:.* (corosync|attrd|crmd|cib|lrmd|pengine|stonith|controld|systemd)' \
+  '^(\d{4}-\d{2}-\d{2}T|\S{3} \d{2} )\d{2}:\d{2}:\d{2} .* (corosync|attrd|crmd|cib|lrmd|pengine|stonith|controld|systemd)' \
   messages # grep log file for cluster messages
 ```
 
@@ -1028,6 +1032,8 @@ grep -RH '' /proc/fs/nfsd/ 2>/dev/null
 rpcdebug -m <module> # status of debugging; 'nfs' (client), 'nfsd' (server)
 rpcdebug -m <module> -s   # enable debugging for module
 rpcdebug -m <module> -c   # disable debugging for module
+
+grep -RH '' /proc/sys/sunrpc/nfs_debug # above commands change this value
 ```
 
 - `bg / fg`, see `nfs(5)` and `systemd.mount(5)`. kernel
@@ -2020,7 +2026,7 @@ aa-complain <profile> # not enforcing but logging mode
                       # (similar to permissive in SELinux)
 ```
 
-## auditd
+### auditd
 
 - [audit system reference](https://access.redhat.com/articles/4409591)
   (description of event fields, record types), or
@@ -2123,6 +2129,27 @@ type=CRED_DISP msg=audit(1623924440.133:236): pid=1801 uid=0 auid=1000 ses=5 sub
 type=CRYPTO_KEY_USER msg=audit(1623924440.133:237): pid=1801 uid=0 auid=1000 ses=5 subj=system_u:system_r:sshd_t:s0-s0:c0.c1023 msg='op=destroy kind=server fp=SHA256:94:e4:42:14:aa:4a:cf:01:4a:44:d8:b0:82:32:32:a8:6e:3d:64:91:ba:22:b1:8d:7c:b4:a2:26:9a:91:65:42 direction=? spid=1801 suid=0  exe="/usr/sbin/sshd" hostname=? addr=? terminal=? res=success'
 type=CRYPTO_KEY_USER msg=audit(1623924440.133:238): pid=1801 uid=0 auid=1000 ses=5 subj=system_u:system_r:sshd_t:s0-s0:c0.c1023 msg='op=destroy kind=server fp=SHA256:53:5b:b8:5f:92:65:1c:6b:fc:69:28:8b:26:42:c6:58:fa:63:76:43:43:d4:4c:cd:81:1b:cc:52:c6:02:77:fc direction=? spid=1801 suid=0  exe="/usr/sbin/sshd" hostname=? addr=? terminal=? res=success'
 type=CRYPTO_KEY_USER msg=audit(1623924440.133:239): pid=1801 uid=0 auid=1000 ses=5 subj=system_u:system_r:sshd_t:s0-s0:c0.c1023 msg='op=destroy kind=server fp=SHA256:63:42:8b:7b:d5:ff:b1:e2:91:09:51:8d:35:dd:79:7a:0a:29:b0:5e:86:90:1e:17:f1:c8:dc:f9:fc:e6:cc:3d direction=? spid=1801 suid=0  exe="/usr/sbin/sshd" hostname=? addr=? terminal=? res=success'
+```
+
+### tls / ssl
+
+#### openssl
+
+a simple https webserver
+
+``` shell
+openssl req -x509 -newkey rsa:2048 -keyout key.pem -out cert.pem \
+  -days 365 -nodes                                               # generate
+openssl s_server -key key.pem -cert cert.pem -accept 44330 -www \
+  -no_ssl2 -no_ssl3 -tls1_2                                      # tls1.2
+```
+
+list certs data in ca bundle
+
+``` shell
+openssl crl2pkcs7 -nocrl -certfile /etc/ssl/ca-bundle.pem | \
+  openssl pkcs7 -print_certs -text -noout | \
+  grep -Po '\K(Subject:.*)'                                   # get all subjects
 ```
 
 ## schedulers
