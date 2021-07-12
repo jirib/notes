@@ -1225,6 +1225,14 @@ xmllint --xpath '/policymap/policy[@pattern="PDF"]' /etc/ImageMagick-7/policy.xm
 
 ### udev
 
+## kerberos
+
+- *'$'* in principal name indicates machine account
+
+``` shell
+KRB5_TRACE=/dev/stdout kinit <args> # to get debug from any gssapi/krb library
+                                    # calls
+```
 
 ## kernel
 
@@ -2231,6 +2239,37 @@ qemu-nbd -d /dev/nbd0
 ```
 
 ### libvirt
+
+#### dnsmasq enabled network
+
+to extend dnsmasq features network schema and 'dnsmasq:options'
+element need to be added
+
+``` shell
+<network xmlns:dnsmasq='http://libvirt.org/schemas/network/dnsmasq/1.0'>
+  <name>default</name>
+  <uuid>b790885f-7f0f-49eb-9009-79ae4318077f</uuid>
+  <forward mode='nat'>
+    <nat>
+      <port start='1024' end='65535'/>
+    </nat>
+  </forward>
+  <bridge name='virbr0' stp='on' delay='0'/>
+  <mac address='52:54:00:df:e2:6c'/>
+  <ip address='192.168.122.1' netmask='255.255.255.0'>
+    <dhcp>
+      <range start='192.168.122.2' end='192.168.122.254'/>
+    </dhcp>
+  </ip>
+  <dnsmasq:options>
+    <dnsmasq:option value='log-dhcp'/>
+    <dnsmasq:option value='dhcp-match=set:efi-x86_64,option:client-arch,7'/>
+    <dnsmasq:option value='dhcp-match=set:i386-pc,option:client-arch,0'/>
+    <dnsmasq:option value='dhcp-boot=tag:efi-x86_64,x86_64-efi/shim.efi'/>
+    <dnsmasq:option value='dhcp-boot=tag:i386-pc,i386-pc/core.0'/>
+  </dnsmasq:options>
+</network>
+```
 
 #### virsh
 
