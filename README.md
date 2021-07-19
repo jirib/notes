@@ -1849,6 +1849,40 @@ journalctl -o verbose -u sshd # details about message
 
 *linuxrc* is *init* instead of *systemd*
 
+#### networking
+
+``` shell
+echo 'default <ip> - -' > /etc/sysconfig/network/routes
+cat > /etc/sysconfig/network/ifcfg-eth0 <<EOF
+IPADDR='<ip/mask>'
+BOOTPROTO='static'
+STARTMODE='auto'
+EOF
+```
+
+static route on a DHCP managed iface needs also a definition for the gateway itself, see [Q: Why wicked does not set my (default) static route?](https://github.com/openSUSE/wicked/wiki/FAQ#q-why-wicked-does-not-set-my-default-static-route)
+
+``` shell
+for f in /etc/sysconfig/network/if{cfg,route}-eth0; do echo '>>>' $f ; cat $f ; done
+>>> /etc/sysconfig/network/ifcfg-eth0
+BOOTPROTO='dhcp'
+STARTMODE='auto'
+>>> /etc/sysconfig/network/ifroute-eth0
+192.168.122.2 - - eth0
+8.8.4.0/24 192.168.122.2 - eth0
+
+wicked ifstatus eth0
+eth0 up
+link: #2, state up, mtu 1500
+type: ethernet, hwaddr 52:54:00:05:62:e6
+config: compat:suse:/etc/sysconfig/network/ifcfg-eth0
+leases: ipv4 static granted, ipv4 dhcp granted
+leases: ipv6 dhcp requesting
+addr: ipv4 192.168.122.190/24 [dhcp]
+route: ipv4 default via 192.168.122.1 proto dhcp
+route: ipv4 8.8.4.0/24 via 192.168.122.2 proto boot
+```
+
 #### product / registration
 
 See [TID7023490](https://www.suse.com/support/kb/doc/?id=000019341)
@@ -1864,7 +1898,7 @@ rpm -qa \*-release | grep -i sles # another helpful check
 SUSEConnect -r <activation_key> -e <email>
 ```
 
-#### packages via zypper
+#### zypper
 
 ##### repos
 
@@ -1900,20 +1934,6 @@ zypper se --provides -x /usr/bin/gnat # search package owning path
 zypper lp
 zypper pchk
 ```
-
-#### networking
-
-``` shell
-echo 'default <ip> - -' > /etc/sysconfig/network/routes
-cat > /etc/sysconfig/network/ifcfg-eth0 <<EOF
-IPADDR='<ip/mask>'
-BOOTPROTO='static'
-STARTMODE='auto'
-EOF
-```
-
-
-
 
 ## printing
 
