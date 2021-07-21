@@ -1898,6 +1898,26 @@ rpm -qa \*-release | grep -i sles # another helpful check
 SUSEConnect -r <activation_key> -e <email>
 ```
 
+#### supportconfig
+
+supportconfig files could be huge thus a little tip to search for
+commands output
+
+``` shell
+awk '/^#==\[ Command \]=+#$/ {getline;print NR,$0}' sysfs.txt
+2 # /bin/find /sys | xargs ls -ld --time-style=long-iso
+114450 # /usr/bin/systool
+114622 # /usr/bin/systool -vb clockevents
+117704 # /usr/bin/systool -vb clocksource
+117716 # /usr/bin/systool -vb container
+117721 # /usr/bin/systool -vb cpu
+124718 # /usr/bin/systool -vb edac
+124727 # /usr/bin/systool -vb event_source
+124768 # /usr/bin/systool -vb gpio
+124773 # /usr/bin/systool -vb hid
+...
+```
+
 #### zypper
 
 ##### repos
@@ -2204,6 +2224,29 @@ man 5 crontab | sed -n '/RANDOM_DELAY/,/^$/p' | fmt -w80
 ``` shell
 echo one two three | xargs -n1 # multiple columns into one
 
+```
+
+### sed
+
+print range between patterns, include first pattern but not the last
+one
+
+``` shell
+sed -n '/<patten1>/,/<pattern2>/{/<pattern2>/!p}' <file>
+
+# an example
+sed -rn '/^3600507680c8101344000000000069169 dm-[[:digit:]]+/,/^36/{/^36/!p}' mpio.txt
+size=212G features='1 queue_if_no_path' hwhandler='1 alua' wp=rw
+|-+- policy='service-time 0' prio=50 status=active
+| |- 1:0:0:5  sdf  8:80   active ready running
+| |- 2:0:0:5  sdy  65:128 active ready running
+| |- 3:0:0:5  sdaw 67:0   active ready running
+| `- 4:0:0:5  sdbv 68:144 active ready running
+`-+- policy='service-time 0' prio=10 status=enabled
+  |- 1:0:1:5  sdu  65:64  active ready running
+  |- 2:0:1:5  sdap 66:144 active ready running
+  |- 3:0:1:5  sdbk 67:224 active ready running
+  `- 4:0:1:5  sdch 69:80  active ready running
 ```
 
 ## troubleshooting
