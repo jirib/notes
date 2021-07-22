@@ -1592,15 +1592,16 @@ targetcli /iscsi/<target_name>/tpg1/luns create <backing_object> \
 ##### targetcli commands examples
 
 ``` shell
-targetcli /backstores/fileio/ create sle15sp2-mpath-01-test /home/iscsi/sle15sp2-mpath-01-test.raw
-targetcli /backstores/fileio/sle15sp2-mpath-01-test info
-aio: False
-dev: /home/iscsi/sle15sp2-mpath-01-test.raw
-name: sle15sp2-mpath-01-test
-plugin: fileio
-size: 0
-write_back: True
-wwn: 24869f9a-886f-4180-867e-0704da992c45
+targetcli /backstores/fileio create mpio01 /home/iscsi/mpio01.raw 1G
+
+targetcli /backstores/fileio/mpio01 info
+> aio: False
+> dev: /home/iscsi/mpio01.raw
+> name: mpio01
+> plugin: fileio
+> size: 1073741824
+> write_back: True
+> wwn: 501bb55a-79b6-499f-8c20-a3833fae05b0
 ```
 
 ## mdraid
@@ -1789,6 +1790,7 @@ Other tips:
 - emergency shell - systemd after `pivot_root`
 - `systemd.log_level=debug systemd.log_target=console systemd.log_location=true systemd.show_status=true`
 - `systemd-analyze set-log-level <level>` - change logging level
+- `systemctl show -p LogLevel` - get current logging level
 
 #### desktop stuff
 
