@@ -1300,6 +1300,24 @@ systool -vm iwlwifi | awk '/^\s*Parameters:/{p=1}/^ *$/{p=0}p' # a module params
     uapsd_disable       = "3"
 ```
 
+### panic
+
+an example from SLE 12 SP5, which means - IIUC - kernel panics when an
+[oops](https://en.wikipedia.org/wiki/Linux_kernel_oops) or
+[BUG](https://kernelnewbies.org/FAQ/BUG) is encountered **but** kernel
+will loop forever since `panic` is `0`. see *panic* options in
+[kernel](https://git.kernel.org/pub/scm/linux/kernel/git/torvalds/linux.git/tree/Documentation/admin-guide/sysctl/kernel.rst#n706).
+
+``` shell
+grep -RH '' /proc/sys/kernel/panic*
+/proc/sys/kernel/panic:0
+/proc/sys/kernel/panic_on_io_nmi:0
+/proc/sys/kernel/panic_on_oops:1
+/proc/sys/kernel/panic_on_rcu_stall:0
+/proc/sys/kernel/panic_on_unrecovered_nmi:0
+/proc/sys/kernel/panic_on_warn:0
+```
+
 ### procfs
 
 what are open files limits of an existing process?
