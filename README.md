@@ -1242,6 +1242,10 @@ KRB5_TRACE=/dev/stdout kinit <args> # to get debug from any gssapi/krb library
 
 ### kdump
 
+[sysrq
+key](https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html) in
+Linux
+
 ``` shell
 zgrep -P \
   '^CONFIG_(RELOCATABLE|KEXEC|CRASH_DUMP|DEBUG_INFO|MAGIC_SYSRQ|PROC_VMCORE)=' \
@@ -1250,7 +1254,6 @@ zgrep -P \
 
 ``` shell
 dmesg | grep crashkernel
-
 ```
 
 ### modules
@@ -2346,6 +2349,13 @@ virsh define <(virsh dumpxml <template> | \
   sed -e '/uuid/d' \
     -e 's/template/ha-01/g' \
     -e 's/\(52:54:00:64:3e\):16/\1:01/')     # create vm based on template vm
+```
+
+simulate [sysrq
+keys](https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html)
+
+``` shell
+virsh <domain> send-key 1 KEY_LEFTALT KEY_SYSRQ KEY_C # sysrq crash
 ```
 
 #### virt-install
