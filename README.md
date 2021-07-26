@@ -245,8 +245,18 @@ insmod <module>
 ```
 #### troubleshooting
 
-- if not correctly installed or missing a module -> GRUB rescue
-- if no `grub.cfg` is found -> GRUB shell
+various indications of *GRUB 2* issue
+
+- `grub>` - prompt, *GRUB 2* loaded modules but was unable to find the
+  its configuration file (`grub.cfg`)
+- `grub rescue>` - prompt, *GRUB 2* failed to find the GRUB directory
+  or its content is missing or corrupted; the directory contains the
+  menu, modules and stored environmental data (or failed to load the
+  normal module)
+- `GRUB` - a single word at the top left of the screen, with no prompt
+  and no cursor. *GRUB 2* failed to find even the most basic
+  information, usually contained in the MBR or boot sector.
+
 
 ## clusters
 
