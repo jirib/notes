@@ -1863,20 +1863,7 @@ journalctl -o verbose -u sshd # details about message
 
 ### SUSE
 
-#### support
 
-- latest *SP* (service pack), 6 monts to update to latest SP after it
-  has been released
-- latest updates in older SP if *LTTS* (long term technical support),
-  LTTS adds 3 years period of support of an old SP end of general
-  support date
-- *Extended Service Pack Support* (ESPOS), LTTS-kind 3.5 yr support
-  bounded to a specific product release (eg. SLES for SAP 12 SP5
-- *LV1*, problem determination, troubleshooting based on documentation
-- *LV2*, problem isolation, analysis, reproduction
-- *LV3*, problem resolution, engineering engagement, resolution of
-  defects reported by LV2
-- *PTF*, Program Temporary Fixes
 
 #### installation
 
@@ -1930,6 +1917,50 @@ rpm -qa \*-release | grep -i sles # another helpful check
 ``` shell
 SUSEConnect -r <activation_key> -e <email>
 ```
+
+#### rmt
+
+rmt is 'repository mirroring tool' from SUSE
+
+- `/etc/rmt/ssl/rmt-ca.{crt,key}`, CA cert/key
+- `/etc/rmt/ssl/rmt-server.{crt,key}`, server cert/key
+- `/usr/share/rmt/public/repo` (symlink to `/var/lib/rmt/public/repo`)
+
+``` shell
+systemctl status rmt-server-sync.timer # timer
+
+rmt-cli sync # synchronize product & repositories (meta)data
+
+rmt-cli products list --all         # list all available products
+rmt-cli products enable <id/string> # enable a product
+rmt-cli products show <id/string>   # info about a product repos and attributes
+
+rmt-cli repos list
+rmt-cli repos enable/disable <id>   # enable a product repo
+```
+
+``` shell
+journalctl -u rmt-server | grep Listening
+> Jul 26 11:16:02 t14s rails[4995]: [4995] * Listening on http://127.0.0.1:4224
+
+ps auxww | grep 'puma .*\[rmt\]$' # main rmt pid
+> _rmt     25199  1.3  0.5 281652 87396 ?        Ssl  14:54   0:01 puma 5.3.2 (tcp://127.0.0.1:4224) [rmt]
+```
+
+#### support
+
+- latest *SP* (service pack), 6 monts to update to latest SP after it
+  has been released
+- latest updates in older SP if *LTTS* (long term technical support),
+  LTTS adds 3 years period of support of an old SP end of general
+  support date
+- *Extended Service Pack Support* (ESPOS), LTTS-kind 3.5 yr support
+  bounded to a specific product release (eg. SLES for SAP 12 SP5
+- *LV1*, problem determination, troubleshooting based on documentation
+- *LV2*, problem isolation, analysis, reproduction
+- *LV3*, problem resolution, engineering engagement, resolution of
+  defects reported by LV2
+- *PTF*, Program Temporary Fixes
 
 #### supportconfig
 
