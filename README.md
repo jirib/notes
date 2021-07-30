@@ -1863,8 +1863,6 @@ journalctl -o verbose -u sshd # details about message
 
 ### SUSE
 
-
-
 #### installation
 
 *linuxrc* is *init* instead of *systemd*
@@ -1945,6 +1943,27 @@ journalctl -u rmt-server | grep Listening
 
 ps auxww | grep 'puma .*\[rmt\]$' # main rmt pid
 > _rmt     25199  1.3  0.5 281652 87396 ?        Ssl  14:54   0:01 puma 5.3.2 (tcp://127.0.0.1:4224) [rmt]
+```
+
+### sealing / templating
+
+# TODO: NetworkManager networking style
+
+``` shell
+# generic
+rm /{etc,var/lib/dbus}/machine-id # machine-id in /var/lib/dbus is symlink
+rm /etc/ssh/{ssh_host*,moduli}
+rm /etc/udev/rules.d/*-persistent-*.rules
+
+<editor> /etc/default/grub # path to block device
+
+# suse specific
+rm /etc/zypp/credentials.d/SCCcredentials
+rm /etc/zypp/services.d/*
+rm /var/lib/wicked/{duid,iaid,lease-eth0-dhcp-ipv4}.xml
+
+<editor> /etc/default/grub_installdevice # path to block device
+<editor> /etc/sysconfig/network/if{cfg,route}-eth0
 ```
 
 #### support
