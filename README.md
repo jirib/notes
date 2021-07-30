@@ -1233,6 +1233,27 @@ xmllint --xpath '/policymap/policy[@pattern="PDF"]' /etc/ImageMagick-7/policy.xm
 
 ## hardware
 
+### ipmi
+
+#### ipmitool
+
+``` shell
+lsmod | grep ipmi
+ls -l /dev/ipmi0
+modprobe ipmi_devintf
+
+# static ip
+ipmitool lan set 1 ipsrc static
+ipmitool lan set 1 netmask 255.255.255.0
+ipmitool lan set 1 arp respond on
+ipmitool lan print 1
+
+# dhcp ip
+ipmitool lan set 1 ipsrc dhcp
+ipmitool lan set 1 arp respond on
+ipmitool mc reset cold
+```
+
 ### udev
 
 ## kerberos
