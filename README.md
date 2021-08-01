@@ -1254,8 +1254,6 @@ ipmitool lan set 1 arp respond on
 ipmitool mc reset cold
 ```
 
-### udev
-
 ## kerberos
 
 - *'$'* in principal name indicates machine account
