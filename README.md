@@ -979,6 +979,20 @@ snapper list
 
 info about NFSv4-only setup https://www.suse.com/support/kb/doc/?id=000019530
 
+for every >= 4.0 nfs client `nfsd` keeps a record in `/proc/fs/nfsd/clients`
+
+``` shell
+grep -RH '' /proc/fs/nfsd/clients/11 2>/dev/null | grep clients
+/proc/fs/nfsd/clients/11/info:clientid: 0x3c51cb4c6107cb15
+/proc/fs/nfsd/clients/11/info:address: "10.0.0.2:876"
+/proc/fs/nfsd/clients/11/info:status: confirmed
+/proc/fs/nfsd/clients/11/info:name: "Linux NFSv4.2 server1"
+/proc/fs/nfsd/clients/11/info:minor version: 2
+/proc/fs/nfsd/clients/11/info:Implementation domain: "kernel.org"
+/proc/fs/nfsd/clients/11/info:Implementation name: "Linux 5.3.18-24.75-default #1 SMP Thu Jul 15 10:17:58 UTC 2021 (44308a6) x86_64"
+/proc/fs/nfsd/clients/11/info:Implementation time: [0, 0]
+```
+
 #### nfsv3
 
 - *NFSv3* does require `rpcbind` (previously `portmapper`) and has
@@ -994,6 +1008,14 @@ when a NFS server shuts down/reboots, `rpc.mountd` consults `rmtab`
 and notifies clients that the server is to be
 shutdown/rebooted. out-of-date `rmtab` does not cause shutdown to
 hang.
+
+for every < 4.0 nfs client `rpc.mountd` on nfs server keeps a record
+in `/var/lib/nfs/rmtab`
+
+``` shell
+grep -RH '' /var/lib/nfs/rmtab
+/var/lib/nfs/rmtab:10.0.0.2:/tmp:0x00000001
+```
 
 #### server
 
