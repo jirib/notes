@@ -2425,6 +2425,56 @@ qemu-nbd --connect=/dev/nbd0 <qemu_image> # connect eg. a qcow2 image
 qemu-nbd -d /dev/nbd0
 ```
 
+### libguestfs
+
+#### guestfish
+
+``` shell
+guestfish -a sles12sp4-template.qcow2 -m /dev/sda2:/::btrfs
+
+Welcome to guestfish, the guest filesystem shell for
+editing virtual machine filesystems and disk images.
+
+Type: ‘help’ for help on commands
+      ‘man’ to read the manual
+      ‘quit’ to quit the shell
+
+><fs> list-filesystems
+/dev/sda1: swap
+/dev/sda2: btrfs
+btrfsvol:/dev/sda2/@: btrfs
+btrfsvol:/dev/sda2/@/.snapshots: btrfs
+btrfsvol:/dev/sda2/@/boot/grub2/i386-pc: btrfs
+btrfsvol:/dev/sda2/@/boot/grub2/x86_64-efi: btrfs
+btrfsvol:/dev/sda2/@/opt: btrfs
+btrfsvol:/dev/sda2/@/srv: btrfs
+btrfsvol:/dev/sda2/@/tmp: btrfs
+btrfsvol:/dev/sda2/@/usr/local: btrfs
+btrfsvol:/dev/sda2/@/var/cache: btrfs
+btrfsvol:/dev/sda2/@/var/crash: btrfs
+btrfsvol:/dev/sda2/@/var/lib/libvirt/images: btrfs
+btrfsvol:/dev/sda2/@/var/lib/machines: btrfs
+btrfsvol:/dev/sda2/@/var/lib/mailman: btrfs
+btrfsvol:/dev/sda2/@/var/lib/mariadb: btrfs
+btrfsvol:/dev/sda2/@/var/lib/mysql: btrfs
+btrfsvol:/dev/sda2/@/var/lib/named: btrfs
+btrfsvol:/dev/sda2/@/var/lib/pgsql: btrfs
+btrfsvol:/dev/sda2/@/var/log: btrfs
+btrfsvol:/dev/sda2/@/var/opt: btrfs
+btrfsvol:/dev/sda2/@/var/spool: btrfs
+btrfsvol:/dev/sda2/@/var/tmp: btrfs
+btrfsvol:/dev/sda2/@/.snapshots/2/snapshot: btrfs
+/dev/sda3: xfs
+><fs> mount-options subvol=/@/var/log /dev/sda2 /var/log
+><fs> mountpoints
+/dev/sda2: /
+/dev/sda2: /var/log
+><fs> truncate /var/log/pbl.log
+><fs> truncate /var/log/alternatives.log
+><fs> truncate /var/log/zypp/history
+><fs> exit
+```
+
 ### libvirt
 
 #### dnsmasq enabled network
@@ -2457,7 +2507,7 @@ element need to be added
   </dnsmasq:options>
 </network>
 ```
-
+p
 #### virsh
 
 ``` shell
