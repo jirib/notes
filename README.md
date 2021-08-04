@@ -243,6 +243,41 @@ lsmod
 insmod <module>
 
 ```
+
+#### pxe
+
+``` shell
+grub2-mknet -v --net-directory=/srv/tftpboot \
+  --directory=/usr/share/grub2/<platform> \
+  --subdir=grub2                             # installs into /srv/tftpboot/grub2
+```
+
+``` shell
+timeout=60
+default=0
+
+menuentry local {
+  insmod biosdisk
+  set root=(hd0)
+  chainloader +1
+}
+
+menuentry pxelinux {
+  insmod pxechain
+  pxechainloader (tftp)/pxelinux.0
+```
+
+#### serial console
+
+for a blood SOL (IPMI) which is COM3 aka ttyS2
+
+``` shell
+GRUB_TERMINAL="console serial"
+GRUB_SERIAL_COMMAND="serial --unit=2 --speed=115200"
+```
+
+and run `grub2-mkconfig -o /boot/grub2/grub.cfg`.
+
 #### troubleshooting
 
 various indications of *GRUB 2* issue
