@@ -273,7 +273,9 @@ for a blood SOL (IPMI) which is *COM3* (ie. *ttyS2* - *0x3e8*)
 
 ``` shell
 GRUB_TERMINAL="console serial"
-GRUB_SERIAL_COMMAND="serial --unit=2 --speed=115200"
+GRUB_SERIAL_COMMAND="serial --port=0x3e8 --speed=115200"
+# or via 'unit'
+# GRUB_SERIAL_COMMAND="serial --unit=2 --speed=115200"
 ```
 
 and run `grub2-mkconfig -o /boot/grub2/grub.cfg`.
