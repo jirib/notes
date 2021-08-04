@@ -269,7 +269,7 @@ menuentry pxelinux {
 
 #### serial console
 
-for a blood SOL (IPMI) which is COM3 aka ttyS2
+for a blood SOL (IPMI) which is *COM3* (ie. *ttyS2* - *0x3e8*)
 
 ``` shell
 GRUB_TERMINAL="console serial"
