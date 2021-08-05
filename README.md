@@ -1013,8 +1013,10 @@ snapper list
   client directly by itself); mounting and locking protocols are part
   of NFSv4
 - in-kernel *nfsd* listening on 2049/{tcp,udp}
-
-info about NFSv4-only setup https://www.suse.com/support/kb/doc/?id=000019530
+- **BUT** although nfsv4 does not require `rpcbind`, it requires
+  internally communicating with `rpc.mountd`, see [How to run
+  NFS4-only Server without rpcbind on SLES 12 or
+  15](https://www.suse.com/support/kb/doc/?id=000019530) for details!.
 
 for every >= 4.0 nfs client `nfsd` keeps a record in `/proc/fs/nfsd/clients`
 
@@ -1947,8 +1949,12 @@ journalctl -o verbose -u sshd # details about message
 
 #### networking
 
+classical static networking
+
 ``` shell
+# route iface specification should either be valid or could not be defined
 echo 'default <ip> - -' > /etc/sysconfig/network/routes
+
 cat > /etc/sysconfig/network/ifcfg-eth0 <<EOF
 IPADDR='<ip/mask>'
 BOOTPROTO='static'
@@ -1956,7 +1962,9 @@ STARTMODE='auto'
 EOF
 ```
 
-static route on a DHCP managed iface needs also a definition for the gateway itself, see [Q: Why wicked does not set my (default) static route?](https://github.com/openSUSE/wicked/wiki/FAQ#q-why-wicked-does-not-set-my-default-static-route)
+static route on a DHCP managed iface needs also a definition for the
+gateway itself, see [Q: Why wicked does not set my (default) static
+route?](https://github.com/openSUSE/wicked/wiki/FAQ#q-why-wicked-does-not-set-my-default-static-route)
 
 ``` shell
 for f in /etc/sysconfig/network/if{cfg,route}-eth0; do echo '>>>' $f ; cat $f ; done
