@@ -1832,6 +1832,44 @@ lvcreate -L <size> -T -n <name> <vg> # create a thin pool
 
 ```
 
+#### troubleshooting
+
+renaming a VG with same name as already existing one
+
+``` shell
+vgs
+  WARNING: VG name system is used by VGs rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom and 1ZCjy2-WL2Q-7fQH-l7OV-cLGE-f5x7-aS2Wvu.
+  Fix duplicate VG names with vgrename uuid, a device filter, or system IDs.
+  VG     #PV #LV #SN Attr   VSize   VFree
+  system   1   2   0 wz--n- 596.16g     0
+  system   1   4   0 wz--n- 476.45g 12.73g
+
+
+pvs -o +pv_uuid
+  WARNING: VG name system is used by VGs rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom and 1ZCjy2-WL2Q-7fQH-l7OV-cLGE-f5x7-aS2Wvu.
+  Fix duplicate VG names with vgrename uuid, a device filter, or system IDs.
+  PV                                                                  VG     Fmt  Attr PSize   PFree  PV UUID
+  /dev/mapper/cr_nvme-SAMSUNG_MZALQ512HALU-000L1_S4YCNF0NC31508-part2 system lvm2 a--  476.45g 12.73g i21uoW-rc6C-F9R9-6S59-Vb83-FtRC-3zhuL5
+  /dev/sda2                                                           system lvm2 a--  596.16g     0  9v5GpR-WYDt-2JNj-xQTZ-cntr-Of4M-Zj7HNb
+
+vgs -o +vg_uuid,pv_uuid
+  WARNING: VG name system is used by VGs rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom and 1ZCjy2-WL2Q-7fQH-l7OV-cLGE-f5x7-aS2Wvu.
+  Fix duplicate VG names with vgrename uuid, a device filter, or system IDs.
+  VG     #PV #LV #SN Attr   VSize   VFree  VG UUID                                PV UUID
+  system   1   2   0 wz--n- 596.16g     0  rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom 9v5GpR-WYDt-2JNj-xQTZ-cntr-Of4M-Zj7HNb
+  system   1   4   0 wz--n- 476.45g 12.73g 1ZCjy2-WL2Q-7fQH-l7OV-cLGE-f5x7-aS2Wvu i21uoW-rc6C-F9R9-6S59-Vb83-FtRC-3zhuL5
+
+vgrename -v rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom temp
+  WARNING: VG name system is used by VGs rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom and 1ZCjy2-WL2Q-7fQH-l7OV-cLGE-f5x7-aS2Wvu.
+  Fix duplicate VG names with vgrename uuid, a device filter, or system IDs.
+  Processing VG system because of matching UUID rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom
+    Writing out updated volume group
+    Archiving volume group "system" metadata (seqno 3).
+    Renaming "/dev/system" to "/dev/temp"
+    Creating volume group backup "/etc/lvm/backup/temp" (seqno 4).
+  Volume group "rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom" successfully renamed to "temp"
+```
+
 ## systemd / journald
 
 ### systemd
