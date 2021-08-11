@@ -294,6 +294,10 @@ various indications of *GRUB 2* issue
   and no cursor. *GRUB 2* failed to find even the most basic
   information, usually contained in the MBR or boot sector.
 
+- [GRUB Bootloader Enter Rescue
+  Shell](https://www.suse.com/support/kb/doc/?id=000019654), there
+  seem to be a limitation which causes GRUB2 fail if root VG's PVs are
+  not between first 8 block devices of the system
 
 ## clusters
 
