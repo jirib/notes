@@ -1894,6 +1894,15 @@ systemctl --no-legend list-unit-files | \
 systemctl list-dependencies <unit> --reverse --all # list unit dependency
 ```
 
+#### desktop stuff
+
+``` shell
+mkdir /etc/systemd/logind.conf.d
+echo 'HandleLidSwitch=ignore' >> \
+  /etc/systemd/logind.conf.d/lid.conf
+systemctl restart systemd-logind # does not work on SUSE
+```
+
 #### unit files location
 
 * `/usr/local/lib/systemd/system` for system units installed by the
@@ -1938,21 +1947,22 @@ Other tips:
 * `systemctl list-units --type=swap`
 * `systemd-escape -p --suffix=swap /dev/system/swap` # returns 'dev-system-swap.swap'
 
+#### tips
+
+systemd units allow variety of conditions you can test, see
+[systemd.unit](https://www.freedesktop.org/software/systemd/man/systemd.unit.html#Conditions%20and%20Asserts).
+
+``` shell
+[Unit]
+ConditionPathExists=/path/to/needed_file
+```
+
 #### troubleshooting
 
 - emergency shell - systemd after `pivot_root`
 - `systemd.log_level=debug systemd.log_target=console systemd.log_location=true systemd.show_status=true`
 - `systemd-analyze set-log-level <level>` - change logging level
 - `systemctl show -p LogLevel` - get current logging level
-
-#### desktop stuff
-
-``` shell
-mkdir /etc/systemd/logind.conf.d
-echo 'HandleLidSwitch=ignore' >> \
-  /etc/systemd/logind.conf.d/lid.conf
-systemctl restart systemd-logind # does not work on SUSE
-```
 
 ### journald
 
