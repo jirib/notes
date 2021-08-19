@@ -299,6 +299,68 @@ various indications of *GRUB 2* issue
   seem to be a limitation which causes GRUB2 fail if root VG's PVs are
   not between first 8 block devices of the system
 
+### pxelinux
+
+when booting `pxelinux.0` from GRUB2 there's an issue with DHCP option
+*210*, ie. there's an issue with *PathPrefix* when doing PXE, see
+[Dynamic Host Configuration Protocol Options Used by PXELINUX
+](https://datatracker.ietf.org/doc/html/rfc5071#section-1) for
+explanation.
+
+An example when booting *pxelinux* via *GRUB2*.
+
+``` shell
+net0: 52:54:00:f2:9a:2a using 82540em on 0000:00:03.0 (open)
+  [Link:up, TX:0 TXE:0 RX:0 RXE:0]
+Configuring (net0 52:54:00:f2:9a:2a)...... ok
+net0: 192.168.122.57/255.255.255.0 gw 192.168.122.1
+Next server: 192.168.122.1
+Filename: i386-pc/core.0
+tftp://192.168.122.1/i386-pc/core.0... ok
+core.0 : 50538 bytes [PXE-NBP]
+...
+PXELINUX 3.86 2010-04-01  Copyright (C) 1994-2010 H. Peter Anvin et al
+Found PXENV+ structure
+PXE API version is 0201
+!PXE entry point found (we hope) at 9C28:0160 via plan C
+UNDI code segment at 9C28 len 0802ion...ok
+UNDI data segment at 9CAC len 2D10
+Getting cached packet 01 02 03
+My IP address seems to be C0A87A39 192.168.122.57
+ip=192.168.122.57:192.168.122.1:192.168.122.1:255.255.255.0
+TFTP prefix: i386-pc/ource Network Boot Firmware -- http://ipxe.org
+Trying to load: pxelinux.cfg/e4365a86-e13a-3944-a86a-ad09404793cdT
+Trying to load: pxelinux.cfg/01-52-54-00-f2-9a-2a
+Trying to load: pxelinux.cfg/C0A87A39 on 0000:00:03.0 (open)
+Trying to load: pxelinux.cfg/C0A87A3
+Trying to load: pxelinux.cfg/C0A87A)...... ok
+Trying to load: pxelinux.cfg/C0A87 gw 192.168.122.1
+Trying to load: pxelinux.cfg/C0A8
+Trying to load: pxelinux.cfg/C0A
+Trying to load: pxelinux.cfg/C0re.0... ok
+Trying to load: pxelinux.cfg/C
+Trying to load: pxelinux.cfg/default
+Unable to locate configuration file
+
+Boot failed: press a key to retry, or wait for reset...
+```
+
+See `TFTP prefix: i386-pc/` above!
+
+To solve this issue you either can modify DHCP server or better modify
+`pxelinux.0` binary.
+
+``` shell
+# pwd
+/tmp/syslinux-3.86/utils
+# cp ../core/pxelinux.0{,orig}
+# pxelinux-options --after path-prefix / ../core/pxelinux.0
+# pxelinux-options --list ../core/pxelinux.0
+-a path-prefix          '/'
+```
+
+And copy `pxelinux.0` to your TFTP directory.
+
 ## clusters
 
 ### pacemaker/corosync
@@ -330,6 +392,9 @@ various indications of *GRUB 2* issue
   - *globally unique clone* - distinct primitives run on each node, unique identity (eg. unique IP)
 - *multi-state resource* - special clone resource, active or passive,
   promote/demote for active/passive
+
+- *promote* resource action - promotes a resource from a slave resource to a master one
+- *demote* resource action - demotes a resource from a master resource to a slave one
 
 #### architecture
 
@@ -1521,6 +1586,46 @@ default *bonding* mode is *balance-rr*, see
 [bonding.txt](https://www.kernel.org/doc/Documentation/networking/bonding.txt)
 for details
 
+### capturing network trace
+
+#### modifying network trace
+
+one way to modify a network trace is to use
+[`tcprewrite`](https://tcpreplay.appneta.com/wiki/tcprewrite#randomizing-ip-addresses).
+
+``` shell
+tshark -r /tmp/out.pcap
+    1   0.000000     10.0.0.1 → 10.0.0.2     SSH 102 Client: Encrypted packet (len=36)
+    2   0.000865     10.0.0.2 → 10.0.0.1     SSH 102 Server: Encrypted packet (len=36)
+    3   0.000932     10.0.0.1 → 10.0.0.2     TCP 66 32968 → 22 [ACK] Seq=37 Ack=37 Win=501 Len=0 TSval=3160104543 TSecr=796686743
+    4   0.103967     10.0.0.1 → 10.0.0.2     SSH 102 Client: Encrypted packet (len=36)
+    5   0.104995     10.0.0.2 → 10.0.0.1     SSH 102 Server: Encrypted packet (len=36)
+    6   0.105063     10.0.0.1 → 10.0.0.2     TCP 66 32968 → 22 [ACK] Seq=73 Ack=73 Win=501 Len=0 TSval=3160104647 TSecr=796686847
+    7   0.264235     10.0.0.1 → 10.0.0.2     SSH 102 Client: Encrypted packet (len=36)
+    8   0.265317     10.0.0.2 → 10.0.0.1     SSH 102 Server: Encrypted packet (len=36)
+    9   0.265431     10.0.0.1 → 10.0.0.2     TCP 66 32968 → 22 [ACK] Seq=109 Ack=109 Win=501 Len=0 TSval=3160104808 TSecr=796687007
+   10   0.268828     10.0.0.2 → 10.0.0.1     SSH 374 Server: Encrypted packet (len=308)
+   11   0.268910     10.0.0.1 → 10.0.0.2     TCP 66 32968 → 22 [ACK] Seq=109 Ack=417 Win=501 Len=0 TSval=3160104811 TSecr=796687011
+   12   0.269223     10.0.0.2 → 10.0.0.1     SSH 126 Server: Encrypted packet (len=60)
+   13   0.269268     10.0.0.1 → 10.0.0.2     TCP 66 32968 → 22 [ACK] Seq=109 Ack=477 Win=501 Len=0 TSval=3160104812 TSecr=796687011
+
+tcprewrite --seed=423 --infile=/tmp/out.pcap --outfile=/tmp/out-new.pcap
+tshark -r /tmp/out-new.pcap
+    1   0.000000 58.69.105.23 → 58.69.105.18 SSH 102 Client: Encrypted packet (len=36)
+    2   0.000865 58.69.105.18 → 58.69.105.23 SSH 102 Server: Encrypted packet (len=36)
+    3   0.000932 58.69.105.23 → 58.69.105.18 TCP 66 32968 → 22 [ACK] Seq=37 Ack=37 Win=501 Len=0 TSval=3160104543 TSecr=796686743
+    4   0.103967 58.69.105.23 → 58.69.105.18 SSH 102 Client: Encrypted packet (len=36)
+    5   0.104995 58.69.105.18 → 58.69.105.23 SSH 102 Server: Encrypted packet (len=36)
+    6   0.105063 58.69.105.23 → 58.69.105.18 TCP 66 32968 → 22 [ACK] Seq=73 Ack=73 Win=501 Len=0 TSval=3160104647 TSecr=796686847
+    7   0.264235 58.69.105.23 → 58.69.105.18 SSH 102 Client: Encrypted packet (len=36)
+    8   0.265317 58.69.105.18 → 58.69.105.23 SSH 102 Server: Encrypted packet (len=36)
+    9   0.265431 58.69.105.23 → 58.69.105.18 TCP 66 32968 → 22 [ACK] Seq=109 Ack=109 Win=501 Len=0 TSval=3160104808 TSecr=796687007
+   10   0.268828 58.69.105.18 → 58.69.105.23 SSH 374 Server: Encrypted packet (len=308)
+   11   0.268910 58.69.105.23 → 58.69.105.18 TCP 66 32968 → 22 [ACK] Seq=109 Ack=417 Win=501 Len=0 TSval=3160104811 TSecr=796687011
+   12   0.269223 58.69.105.18 → 58.69.105.23 SSH 126 Server: Encrypted packet (len=60)
+   13   0.269268 58.69.105.23 → 58.69.105.18 TCP 66 32968 → 22 [ACK] Seq=109 Ack=477 Win=501 Len=0 TSval=3160104812 TSecr=796687011
+```
+
 ### http(s) proxy
 
 ``` shell
@@ -2400,6 +2505,18 @@ type=CRYPTO_KEY_USER msg=audit(1623924440.133:238): pid=1801 uid=0 auid=1000 ses
 type=CRYPTO_KEY_USER msg=audit(1623924440.133:239): pid=1801 uid=0 auid=1000 ses=5 subj=system_u:system_r:sshd_t:s0-s0:c0.c1023 msg='op=destroy kind=server fp=SHA256:63:42:8b:7b:d5:ff:b1:e2:91:09:51:8d:35:dd:79:7a:0a:29:b0:5e:86:90:1e:17:f1:c8:dc:f9:fc:e6:cc:3d direction=? spid=1801 suid=0  exe="/usr/sbin/sshd" hostname=? addr=? terminal=? res=success'
 ```
 
+#### passwords
+
+to generate encrypted/salted password use `mkpasswd`
+
+``` shell
+mkpasswd -m sha-512 -s <<< 'pass123'
+$6$AOYSAh/LyR4A.Dz.$A/HSpublK0yEObt9h7MQVOMOp7AKTrA0QxYjHfH/fIM27Zv0yIT1bxoIxPSZWxd8yB6O9OqUYyjDoGt2MyAgd1
+
+python3 -c 'import crypt; print(crypt.crypt("pass123", crypt.mksalt(crypt.METHOD_SHA512)))'
+$6$zyuGj55qkPCh/zht$PDk60osb/mzE6xCvJx/X3uDWtU/8jGRefSQHIjCDdYsDEiKcZE3XmX/0dW7Eyz6VUIujn5aJLVslsbywA7su0.
+```
+
 ### tls / ssl
 
 #### openssl
@@ -2601,10 +2718,15 @@ element need to be added
     <dnsmasq:option value='dhcp-match=set:i386-pc,option:client-arch,0'/>
     <dnsmasq:option value='dhcp-boot=tag:efi-x86_64,x86_64-efi/shim.efi'/>
     <dnsmasq:option value='dhcp-boot=tag:i386-pc,i386-pc/core.0'/>
+    <dnsmasq:option value='dhcp-option=210,"/"'/>
   </dnsmasq:options>
 </network>
 ```
-p
+
+See `<dnsmasq:option value='dhcp-option=210,"/"'/>` above! This is to
+solve the issue with *PathPrefix* when booting [*pxelinux*](#pxelinux) from
+*GRUB2*.
+
 #### virsh
 
 ``` shell
