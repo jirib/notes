@@ -269,7 +269,7 @@ menuentry pxelinux {
 
 #### serial console
 
-for a blood SOL (IPMI) which is *COM3* (ie. *ttyS2* - *0x3e8*)
+for a bloody SOL (IPMI) which is *COM3* (ie. *ttyS2* - *0x3e8*)
 
 ``` shell
 GRUB_TERMINAL="console serial"
@@ -347,8 +347,9 @@ Boot failed: press a key to retry, or wait for reset...
 
 See `TFTP prefix: i386-pc/` above!
 
-To solve this issue you either can modify DHCP server or better modify
-`pxelinux.0` binary.
+To solve this issue you either can modify DHCP server (eg. [ISC
+DHCPd](https://wiki.syslinux.org/wiki/index.php?title=PXELINUX#DHCP_Config_-_ISC_dhcpd_options))or
+better modify `pxelinux.0` binary.
 
 ``` shell
 # pwd
