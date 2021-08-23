@@ -1915,6 +1915,82 @@ May 24 18:25:46 t14s kernel: device-mapper: multipath: 254:9: Failing path 8:16.
 
 ```
 
+a little shell script to query suppportconfig
+
+``` shell
+#!/bin/bash
+
+get_mpio() {
+    grep -Po '^(mpath\S+)(?=\s+.*dm-\d+ \w+)' mpio.txt
+}
+
+multipath_ll() {
+    sed -n '/\/sbin\/multipath -ll/,/^$/p' mpio.txt
+}
+
+get_luns() {
+    sed -n '/^'"${mpio}"'/,/^mpath/{/^mpath/!p}' <(multipath_ll) | \
+        grep -Po '\K(sd\S+)(?=.*)'
+}
+
+for mpio in $(get_mpio); do
+    echo ${mpio}
+        while read lun ; do
+            echo $lun
+            sed -n '/^ *P: \/devices\/.*'"${lun}"'/,/^ *E: USEC_INITIALIZED=.*$/{/^ *E: USEC_INITIALIZED=.*$/q; p}' hardware.txt | \
+                egrep '(ID_SERIAL|UUID)='
+    done < <(get_luns)
+    echo
+done
+```
+
+``` shell
+mpatha
+sda
+  E: ID_PART_TABLE_UUID=769d7f38-0ba7-480e-92ee-b35366d3e1c5
+  E: ID_SERIAL=3600508b1001ca8271f22a529467e906c
+sdz
+  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
+  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
+sdt
+  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
+  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
+sdk
+  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
+  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
+sdx
+  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
+  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
+
+mpathz
+sdj
+  E: ID_FS_UUID=5adfc14e-1d1d-4012-a28b-7b50363b9801
+  E: ID_SERIAL=3600601606660450079c71c6173c6a3cc
+sdw
+  E: ID_FS_UUID=5adfc14e-1d1d-4012-a28b-7b50363b9801
+  E: ID_SERIAL=3600601606660450079c71c6173c6a3cc
+sdr
+  E: ID_FS_UUID=5adfc14e-1d1d-4012-a28b-7b50363b9801
+  E: ID_SERIAL=3600601606660450079c71c6173c6a3cc
+sdy
+  E: ID_FS_UUID=5adfc14e-1d1d-4012-a28b-7b50363b9801
+  E: ID_SERIAL=3600601606660450079c71c6173c6a3cc
+
+mpathaa
+sdz
+  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
+  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
+sdt
+  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
+  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
+sdk
+  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
+  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
+sdx
+  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
+  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
+```
+
 ### health
 
 `smartctl -a <device>`
@@ -2866,18 +2942,35 @@ ovs-vsctl set bridge virtual0 mcast_snooping_enable=<value>
 #### esxi
 
 ``` shell
-esxcli system version get
+# esxcli system version get
    Product: VMware ESXi
    Version: 6.7.0
    Build: Releasebuild-14320388
    Update: 3
    Patch: 73
 
-esxcli system time get
+# esxcli system time get
 2021-08-13T08:46:15Z
 
+# esxcli storage core device list | \
+  grep -e '^t' -e 'Is SSD:' -e 'Size:' -e 'Model:'
+t10.ATA_____Crucial_CT500MX200SSD1__________________________16151246A1D2
+   Size: 476940
+   Model: Crucial_CT500MX2
+   Is SSD: true
+   Queue Full Sample Size: 0
+t10.ATA_____ST1000VN0002D1HJ162__________________________________W513PSZ8
+   Size: 953869
+   Model: ST1000VN000-1HJ1
+   Is SSD: false
+   Queue Full Sample Size: 0
+t10.ATA_____ST1000VN0002D1HJ162__________________________________W513PRQF
+   Size: 953869
+   Model: ST1000VN000-1HJ1
+   Is SSD: false
+   Queue Full Sample Size: 0
 
-esxcli storage filesystem list
+# esxcli storage filesystem list
 Mount Point                                        Volume Name  UUID                                 Mounted  Type            Size          Free
 -------------------------------------------------  -----------  -----------------------------------  -------  ------  ------------  ------------
 /vmfs/volumes/611624d3-0014912e-65a2-525400f29a2a  datastore1   611624d3-0014912e-65a2-525400f29a2a     true  VMFS-6   77846282240   76336332800
@@ -2891,6 +2984,49 @@ Mount Point                                        Volume Name  UUID            
 See [ESXi Log File
 Locations](https://docs.vmware.com/en/VMware-vSphere/6.7/com.vmware.vsphere.monitoring.doc/GUID-832A2618-6B11-4A28-9672-93296DA931D0.html)
 for ESXi logs details.
+
+OpenSSH daemon is located at `/usr/lib/vmware/openssh/bin/sshd`, thus
+
+``` shell
+# /usr/lib/vmware/openssh/bin/sshd -T | grep pubkeyacceptedkeytypes
+pubkeyacceptedkeytypes ecdsa-sha2-nistp256,ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,rsa-sha2-512,rsa-sha2-256,ssh-rsa
+
+# /usr/lib/vmware/openssh/bin/sshd -T | grep authorizedkeysfile
+authorizedkeysfile /etc/ssh/keys-%u/authorized_keys
+```
+
+To allow *ssh-ed25519* as ssh pub key, then do
+
+``` shell
+# ssh -Q PubkeyAcceptedKeyTypes
+ssh-ed25519
+ssh-ed25519-cert-v01@openssh.com
+sk-ssh-ed25519@openssh.com
+sk-ssh-ed25519-cert-v01@openssh.com
+ssh-rsa
+rsa-sha2-256
+rsa-sha2-512
+ssh-dss
+ecdsa-sha2-nistp256
+ecdsa-sha2-nistp384
+ecdsa-sha2-nistp521
+sk-ecdsa-sha2-nistp256@openssh.com
+ssh-rsa-cert-v01@openssh.com
+rsa-sha2-256-cert-v01@openssh.com
+rsa-sha2-512-cert-v01@openssh.com
+ssh-dss-cert-v01@openssh.com
+ecdsa-sha2-nistp256-cert-v01@openssh.com
+ecdsa-sha2-nistp384-cert-v01@openssh.com
+ecdsa-sha2-nistp521-cert-v01@openssh.com
+sk-ecdsa-sha2-nistp256-cert-v01@openssh.com
+
+# printf "PubkeyAcceptedKeyTypes ssh-ed25519,%s\n" \
+  $(ssh -Q PubkeyAcceptedKeyTypes | xargs | sed 's/ /,/g') \
+  >> /etc/ssh/sshd_config
+# /usr/lib/vmware/openssh/bin/sshd -t
+# /etc/init.d/hostd restart
+# /etc/init.d/vpxa restart
+```
 
 For ESXi under KVM, do
 
