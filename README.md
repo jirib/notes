@@ -1897,6 +1897,52 @@ explanation for above lines:
 
 https://www.learnitguide.net/2016/06/understand-multipath-command-output.html
 
+`multipathd` also allows an interactive shell, some examples
+
+``` shell
+# multipathd show paths
+hcil    dev dev_t pri dm_st  chk_st dev_st  next_check
+1:0:0:0 sda 8:0   50  active ready  running XXXX...... 8/20
+1:0:3:0 sdb 8:16  50  active ready  running X......... 2/20
+
+# multipathd show paths format '%w %i %d %D %t %o %T %s %c %p %S %z %N %n %R %r %a'
+uuid                              hcil    dev dev_t dm_st  dev_st  chk_st vend/prod/rev      checker pri size  serial                 host WWNN          target WWNN        host WWPN          target WWPN        host adapter
+3600d023100049aaa714c80f5169c0158 1:0:0:0 sda 8:0   active running ready  IFT,DS 1000 Series tur     50  1000G 049AAA714C80F5169C0158 0x20000024ff7d6a16 0x200000d023049aaa 0x21000024ff7d6a16 0x220000d023049aaa 0000:80:03.0
+3600d023100049aaa714c80f5169c0158 1:0:3:0 sdb 8:16  active running ready  IFT,DS 1000 Series tur     50  1000G 049AAA714C80F5169C0158 0x20000024ff7d6a16 0x200000d023049aaa 0x21000024ff7d6a16 0x210000d023049aaa 0000:80:03.0
+
+# multipathd show devices
+available block devices:
+    sda devnode whitelisted, monitored
+    sdb devnode whitelisted, monitored
+    sdc devnode whitelisted, unmonitored
+    dm-0 devnode blacklisted, unmonitored
+    dm-1 devnode blacklisted, unmonitored
+    dm-2 devnode blacklisted, unmonitored
+    dm-3 devnode blacklisted, unmonitored
+    dm-4 devnode blacklisted, unmonitored
+    dm-5 devnode blacklisted, unmonitored
+    dm-6 devnode blacklisted, unmonitored
+    dm-7 devnode blacklisted, unmonitored
+    dm-8 devnode blacklisted, unmonitored
+    dm-9 devnode blacklisted, unmonitored
+    dm-10 devnode blacklisted, unmonitored
+    dm-11 devnode blacklisted, unmonitored
+    dm-12 devnode blacklisted, unmonitored
+    dm-13 devnode blacklisted, unmonitored
+    dm-14 devnode blacklisted, unmonitored
+    dm-15 devnode blacklisted, unmonitored
+    dm-16 devnode blacklisted, unmonitored
+    dm-17 devnode blacklisted, unmonitored
+    dm-18 devnode blacklisted, unmonitored
+    dm-19 devnode blacklisted, unmonitored
+    dm-20 devnode blacklisted, unmonitored
+    dm-21 devnode blacklisted, unmonitored
+    dm-22 devnode blacklisted, unmonitored
+    dm-23 devnode blacklisted, unmonitored
+    dm-24 devnode blacklisted, unmonitored
+    dm-25 devnode blacklisted, unmonitored
+```
+
 multipath issue in logs
 
 ```
@@ -1920,6 +1966,8 @@ a little shell script to query suppportconfig
 ``` shell
 #!/bin/bash
 
+FILTER=${FILTER:-(ID_SERIAL|UUID)=}
+
 get_mpio() {
     grep -Po '^(mpath\S+)(?=\s+.*dm-\d+ \w+)' mpio.txt
 }
@@ -1929,7 +1977,7 @@ multipath_ll() {
 }
 
 get_luns() {
-    sed -n '/^'"${mpio}"'/,/^mpath/{/^mpath/!p}' <(multipath_ll) | \
+    sed -rn '/^'"${mpio}"' .*dm-[[:digit:]]+/,/^mpath/{/^mpath/!p}' <(multipath_ll) | \
         grep -Po '\K(sd\S+)(?=.*)'
 }
 
@@ -1938,7 +1986,7 @@ for mpio in $(get_mpio); do
         while read lun ; do
             echo $lun
             sed -n '/^ *P: \/devices\/.*'"${lun}"'/,/^ *E: USEC_INITIALIZED=.*$/{/^ *E: USEC_INITIALIZED=.*$/q; p}' hardware.txt | \
-                egrep '(ID_SERIAL|UUID)='
+                egrep "${FILTER}"
     done < <(get_luns)
     echo
 done
@@ -1947,20 +1995,7 @@ done
 ``` shell
 mpatha
 sda
-  E: ID_PART_TABLE_UUID=769d7f38-0ba7-480e-92ee-b35366d3e1c5
   E: ID_SERIAL=3600508b1001ca8271f22a529467e906c
-sdz
-  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
-  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
-sdt
-  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
-  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
-sdk
-  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
-  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
-sdx
-  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
-  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
 
 mpathz
 sdj
