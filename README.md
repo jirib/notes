@@ -450,6 +450,22 @@ See a [two_node_cluster_example scenarios](two_node_cluster.md#scenarios).
   ```
 - *unicast*, usually better
 
+corosync ports note, see also a general ports as defined in [RH
+docs](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/high_availability_add-on_reference/s1-firewalls-haar#tb-portenable-HAAR)
+
+``` shell
+man corosync.conf | col -b | sed -n '/^ *mcastport/,/^ *$/{/^ *$/q; p}' | fmt -w72
+       mcastport
+              This specifies the UDP port number.  It is possible to
+              use the same multicast address on a network with the
+              corosync services configured for different UDP ports.
+              Please note corosync uses two UDP ports mcastport  (for
+              mcast receives) and mcastport - 1 (for mcast sends).
+              If you have multiple clusters on the same network using
+              the same mcastaddr please configure the mcastports with
+              a gap.
+```
+
 ``` shell
 corosync-cmapctl nodelist.node                    # list corosync nodes
 corosync-cmapctl runtime.totem.pg.mrp.srp.members # list members and state
