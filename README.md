@@ -299,6 +299,46 @@ various indications of *GRUB 2* issue
   seem to be a limitation which causes GRUB2 fail if root VG's PVs are
   not between first 8 block devices of the system
 
+### iPXE
+
+#### dnsmasq
+
+Not to end in a indefinite loop when loading iPXE (because iPXE
+reloads itself), there's a need to distinuish between initial load of
+iPXE from *legacy* PXE clients (inside network interface ROM) and from
+iPXE itself. Official iPXE documentation states only a solution for
+ISC DHCP, but here is how to achieve the same with `dnsmasq`:
+
+``` shell
+# sed -n '/^# Boot for iPXE/,/^ *$/{/^ *$/q; p}' /etc/dnsmasq.conf
+# Boot for iPXE. The idea is to send two different
+# filenames, the first loads iPXE, and the second tells iPXE what to
+# load. The dhcp-match sets the ipxe tag for requests from iPXE.
+#dhcp-boot=undionly.kpxe
+#dhcp-match=set:ipxe,175 # iPXE sends a 175 option.
+#dhcp-boot=tag:ipxe,http://boot.ipxe.org/demo/boot.php
+```
+
+A full example for libvirt network settings:
+
+``` shell
+<network xmlns:dnsmasq="http://libvirt.org/schemas/network/dnsmasq/1.0">
+...
+  <dnsmasq:options>
+    <dnsmasq:option value="log-dhcp"/>
+    <dnsmasq:option value="enable-tftp"/>
+    <dnsmasq:option value="tftp-no-blocksize"/>
+    <dnsmasq:option value="tftp-root=/srv/tftpboot"/>
+    <dnsmasq:option value="dhcp-match=set:efi-x86_64,option:client-arch,7"/>
+    <dnsmasq:option value="dhcp-match=set:i386-pc,option:client-arch,0"/>
+    <dnsmasq:option value="dhcp-boot=tag:efi-x86_64,ipxe.efi"/>
+    <dnsmasq:option value="dhcp-boot=tag:i386-pc,undionly.kpxe"/>
+    <dnsmasq:option value="dhcp-match=set:ipxe,175"/>
+    <dnsmasq:option value="dhcp-boot=tag:ipxe,tftp://192.168.122.1/menu.ipxe"/>
+  </dnsmasq:options>
+</network>
+```
+
 ### pxelinux
 
 when booting `pxelinux.0` from GRUB2 there's an issue with DHCP option
@@ -1643,6 +1683,12 @@ tshark -r /tmp/out-new.pcap
    13   0.269268 58.69.105.23 → 58.69.105.18 TCP 66 32968 → 22 [ACK] Seq=109 Ack=477 Win=501 Len=0 TSval=3160104812 TSecr=796687011
 ```
 
+#### tcpdump
+
+See [A tcpdump tutorial with
+examples...](https://web.archive.org/web/20210826070406/https://danielmiessler.com/study/tcpdump/)
+for some cool examples.
+
 ### http(s) proxy
 
 ``` shell
@@ -1977,7 +2023,7 @@ May 24 18:25:46 t14s kernel: device-mapper: multipath: 254:9: Failing path 8:16.
 
 ```
 
-a little shell script to query suppportconfig
+a little shell script to query suppportconfig for mpio and its luns
 
 ``` shell
 #!/bin/bash
@@ -2041,6 +2087,10 @@ sdx
   E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
   E: ID_SERIAL=3600601606660450079c71c61056ea7e2
 ```
+
+Red Hat [Configuring device mapper
+multipath](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html-single/configuring_device_mapper_multipath/index)
+guide is great place for additional info!
 
 ### health
 
@@ -2992,6 +3042,8 @@ ovs-vsctl set bridge virtual0 mcast_snooping_enable=<value>
 
 #### esxi
 
+##### cli
+
 ``` shell
 # esxcli system version get
    Product: VMware ESXi
@@ -3032,9 +3084,13 @@ Mount Point                                        Volume Name  UUID            
 /vmfs/volumes/67d90978-7172b177-19e6-fd87141790fe               67d90978-7172b177-19e6-fd87141790fe     true  vfat       261853184     261849088
 ```
 
+##### logs
+
 See [ESXi Log File
 Locations](https://docs.vmware.com/en/VMware-vSphere/6.7/com.vmware.vsphere.monitoring.doc/GUID-832A2618-6B11-4A28-9672-93296DA931D0.html)
 for ESXi logs details.
+
+##### ssh
 
 OpenSSH daemon is located at `/usr/lib/vmware/openssh/bin/sshd`, thus
 
@@ -3079,7 +3135,29 @@ sk-ecdsa-sha2-nistp256-cert-v01@openssh.com
 # /etc/init.d/vpxa restart
 ```
 
-For ESXi under KVM, do
+##### network trace
+
+``` shell
+# esxcfg-vmknic -l # list physical adapters and their link state
+# tcpdump-uw -i vmk0 -nNA 'tcp[(tcp[12]>>2):4] = 0x5353482D'
+tcpdump-uw: verbose output suppressed, use -v or -vv for full protocol decode
+listening on vmk0, link-type EN10MB (Ethernet), capture size 262144 bytes
+07:01:32.489653 IP 10.156.122.245.60592 > 10.156.232.145.22: Flags [P.], seq 1659572510:1659572531, ack 2088459198, win 502, options [nop,nop,TS val 2339620356 ecr 2358490613], length 21
+E..I.^@.=...
+.z.
+.......b...|{[.....j7.....
+.s......SSH-2.0-OpenSSH_8.4
+
+07:01:32.504702 IP 10.156.232.145.22 > 10.156.122.245.60592: Flags [P.], seq 1:22, ack 21, win 128, options [nop,nop,TS val 2358490616 ecr 2339620356], length 21
+E..IV9@.@.k.
+...
+.z.....|{[.b..3....x......
+.....s..SSH-2.0-OpenSSH_8.3
+```
+
+The above is an example of new SSH connection only.
+
+##### esxi on KVM
 
 ``` shell
 # customize for kvm_intel if not using amd
