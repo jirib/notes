@@ -1929,6 +1929,39 @@ ENV{MD_LEVEL}=="raid[1-9]*", ENV{SYSTEMD_WANTS}+="mdmonitor.service"
 *MDADM_MAIL* variable in `/etc/sysconfig/mdadm` and activation of
 `mdmonitor.service` unit to get mail notifications (on SLES).
 
+An example of mdadm's mail:
+
+``` shell
+From root@localhost  Fri May 21 13:24:51 2021
+Return-Path: <root@localhost>
+X-Original-To: root@localhost
+Delivered-To: root@localhost
+Received: by localhost (Postfix, from userid 0)
+        id DC9AA3BDD; Fri, 21 May 2021 13:24:51 +0200 (CEST)
+From: mdadm monitoring <root@localhost>
+To: root@localhost
+Subject: DegradedArray event on /dev/md127:server1
+Message-Id: <20210521112451.DC9AA3BDD@localhost>
+Date: Fri, 21 May 2021 13:24:51 +0200 (CEST)
+Status: RO
+
+This is an automatically generated mail message from mdadm
+running on server1
+
+A DegradedArray event had been detected on md device /dev/md127.
+
+Faithfully yours, etc.
+
+P.S. The /proc/mdstat file currently contains the following:
+
+Personalities : [raid1]
+md127 : active raid1 sdb2[0]
+      732433216 blocks super 1.2 [2/1] [U_]
+      bitmap: 6/6 pages [24KB], 65536KB chunk
+
+unused devices: <none>
+```
+
 ### multipath
 
 ``` shell
@@ -3246,12 +3279,10 @@ cat > /tmp/esxi <<EOF
       <address type='pci' domain='0x0000' bus='0x00' slot='0x01' function='0x1'/>
     </controller>
     <interface type='network'>
-      <mac address='52:54:00:f2:9a:2a'/>
-      <source network='default' portid='de8cb990-0e78-4135-abfb-081b019c60b7' bridge='virbr0'/>
-      <target dev='vnet4'/>
-      <model type='e1000'/>
+      <source network='default'/>
+      <!-- e1000 is not good enough for esxi 7 -->
+      <model type='e1000e'/>
       <alias name='net0'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x03' function='0x0'/>
     </interface>
     <serial type='pty'>
       <source path='/dev/pts/9'/>
