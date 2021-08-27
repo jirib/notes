@@ -1743,6 +1743,70 @@ BIOS systems or *EFI system partition* (ef00) on EFI systems.
 cat /sys/block/<dev>/queue/hw_sector_size
 cat /sys/block/<dev>/{queue/{scheduler,add_random,rq_affinity},device/timeout} # some tunning values
 ```
+
+querying disk/hardware details...
+
+``` shell
+# _path='/sys/devices/pci0000:00/0000:00:03.0/0000:08:00.1/host8/rport-8:0-22/target8:0:22/8:0:22:2/block/sdal'
+# _path=$(echo ${_path} | sed 's,/,\\/,g;s,\.,\\.,g')
+# sed -n '/^ *Class Device path = "'"${_path}"'"/,/^ *Class Device =/{/^ *Class Device =/q;p}' sysfs.txt  | egrep -v '^([[:upper:]]| *$)'
+  Class Device path = "/sys/devices/pci0000:00/0000:00:03.0/0000:08:00.1/host8/rport-8:0-22/target8:0:22/8:0:22:2/block/sdal"
+    alignment_offset    = "0"
+    capability          = "50"
+    dev                 = "66:80"
+    discard_alignment   = "0"
+    events_async        =
+    events_poll_msecs   = "-1"
+    events              =
+    ext_range           = "256"
+    hidden              = "0"
+    inflight            = "       0        0"
+    make-it-fail        = "0"
+    range               = "16"
+    removable           = "0"
+    ro                  = "0"
+    size                = "64424509440"
+    stat                = "   26559        0 26916981    35056     9006        0 18283202  1467096        0    92208  1549904"
+    uevent              = "MAJOR=66
+    Device = "8:0:22:2"
+    Device path = "/sys/devices/pci0000:00/0000:00:03.0/0000:08:00.1/host8/rport-8:0-22/target8:0:22/8:0:22:2"
+      access_state        = "active/optimized"
+      blacklist           =
+      delete              = <store method only>
+      device_blocked      = "0"
+      device_busy         = "0"
+      dh_state            = "alua"
+      eh_timeout          = "10"
+      evt_capacity_change_reported= "0"
+      evt_inquiry_change_reported= "0"
+      evt_lun_change_reported= "0"
+      evt_media_change    = "0"
+      evt_mode_parameter_change_reported= "0"
+      evt_soft_threshold_reached= "0"
+      inquiry             =
+      iocounterbits       = "32"
+      iodone_cnt          = "0x8b4e"
+      ioerr_cnt           = "0x1"
+      iorequest_cnt       = "0x8b4e"
+      modalias            = "scsi:t-0x00"
+      model               = "MSA 2050 SAN    "
+      preferred_path      = "1"
+      queue_depth         = "16"
+      queue_ramp_up_period= "120000"
+      queue_type          = "simple"
+      rescan              = <store method only>
+      rev                 = "V270"
+      scsi_level          = "7"
+      state               = "running"
+      timeout             = "30"
+      type                = "0"
+      uevent              = "DEVTYPE=scsi_device
+      vendor              = "HPE     "
+      vpd_pg80            =
+      vpd_pg83            =
+      wwid                = "naa.600c0ff00050dfdcaffd435e01000000"
+```
+
 ### udev
 
 ``` shell
@@ -1964,20 +2028,6 @@ unused devices: <none>
 
 ### multipath
 
-> The high-level management of dm-multipath devices is done in user
-> space. This applies to `no_path_retry` for example. Device mapper
-> only knows queueing state (`queue_if_no_path`) or non-queueing
-> state. `no_path_retry` is a concept of multipathd, which counts
-> seconds after the last path goes offline, and switches to
-> non-queueing mode after the specified time (`no_path_retry *
-> polling_interval`). Thus, what you see in `multipath -ll` output is
-> indeed effective - it shows how the kernel is configured. If all
-> paths went down in your sample above, the kernel would start
-> queueing, until multipathd tells it to stop by clearing the
-> `queue_if_no_path` flag.
->
-> -- <cite>[[RFE] Could we see multipath options somewhere in /sys?](https://github.com/opensvc/multipath-tools/issues/11#issuecomment-903664928)</cite>
-
 ``` shell
 multipath -ll
 3600d023100049aaa714c80f5169c0158 dm-0 IFT,DS 1000 Series
@@ -2051,6 +2101,34 @@ available block devices:
     dm-24 devnode blacklisted, unmonitored
     dm-25 devnode blacklisted, unmonitored
 ```
+
+> The high-level management of dm-multipath devices is done in user
+> space. This applies to `no_path_retry` for example. Device mapper
+> only knows queueing state (`queue_if_no_path`) or non-queueing
+> state. `no_path_retry` is a concept of multipathd, which counts
+> seconds after the last path goes offline, and switches to
+> non-queueing mode after the specified time (`no_path_retry *
+> polling_interval`). Thus, what you see in `multipath -ll` output is
+> indeed effective - it shows how the kernel is configured. If all
+> paths went down in your sample above, the kernel would start
+> queueing, until multipathd tells it to stop by clearing the
+> `queue_if_no_path` flag.
+>
+> -- <cite>[[RFE] Could we see multipath options somewhere in
+> /sys?](https://github.com/opensvc/multipath-tools/issues/11#issuecomment-903664928)</cite>
+
+``` shell
+# multipath -t | grep polling_interval
+        polling_interval 5
+        max_polling_interval 20
+# multipathd show paths
+hcil    dev dev_t pri dm_st  chk_st dev_st  next_check
+1:0:0:0 sda 8:0   50  active ready  running X......... 2/20
+1:0:3:0 sdb 8:16  50  active ready  running XXXXXXX... 15/20
+```
+
+Thus the above shows the paths are checked every 20 secs where the
+check is not executed at same point of time.
 
 multipath issue in logs
 
