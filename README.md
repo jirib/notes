@@ -1964,6 +1964,20 @@ unused devices: <none>
 
 ### multipath
 
+> The high-level management of dm-multipath devices is done in user
+> space. This applies to `no_path_retry` for example. Device mapper
+> only knows queueing state (`queue_if_no_path`) or non-queueing
+> state. `no_path_retry` is a concept of multipathd, which counts
+> seconds after the last path goes offline, and switches to
+> non-queueing mode after the specified time (`no_path_retry *
+> polling_interval`). Thus, what you see in `multipath -ll` output is
+> indeed effective - it shows how the kernel is configured. If all
+> paths went down in your sample above, the kernel would start
+> queueing, until multipathd tells it to stop by clearing the
+> `queue_if_no_path` flag.
+>
+> -- <cite>[[RFE] Could we see multipath options somewhere in /sys?](https://github.com/opensvc/multipath-tools/issues/11#issuecomment-903664928)</cite>
+
 ``` shell
 multipath -ll
 3600d023100049aaa714c80f5169c0158 dm-0 IFT,DS 1000 Series
