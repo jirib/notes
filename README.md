@@ -1986,6 +1986,27 @@ generate_node_acls=0
 
 ##### debugging
 
+``` shell
+# grep -Po '^(drivers/target/iscsi[^:]+)(?=.*)' /sys/kernel/debug/dynamic_debug/control | sort -u
+drivers/target/iscsi/iscsi_target_auth.c
+drivers/target/iscsi/iscsi_target.c
+drivers/target/iscsi/iscsi_target_configfs.c
+drivers/target/iscsi/iscsi_target_device.c
+drivers/target/iscsi/iscsi_target_erl0.c
+drivers/target/iscsi/iscsi_target_erl1.c
+drivers/target/iscsi/iscsi_target_erl2.c
+drivers/target/iscsi/iscsi_target_login.c
+drivers/target/iscsi/iscsi_target_nego.c
+drivers/target/iscsi/iscsi_target_nodeattrib.c
+drivers/target/iscsi/iscsi_target_parameters.c
+drivers/target/iscsi/iscsi_target_seq_pdu_list.c
+drivers/target/iscsi/iscsi_target_tmr.c
+drivers/target/iscsi/iscsi_target_tpg.c
+drivers/target/iscsi/iscsi_target_transport.c
+drivers/target/iscsi/iscsi_target_util.c
+# echo 'file drivers/target/iscsi/iscsi_target_login.c +p' > /sys/kernel/debug/dynamic_debug/control
+```
+
 ###### discovery authentication
 
 ``` shell
