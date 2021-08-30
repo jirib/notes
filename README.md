@@ -1807,6 +1807,25 @@ querying disk/hardware details...
       wwid                = "naa.600c0ff00050dfdcaffd435e01000000"
 ```
 
+### bcache
+
+[bcache](https://www.kernel.org/doc/html/latest/admin-guide/bcache.html)
+allows you to cache on faster block devices for slower ones.
+
+linux distros using udev use udev rules to probe and register bcache devices, ie. they check for devices with *ID_FS_TYPE=bcache*:
+
+``` shell
+# find /usr/lib/{dracut,udev} -type f | grep bcache
+/usr/lib/dracut/modules.d/90bcache/module-setup.sh
+/usr/lib/udev/rules.d/69-bcache.rules
+/usr/lib/udev/bcache-export-cached
+/usr/lib/udev/bcache-register
+/usr/lib/udev/probe-bcache
+
+# udevadm info -q property /dev/loop0 | grep ^ID_FS_TYPE= # test loop0 device
+ID_FS_TYPE=bcache
+```
+
 ### udev
 
 ``` shell
@@ -1925,7 +1944,115 @@ non-interactive way of `targetcli`
 targetcli <path> <command> [<args>]
 ```
 
+##### acls / permissions
+
+*TODO*: this part is under construction!!!
+
+couple of things influence what an initiator can do/see:
+
+- the `discovery_auth` paramenter in op-level iscsi configuration node
+  (ie. `/iscsi`), if not empty requires authenticated initiators for
+  discovery
+- the `authentication` TPG paramenter, which defines *normal*
+  authentication (*userid*, *password*, *mutual_userid*,
+  *mutual_password*)
+- the `generate_node_acls` attribute sets if *dynamic* ACLs are used,
+  ie. they are created *on-fly* in TPG, or are defined in ACL
+  nodes. WARNING: LIO can use one or the other!
+- the `demo_mode_discovery` TPG attribute, which defines if an unknown initiator can discover, *1* enables it
+- the `auto_add_mapped_luns` global configuration parameter, which
+  influences if TPG luns are automatically added into an ACL for an
+  initiator
+###### demo mode
+
+> *Demo Mode*: Means disabling authentification for an iSCSI Endpoint,
+> i.e. its ACLs are diabled. Demo Mode grants read-only access to all
+> iSCSI Initiators that attempt to connect to that specific Endpoint.
+
+``` shell
+# targetcli /iscsi/<target>/tpg1 set attribute authentication=0 \
+  demo_mode_discovery=1 demo_mode_write_protect=0 generate_node_acls=1 \
+  cache_dynamic_acls=1
+```
+
+
+``` shell
+targetcli /iscsi/<target>/tpg1 get attribute | egrep '^(demo|generate|auth)'
+authentication=1
+demo_mode_discovery=1
+demo_mode_write_protect=1
+generate_node_acls=0
+```
+
+##### debugging
+
+###### discovery authentication
+
+``` shell
+Aug 30 13:47:15 sixers kernel: Added timeout timer to iSCSI login request for 15 seconds.
+Aug 30 13:47:15 sixers kernel: Moving to TARG_CONN_STATE_XPT_UP.
+Aug 30 13:47:15 sixers kernel: Got Login Command, Flags 0x87, ITT: 0x2d185e45, CmdSN: 0xe65d0c32, ExpStatSN: 0x01000000, CID: 0, Length: 382
+Aug 30 13:47:15 sixers kernel: Received iSCSI login request from 10.156.232.145:60226 on iSCSI/TCP Network Portal 10.156.232.145:3260
+Aug 30 13:47:15 sixers kernel: Moving to TARG_CONN_STATE_IN_LOGIN.
+Aug 30 13:47:15 sixers kernel: Initiator is requesting CSG: 1, has not been successfully authenticated, and the Target is enforcing iSCSI Authentication, login failed.
+Aug 30 13:47:15 sixers kernel: iSCSI Login negotiation failed.
+Aug 30 13:47:15 sixers kernel: Moving to TARG_CONN_STATE_FREE.
+```
+
+###### no authentication but still no ACL for the initiator
+
+normal logging for an unsuccessful initiator login
+
+``` shell
+# iscsi-ls -i iqn.2021-08.com.suse:testovic -s iscsi://10.156.232.145
+Target:iqn.2021-08.com.suse.scz.sup.sixers:vmware Portal:10.156.232.145:3260,1
+iscsi_connect failed. Failed to log in to target. Status: Authorization failure(514)
+```
+
+``` shell
+Aug 30 10:24:50 sixers kernel: iSCSI Initiator Node: iqn.2021-08.com.suse:testovic is not authorized to access iSCSI target portal group: 1.
+Aug 30 10:24:50 sixers kernel: iSCSI Login negotiation failed.
+```
+
+with additional debugging
+
+``` shell
+# echo 'file drivers/target/iscsi/iscsi_target_login.c +p' > /sys/kernel/debug/dynamic_debug/control
+Aug 30 10:27:06 sixers kernel: Added timeout timer to iSCSI login request for 15 seconds.
+Aug 30 10:27:06 sixers kernel: Moving to TARG_CONN_STATE_XPT_UP.
+Aug 30 10:27:06 sixers kernel: Got Login Command, Flags 0x87, ITT: 0x373ccd0b, CmdSN: 0x8a58a748, ExpStatSN: 0x01000000, CID: 0, Length: 382
+Aug 30 10:27:06 sixers kernel: Received iSCSI login request from 10.156.232.145:59622 on iSCSI/TCP Network Portal 10.156.232.145:3260
+Aug 30 10:27:06 sixers kernel: Moving to TARG_CONN_STATE_IN_LOGIN.
+Aug 30 10:27:06 sixers kernel: Moving to TARG_CONN_STATE_LOGGED_IN.
+Aug 30 10:27:06 sixers kernel: Moving to TARG_SESS_STATE_LOGGED_IN.
+Aug 30 10:27:06 sixers kernel: iSCSI Login successful on CID: 0 from 10.156.232.145:59622 to 10.156.232.145:3260,1
+Aug 30 10:27:06 sixers kernel: Incremented iSCSI Connection count to 1 from node: iqn.2021-08.com.suse:testovic
+Aug 30 10:27:06 sixers kernel: Established iSCSI session from node: iqn.2021-08.com.suse:testovic
+Aug 30 10:27:06 sixers kernel: Incremented number of active iSCSI sessions to 1 on iSCSI Target Portal Group: 1
+Aug 30 10:27:06 sixers kernel: Moving to TARG_CONN_STATE_FREE.
+Aug 30 10:27:06 sixers kernel: Added timeout timer to iSCSI login request for 15 seconds.
+Aug 30 10:27:06 sixers kernel: Moving to TARG_CONN_STATE_XPT_UP.
+Aug 30 10:27:06 sixers kernel: Got Login Command, Flags 0x87, ITT: 0x3f0a270a, CmdSN: 0xdff6cc46, ExpStatSN: 0x01000000, CID: 0, Length: 433
+Aug 30 10:27:06 sixers kernel: Received iSCSI login request from 10.156.232.145:59624 on iSCSI/TCP Network Portal 10.156.232.145:3260
+Aug 30 10:27:06 sixers kernel: Moving to TARG_CONN_STATE_IN_LOGIN.
+Aug 30 10:27:06 sixers kernel: iSCSI Initiator Node: iqn.2021-08.com.suse:testovic is not authorized to access iSCSI target portal group: 1.
+Aug 30 10:27:06 sixers kernel: iSCSI Login negotiation failed.
+Aug 30 10:27:06 sixers kernel: Moving to TARG_CONN_STATE_FREE.
+```
+
+###### not expected CHAP negotiation
+
+an initiator tries to authenticate but no ACL exists for the initiator
+
+``` shell
+Aug 30 13:56:48 sixers kernel: CHAP user or password not set for Initiator ACL
+Aug 30 13:56:48 sixers kernel: Security negotiation failed.
+Aug 30 13:56:48 sixers kernel: iSCSI Login negotiation failed.
+```
+
 ##### setup
+
+via interactive `targetcli` built-in shell
 
 ``` shell
 targetcli /iscsi/ create [<target_name>]                            # create target,
@@ -1936,7 +2063,7 @@ targetcli /iscsi/<target_name>/tpg1/luns create <backing_object> \
   [<lun_number>]                                                    # add lun to target portal group
 ```
 
-##### targetcli commands examples
+or directly from shell (eg. BASH)...
 
 ``` shell
 targetcli /backstores/fileio create mpio01 /home/iscsi/mpio01.raw 1G
@@ -2225,7 +2352,6 @@ guide is great place for additional info!
 
 ``` shell
 lvmconfig # print current lvm configuration
-
 ```
 
 ``` shell
@@ -2245,6 +2371,52 @@ lvcreate -L <size> -T -n <name> <vg> # create a thin pool
 ```
 
 #### troubleshooting
+
+`pvcreate` does not seem to work on a raw disk... because there's a partition table!
+
+``` shell
+# pvcreate -v /dev/sdc
+  Device /dev/sdc excluded by a filter.
+```
+
+``` shell
+pvcreate -vvv /dev/sdc
+```
+
+``` shell
+# pvcreate -vvv /dev/sdc 2>&1 | grep /dev/sdc
+        Parsing: pvcreate -vvv /dev/sdc
+        Processing command: pvcreate -vvv /dev/sdc
+        Found dev 8:32 /dev/sdc - new.
+        Opened /dev/sdc RO O_DIRECT
+      /dev/sdc: size is 1953525168 sectors
+        Closed /dev/sdc
+        filter partitioned deferred /dev/sdc
+        filter signature deferred /dev/sdc
+        filter md deferred /dev/sdc
+        filter cache deferred /dev/sdc
+        Processing data from device /dev/sdc 8:32 fd 12 block 0x55a5b984fef0
+        Scan filtering /dev/sdc
+      /dev/sdc: using cached size 1953525168 sectors
+        /dev/sdc: Skipping: Partition table signature found
+        filter caching bad /dev/sdc
+      /dev/sdc: Not processing filtered
+        /dev/sdc: filter cache skipping (cached bad)
+        /dev/sdc: filter cache skipping (cached bad)
+  Device /dev/sdc excluded by a filter.
+        Completed: pvcreate -vvv /dev/sdc
+# fdisk -l /dev/sdc
+Disk /dev/sdc: 931.51 GiB, 1000204886016 bytes, 1953525168 sectors
+Disk model: ST1000VN000-1HJ1
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 4096 bytes
+I/O size (minimum/optimal): 4096 bytes / 4096 bytes
+Disklabel type: gpt
+Disk identifier: 77396D23-9BA8-4A41-B730-FE71A498156B
+# dd if=/dev/zero of=/dev/sdc bs=512 count=1
+# pvcreate /dev/sdc
+  Physical volume "/dev/sdc" successfully created.
+```
 
 renaming a VG with same name as already existing one
 
