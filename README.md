@@ -2531,7 +2531,7 @@ vgrename -v rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom temp
 
 :construction: work in progress!
 
-#### persist reservation
+#### SCSI-3 persistent reservation
 
 the below issue seems to point to SCSI-3 persist reservation, see RH
 discussion [`kernel: sd 1:0:0:0: reservation
@@ -2541,30 +2541,30 @@ reservations and keys. from redhat
 ](https://dhelios.blogspot.com/2015/04/how-can-i-view-create-and-remove-scsi.html).
 
 ``` shell
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#785 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#785 CDB: Write(10) 2a 00 25 80 88 08 00 00 08 00
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 1:0:11:0: reservation conflict
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 1:0:11:0: [sdl] tag#1004 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 1:0:11:0: [sdl] tag#1004 CDB: Write(10) 2a 00 00 00 08 08 00 00 08 00
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#203 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#203 CDB: Write(10) 2a 00 25 80 88 08 00 00 08 00
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#204 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#204 CDB: Write(10) 2a 00 25 80 88 00 00 00 01 00
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#617 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#617 CDB: Write(10) 2a 00 25 80 88 08 00 00 08 00
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#618 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#618 CDB: Write(10) 2a 00 25 80 88 00 00 00 01 00
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 1:0:11:0: reservation conflict
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
-Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: [sdx] tag#785 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: [sdx] tag#785 CDB: Write(10) 2a 00 25 80 88 08 00 00 08 00
+Aug 26 13:31:03 somehost kernel: sd 1:0:11:0: reservation conflict
+Aug 26 13:31:03 somehost kernel: sd 1:0:11:0: [sdl] tag#1004 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
+Aug 26 13:31:03 somehost kernel: sd 1:0:11:0: [sdl] tag#1004 CDB: Write(10) 2a 00 00 00 08 08 00 00 08 00
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: [sdx] tag#203 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: [sdx] tag#203 CDB: Write(10) 2a 00 25 80 88 08 00 00 08 00
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: [sdx] tag#204 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: [sdx] tag#204 CDB: Write(10) 2a 00 25 80 88 00 00 00 01 00
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: [sdx] tag#617 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: [sdx] tag#617 CDB: Write(10) 2a 00 25 80 88 08 00 00 08 00
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: [sdx] tag#618 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: [sdx] tag#618 CDB: Write(10) 2a 00 25 80 88 00 00 00 01 00
+Aug 26 13:31:03 somehost kernel: sd 1:0:11:0: reservation conflict
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 somehost kernel: sd 2:0:11:0: reservation conflict
 ```
 
 ``` shell
