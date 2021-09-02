@@ -1826,10 +1826,112 @@ linux distros using udev use udev rules to probe and register bcache devices, ie
 ID_FS_TYPE=bcache
 ```
 
-### udev
+### fc / fibre channel
+
+:construction: under construction!
 
 ``` shell
-udevadm info -q property -n <dev> # info about a device
+# lspci | grep Fibre
+82:00.0 Fibre Channel: QLogic Corp. ISP2532-based 8Gb Fibre Channel to PCI Express HBA (rev 02)
+82:00.1 Fibre Channel: QLogic Corp. ISP2532-based 8Gb Fibre Channel to PCI Express HBA (rev 02)
+```
+
+- *fc_host* directory content refers to HBAs, ie. in this case to both QLE2562 HBAs
+- *fc_remote_ports* directory content refers to remote storage controller ports
+- *fc_transport* directory
+
+``` shell
+# ls -1 /sys/class/fc_{host,remote_ports,transport}
+/sys/class/fc_host:
+host1
+host12
+
+/sys/class/fc_remote_ports:
+rport-1:0-2
+rport-1:0-20
+rport-1:0-27
+rport-1:0-28
+rport-1:0-3
+rport-1:0-30
+rport-1:0-31
+rport-1:0-38
+rport-1:0-4
+rport-1:0-46
+rport-1:0-47
+rport-1:0-5
+rport-1:0-60
+rport-1:0-61
+rport-1:0-63
+rport-1:0-64
+rport-1:0-65
+
+/sys/class/fc_transport:
+target1:0:0
+target1:0:3
+```
+
+`fc_host` directory
+
+``` shell
+# ls -l /sys/class/fc_host/
+total 0
+lrwxrwxrwx 1 root root 0 Sep  2 10:48 host1 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/fc_host/host1
+lrwxrwxrwx 1 root root 0 Sep  2 10:48 host12 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.1/host12/fc_host/host12
+
+# lspci | egrep '82:00.[01]'
+82:00.0 Fibre Channel: QLogic Corp. ISP2532-based 8Gb Fibre Channel to PCI Express HBA (rev 02)
+82:00.1 Fibre Channel: QLogic Corp. ISP2532-based 8Gb Fibre Channel to PCI Express HBA (rev 02)
+
+# lspci -v -s 82:00.0 | grep -i Kernel
+        Kernel driver in use: qla2xxx
+        Kernel modules: qla2xxx
+```
+
+`fc_remote_ports` directory
+
+``` shell
+# ls -l /sys/class/fc_remote_ports/ | grep -Po ' \K(rport-.*)'
+rport-1:0-2 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-2/fc_remote_ports/rport-1:0-2
+rport-1:0-20 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-20/fc_remote_ports/rport-1:0-20
+rport-1:0-27 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-27/fc_remote_ports/rport-1:0-27
+rport-1:0-28 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-28/fc_remote_ports/rport-1:0-28
+rport-1:0-3 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-3/fc_remote_ports/rport-1:0-3
+rport-1:0-30 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-30/fc_remote_ports/rport-1:0-30
+rport-1:0-31 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-31/fc_remote_ports/rport-1:0-31
+rport-1:0-38 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-38/fc_remote_ports/rport-1:0-38
+rport-1:0-4 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-4/fc_remote_ports/rport-1:0-4
+rport-1:0-46 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-46/fc_remote_ports/rport-1:0-46
+rport-1:0-47 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-47/fc_remote_ports/rport-1:0-47
+rport-1:0-5 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-5/fc_remote_ports/rport-1:0-5
+rport-1:0-60 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-60/fc_remote_ports/rport-1:0-60
+rport-1:0-61 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-61/fc_remote_ports/rport-1:0-61
+rport-1:0-63 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-63/fc_remote_ports/rport-1:0-63
+rport-1:0-64 -> ../../devices/pci0000:80/0000:80:03.0/0000:82:00.0/host1/rport-1:0-64/fc_remote_ports/rport-1:0-64
+
+# cat /sys/class/fc_remote_ports/rport-1\:0-2/{port_{id,name,state},roles}
+0xdd0800
+0x220000d023049aaa
+Online
+FCP Target
+
+# node_name - WWNN of the remote port (target port).
+# port_name - WWPN of remote port.
+# port_id - Destination ID of remote port.
+# port_state - State of remote port.
+# roles - Role of remote port (usually FCP target).
+# scsi_target_id - Linux SCSI ID of remote port.
+# supported_classes - Supported classes of service.
+
+# grep -H '' /sys/class/fc_remote_ports/rport-1\:0-2/* 2>/dev/null
+/sys/class/fc_remote_ports/rport-1:0-2/dev_loss_tmo:150
+/sys/class/fc_remote_ports/rport-1:0-2/fast_io_fail_tmo:5
+/sys/class/fc_remote_ports/rport-1:0-2/node_name:0x200000d023049aaa
+/sys/class/fc_remote_ports/rport-1:0-2/port_id:0xdd0800
+/sys/class/fc_remote_ports/rport-1:0-2/port_name:0x220000d023049aaa
+/sys/class/fc_remote_ports/rport-1:0-2/port_state:Online
+/sys/class/fc_remote_ports/rport-1:0-2/roles:FCP Target
+/sys/class/fc_remote_ports/rport-1:0-2/scsi_target_id:0
+/sys/class/fc_remote_ports/rport-1:0-2/supported_classes:Class 3
 ```
 
 ### iscsi
@@ -1946,7 +2048,7 @@ targetcli <path> <command> [<args>]
 
 ##### acls / permissions
 
-*TODO*: this part is under construction!!!
+:construction: this part is under construction!!!
 
 couple of things influence what an initiator can do/see:
 
@@ -1963,6 +2065,7 @@ couple of things influence what an initiator can do/see:
 - the `auto_add_mapped_luns` global configuration parameter, which
   influences if TPG luns are automatically added into an ACL for an
   initiator
+
 ###### demo mode
 
 > *Demo Mode*: Means disabling authentification for an iSCSI Endpoint,
@@ -2176,6 +2279,20 @@ unused devices: <none>
 
 ### multipath
 
+- *priority group*, paths (transport interconnects) are grouped into
+  an **ordered** list of Priority Groups. Inside a priority group paths
+  are selected based on a path selector, when one path fails, the next
+  one in the priority group is tried, when all paths in the priority
+  group fail, next priority group is tried
+- *path selector*
+- *failed path*, a path that generated an error, path selector passes over it
+- *dead path*
+- *map*
+- *multipath*
+- *multipathd*, ?? a user-space daemon responsible for monitoring paths that have failed and reinstating them should they come back
+
+
+
 ``` shell
 multipath -ll
 3600d023100049aaa714c80f5169c0158 dm-0 IFT,DS 1000 Series
@@ -2296,71 +2413,6 @@ May 24 18:25:46 t14s kernel: device-mapper: multipath: 254:9: Failing path 8:16.
 
 ```
 
-a little shell script to query suppportconfig for mpio and its luns
-
-``` shell
-#!/bin/bash
-
-FILTER=${FILTER:-(ID_SERIAL|UUID)=}
-
-get_mpio() {
-    grep -Po '^(mpath\S+)(?=\s+.*dm-\d+ \w+)' mpio.txt
-}
-
-multipath_ll() {
-    sed -n '/\/sbin\/multipath -ll/,/^$/p' mpio.txt
-}
-
-get_luns() {
-    sed -rn '/^'"${mpio}"' .*dm-[[:digit:]]+/,/^mpath/{/^mpath/!p}' <(multipath_ll) | \
-        grep -Po '\K(sd\S+)(?=.*)'
-}
-
-for mpio in $(get_mpio); do
-    echo ${mpio}
-        while read lun ; do
-            echo $lun
-            sed -n '/^ *P: \/devices\/.*'"${lun}"'/,/^ *E: USEC_INITIALIZED=.*$/{/^ *E: USEC_INITIALIZED=.*$/q; p}' hardware.txt | \
-                egrep "${FILTER}"
-    done < <(get_luns)
-    echo
-done
-```
-
-``` shell
-mpatha
-sda
-  E: ID_SERIAL=3600508b1001ca8271f22a529467e906c
-
-mpathz
-sdj
-  E: ID_FS_UUID=5adfc14e-1d1d-4012-a28b-7b50363b9801
-  E: ID_SERIAL=3600601606660450079c71c6173c6a3cc
-sdw
-  E: ID_FS_UUID=5adfc14e-1d1d-4012-a28b-7b50363b9801
-  E: ID_SERIAL=3600601606660450079c71c6173c6a3cc
-sdr
-  E: ID_FS_UUID=5adfc14e-1d1d-4012-a28b-7b50363b9801
-  E: ID_SERIAL=3600601606660450079c71c6173c6a3cc
-sdy
-  E: ID_FS_UUID=5adfc14e-1d1d-4012-a28b-7b50363b9801
-  E: ID_SERIAL=3600601606660450079c71c6173c6a3cc
-
-mpathaa
-sdz
-  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
-  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
-sdt
-  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
-  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
-sdk
-  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
-  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
-sdx
-  E: ID_FS_UUID=383ca0a2-b464-453d-aa32-6cae323b5fd0
-  E: ID_SERIAL=3600601606660450079c71c61056ea7e2
-```
-
 Red Hat [Configuring device mapper
 multipath](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/8/html-single/configuring_device_mapper_multipath/index)
 guide is great place for additional info!
@@ -2473,6 +2525,12 @@ vgrename -v rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom temp
     Renaming "/dev/system" to "/dev/temp"
     Creating volume group backup "/etc/lvm/backup/temp" (seqno 4).
   Volume group "rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom" successfully renamed to "temp"
+```
+
+### udev
+
+``` shell
+udevadm info -q property -n <dev> # info about a device
 ```
 
 ## systemd / journald
