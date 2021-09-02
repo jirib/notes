@@ -2202,7 +2202,7 @@ targetcli /backstores/fileio/mpio01 info
 > wwn: 501bb55a-79b6-499f-8c20-a3833fae05b0
 ```
 
-## mdraid
+### mdraid
 
 ``` shell
 readlink -f /dev/md/* # all mdraid device names
@@ -2525,6 +2525,102 @@ vgrename -v rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom temp
     Renaming "/dev/system" to "/dev/temp"
     Creating volume group backup "/etc/lvm/backup/temp" (seqno 4).
   Volume group "rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom" successfully renamed to "temp"
+```
+
+### scsi
+
+:construction: work in progress!
+
+#### persist reservation
+
+the below issue seems to point to SCSI-3 persist reservation, see RH
+discussion [`kernel: sd 1:0:0:0: reservation
+conflict`](https://access.redhat.com/discussions/2931811). some notes
+also at [How can I view, create, and remove SCSI persistent
+reservations and keys. from redhat
+](https://dhelios.blogspot.com/2015/04/how-can-i-view-create-and-remove-scsi.html).
+
+``` shell
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#785 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#785 CDB: Write(10) 2a 00 25 80 88 08 00 00 08 00
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 1:0:11:0: reservation conflict
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 1:0:11:0: [sdl] tag#1004 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 1:0:11:0: [sdl] tag#1004 CDB: Write(10) 2a 00 00 00 08 08 00 00 08 00
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#203 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#203 CDB: Write(10) 2a 00 25 80 88 08 00 00 08 00
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#204 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#204 CDB: Write(10) 2a 00 25 80 88 00 00 00 01 00
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#617 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#617 CDB: Write(10) 2a 00 25 80 88 08 00 00 08 00
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#618 FAILED Result: hostbyte=DID_OK driverbyte=DRIVER_OK
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: [sdx] tag#618 CDB: Write(10) 2a 00 25 80 88 00 00 00 01 00
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 1:0:11:0: reservation conflict
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
+Aug 26 13:31:03 rocsapbwpdb00 kernel: sd 2:0:11:0: reservation conflict
+```
+
+``` shell
+# sg_persist -n -v -y -i -k /dev/sdb
+    Persistent Reservation In cmd: 5e 00 00 00 00 00 00 20 00 00
+  PR generation=0x0, there are NO registered reservation keys
+# sg_persist -n -v -y -i -r /dev/sdb
+    Persistent Reservation In cmd: 5e 01 00 00 00 00 00 20 00 00
+  PR generation=0x0, there is NO reservation held
+
+# and with registration
+
+# sg_persist -n -in -v -y -r /dev/sdc
+    Persistent Reservation In cmd: 5e 01 00 00 00 00 00 20 00 00
+  PR generation=0x3, Reservation follows:
+    Key=0x123aaa
+    scope: LU_SCOPE,  type: Write Exclusive, registrants only
+# sg_persist -n -in -v -y -k /dev/sdc
+    Persistent Reservation In cmd: 5e 00 00 00 00 00 00 20 00 00
+  PR generation=0x3, 1 registered reservation key follows:
+    0x123aaa
+```
+
+following test script is taken from RH [bugzilla](https://bugzilla.redhat.com/show_bug.cgi?id=1464908#c22)
+
+``` shell
+#! /bin/sh
+sg_persist --no-inquiry -v --out --register-ignore --param-sark 123aaa "$@"
+sg_persist --no-inquiry --in -k "$@"
+sg_persist --no-inquiry -v --out --reserve --param-rk 123aaa --prout-type 5 "$@"
+sg_persist --no-inquiry --in -r "$@"
+sg_persist --no-inquiry -v --out --release --param-rk 123aaa --prout-type 5 "$@"
+sg_persist --no-inquiry --in -r "$@"
+sg_persist --no-inquiry -v --out --register --param-rk 123aaa --prout-type 5 "$@"
+sg_persist --no-inquiry --in -k "$@"
+```
+
+``` shell
+# running script above with a scsi disk
+
+/tmp/in /dev/sdc
+    Persistent Reservation Out cmd: 5f 06 00 00 00 00 00 00 18 00
+PR out: command (Register and ignore existing key) successful
+  PR generation=0x4, 1 registered reservation key follows:
+    0x123aaa
+    Persistent Reservation Out cmd: 5f 01 05 00 00 00 00 00 18 00
+PR out: command (Reserve) successful
+  PR generation=0x4, Reservation follows:
+    Key=0x123aaa
+    scope: LU_SCOPE,  type: Write Exclusive, registrants only
+    Persistent Reservation Out cmd: 5f 02 05 00 00 00 00 00 18 00
+PR out: command (Release) successful
+  PR generation=0x4, there is NO reservation held
+    Persistent Reservation Out cmd: 5f 00 05 00 00 00 00 00 18 00
+PR out: command (Register) successful
+  PR generation=0x4, there are NO registered reservation keys
 ```
 
 ### udev
