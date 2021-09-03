@@ -1828,6 +1828,28 @@ ID_FS_TYPE=bcache
 
 ### fc / fibre channel
 
+- *WWPN*, *World Wide Port Name*, assignement to a port in a Fibre Channel
+  fabric (network), a kind of like a MAC address in Ethernet.
+  ``` shell
+  # grep -H '' /sys/class/scsi_host/host*/device/fc_host/host*/port_name
+  /sys/class/scsi_host/host12/device/fc_host/host12/port_name:0x21000024ff7d6a17
+  /sys/class/scsi_host/host1/device/fc_host/host1/port_name:0x21000024ff7d6a16
+  
+  # systool -c fc_host -A port_name
+  Class = "fc_host"
+
+    Class Device = "host1"
+      port_name           = "0x21000024ff7d6a16"
+
+      Device = "host1"
+
+
+    Class Device = "host12"
+      port_name           = "0x21000024ff7d6a17"
+
+      Device = "host12"
+  ```
+
 :construction: under construction!
 
 ``` shell
@@ -1838,7 +1860,7 @@ ID_FS_TYPE=bcache
 
 - *fc_host* directory content refers to HBAs, ie. in this case to both QLE2562 HBAs
 - *fc_remote_ports* directory content refers to remote storage controller ports
-- *fc_transport* directory
+- *fc_transport* directory ... ??
 
 ``` shell
 # ls -1 /sys/class/fc_{host,remote_ports,transport}
@@ -2531,8 +2553,75 @@ vgrename -v rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom temp
 
 :construction: work in progress!
 
-#### SCSI-3 persistent reservation
+- *initiator*, adapter of a computer, *HBA*, *client* in SCSI mode paradigm
+- *HBA*, *host bus adapter*, adapter of a computer being the initiator
+- *target*, controller, *server* in SCSI mode paradigm
+- *logical unit*, *LU*, a logical unit within the target
+- *logical unit number* (*lun* - lowercase!), LU number, number of a logical
+  unit within target - with target ID
+- *ACSL*, an address of device consisting of adapter ID, adapter channel,
+  target ID, logical unit number
+  ``` shell
+  # lsscsi -c # same as `cat /proc/scsi/scsi'
+  Attached devices: 
+  Host: scsi0 Channel: 00 Target: 00 Lun: 00
+    Vendor: ASR8805  Model: LogicalDrv 0     Rev: V1.0
+    Type:   Direct-Access                    ANSI SCSI revision: 02
+  Host: scsi0 Channel: 01 Target: 00 Lun: 00
+    Vendor: ATA      Model: SAMSUNG MZ7KM480 Rev: 104Q
+    Type:   Direct-Access                    ANSI SCSI revision: 06
+  Host: scsi0 Channel: 01 Target: 01 Lun: 00
+    Vendor: ATA      Model: SAMSUNG MZ7KM480 Rev: 104Q
+    Type:   Direct-Access                    ANSI SCSI revision: 06
+  Host: scsi0 Channel: 03 Target: 00 Lun: 00
+    Vendor: ADAPTEC  Model: Virtual SGPIO    Rev:    1
+    Type:   Enclosure                        ANSI SCSI revision: 05
+  Host: scsi1 Channel: 00 Target: 00 Lun: 00
+    Vendor: IFT      Model: DS 1000 Series   Rev: 555Q
+    Type:   Direct-Access                    ANSI SCSI revision: 05
+  Host: scsi1 Channel: 00 Target: 00 Lun: 05
+    Vendor: IFT      Model: DS 1000 Series   Rev: 555Q
+    Type:   Enclosure                        ANSI SCSI revision: 05
+  Host: scsi1 Channel: 00 Target: 03 Lun: 00
+    Vendor: IFT      Model: DS 1000 Series   Rev: 555Q
+    Type:   Direct-Access                    ANSI SCSI revision: 05
+  Host: scsi1 Channel: 00 Target: 03 Lun: 05
+    Vendor: IFT      Model: DS 1000 Series   Rev: 555Q
+    Type:   Enclosure                        ANSI SCSI revision: 05
+  ```
+- *LUN* (uppercase!), LU name, is an alias for disk LU, or logical disk on SAN
+  ``` shell
+  # lsscsi -U 1:0:*:0
+  [1:0:0:0]    disk    600d023100049aaa714c80f5169c0158  /dev/sda 
+  [1:0:3:0]    disk    600d023100049aaa714c80f5169c0158  /dev/sdb 
+  ```
+  
+#### SCSI reservations and SCSI persistent reservations
 
+good overview is at [What are SCSI Reservations and SCSI Persistent Reservations?
+](https://kb.netapp.com/Advice_and_Troubleshooting/Data_Storage_Software/ONTAP_OS/What_are_SCSI_Reservations_and_SCSI_Persistent_Reservations).
+
+##### general intro
+
+- *SCSI* reservation is used to control access to a shared SCSI device
+- initiator sets the reservation
+- part of SCSI protocols
+- *SCSI-2* Reservation, *original* and deprecated reservation mechanism using
+  SCSI Reserve/SCSI Release command; :warning: SCSI bus reset would cause the
+  reservation to be released; plus it does **NOT** support multipaths, works
+  with a single path to a LUN
+- *SCSI-3 Persistent Reservation* is a modern approach to reservations and
+  **persists** even if the SCSI bus is reset for error recovery plus it
+  supports reservation over multiple paths from host to disk
+
+##### scsi-3 persistent reservations
+
+- SCSI-3 Persistent Reservations uses a concept of registration and reservation.
+  Systems that participate, register a key, each system registers its own key.
+  Only registered systems can establish a reservation.
+- Persistent Reservations means ... With
+  this method, blocking write access is as simple as removing registration from a device. A system wishing to eject another system may register, clear or preempt the other registered initiators. This method effectively avoids the split-brain condition.
+- 
 the below issue seems to point to SCSI-3 persist reservation, see RH
 discussion [`kernel: sd 1:0:0:0: reservation
 conflict`](https://access.redhat.com/discussions/2931811). some notes
@@ -2920,8 +3009,17 @@ zypper search --provides --type package -x view
 ##### packages
 
 ``` shell
-zypper rm -u <package> # removes package and all deps
-zypper se --provides -x /usr/bin/gnat # search package owning path
+# zypper rm -u <package> # removes package and all deps
+# zypper se --provides -x /usr/bin/gnat # search package owning path
+
+# zypper se --provides --match-exact 'libssl.so.1.1(OPENSSL_1_1_1)(64bit)'
+Loading repository data...
+Reading installed packages...
+
+S | Name          | Summary                                     | Type
+--+---------------+---------------------------------------------+--------
+i | libopenssl1_1 | Secure Sockets and Transport Layer Security | package
+
 ```
 
 ##### patches
