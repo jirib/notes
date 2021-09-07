@@ -2301,6 +2301,12 @@ unused devices: <none>
 
 ### multipath
 
+if multipath support is required during boot (ie. booting from multipath SAN)
+it is in SLES present as *dracut* module (*multipath*) which puts into initramfs
+multipath-tools binaries, libs, configuration and udev/systemd files. See
+[Troubleshooting boot issues (multipath with lvm)](
+  https://www.suse.com/support/kb/doc/?id=000019115).
+
 - *priority group*, paths (transport interconnects) are grouped into
   an **ordered** list of Priority Groups. Inside a priority group paths
   are selected based on a path selector, when one path fails, the next
@@ -2311,7 +2317,8 @@ unused devices: <none>
 - *dead path*
 - *map*
 - *multipath*
-- *multipathd*, ?? a user-space daemon responsible for monitoring paths that have failed and reinstating them should they come back
+- *multipathd*, an user-space daemon responsible for monitoring paths that have
+  failed and reinstating them should they come back
 
 
 
@@ -3381,6 +3388,85 @@ tshark -i <bonded_iface> -c 1 -f "ether proto 0x88cc" -Y "lldp" -O lldp
 ## virtualization
 
 ### qemu
+
+#### disk
+
+QEMU supports many [*blockdev*/*disk image*](
+  https://qemu-project.gitlab.io/qemu/system/qemu-block-drivers.html) formats
+
+``` shell
+# qemu-img --help | grep -Po '^Supported formats: \K(.*)' | xargs -n 1 | sort
+blkdebug
+blklogwrites
+blkverify
+bochs
+cloop
+compress
+copy-on-read
+dmg
+file
+ftp
+ftps
+gluster
+host_cdrom
+host_device
+http
+https
+iscsi
+iser
+luks
+nbd
+nfs
+null-aio
+null-co
+nvme
+preallocate
+qcow
+qcow2
+qed
+quorum
+raw
+rbd
+replication
+ssh
+throttle
+vdi
+vhdx
+vmdk
+vpc
+vvfat
+```
+
+Some *blockdev* types are supported via external libraries
+
+``` shell
+# ls -1 /usr/lib64/qemu/block*
+/usr/lib64/qemu/block-curl.so
+/usr/lib64/qemu/block-iscsi.so
+/usr/lib64/qemu/block-rbd.so
+
+# rpm -qf /usr/lib64/qemu/block*
+qemu-block-curl-6.0.0-29.1.x86_64
+qemu-block-iscsi-6.0.0-29.1.x86_64
+qemu-block-rbd-6.0.0-29.1.x86_64
+```
+
+##### iscsi
+
+QEMU default built-in initiator name is *iqn.2008-11.org.linux-kvm[:uuid | vmname]*. One can
+change it per whole VM or per initiator, see [QEMU block drivers reference
+](https://qemu-project.gitlab.io/qemu/system/qemu-block-drivers.html#iscsi-luns).
+
+``` shell
+# qemu-system-x86_64 --help | sed -n '/\-iscsi/,/^ *$/{/^ *$/q;p}'
+-iscsi [user=user][,password=password]
+       [,header-digest=CRC32C|CR32C-NONE|NONE-CRC32C|NONE
+       [,initiator-name=initiator-iqn][,id=target-iqn]
+       [,timeout=timeout]
+                iSCSI session parameters
+```
+
+#### qemu-nbd
 
 ``` shell
 qemu-nbd --connect=/dev/nbd0 <qemu_image> # connect eg. a qcow2 image
