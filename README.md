@@ -703,15 +703,19 @@ https://www.suse.com/support/kb/doc/?id=000018699
 
 ``` shell
 # pacemaker 1.x
+time=2021-09-05T20:
+pattern='(SAPHana|sap|'
 grep -P \
-  '^(\d{4}-\d{2}-\d{2}T|\S{3} \d{2} )\d{2}:\d{2}:\d{2} .* (corosync|attrd|crmd|cib|lrmd|pengine|stonith|controld|systemd)' \
-  messages # grep log file for cluster messages
+  "^${time}.* \w+ ${pattern:=(}corosync|attrd|crmd|cib|lrmd|pengine|stonith|controld|systemd)" \
+  messages
 ```
 
 ``` shell
 # pacemaker 2.x
+time=2021-09-05T20:
+pattern='(SAPHana|sap|'
 grep -P \
-  '^<YYYY>-<MM>-<DD>T<HH>:\d+:.* (corosync|pacemaker-(attrd|based|controld|execd|schedulerd|fenced)|stonith|systemd)' \
+  "^${time}.* \w+ ${pattern:=(}corosync|pacemaker-(attrd|based|controld|execd|schedulerd|fenced)|stonith|systemd)' \
   messages # grep log file for cluster messages
 ```
 
@@ -1783,7 +1787,22 @@ rpm -qa gpg-pubkey* | grep $key
               expansion forces the entire pattern to be matched as a string.
   ```
 - list functions: `declare -F`
-
+- printing command output/multiline content saved in a variable
+  ``` shell
+  $ f="fafafda
+  > adffd
+  > adfadf
+  > adfafd
+  > afd"
+  $ echo $f
+  fafafda adffd adfadf adfafd afd
+  $ echo "$f"
+  fafafda
+  adffd
+  adfadf
+  adfafd
+  afd
+  ```
 ## storage
 
 See [List of partition identifiers for PCs](https://www.win.tue.nl/~aeb/partitions/partition_types-1.html).
