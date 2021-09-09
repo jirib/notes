@@ -811,6 +811,28 @@ sbd -w <watchdog_device> test-watchdog             # test if reset via watchdog 
 
 sbd -d /dev/<shared_lun> create                    # prepares shared lun for SBD
 sbd -d /dev/<shared_lun> dump                      # info about SBD
+```
+
+``` shell
+# . /etc/sysconfig/sbd;export SBD_DEVICE;sbd dump;sbd list   
+==Dumping header on disk /dev/loop0
+Header version     : 2.1                                                                                               
+UUID               : 8233d0a1-1f94-4d88-9e22-485d4dfc1080
+Number of slots    : 255                                                                                               
+Sector size        : 512           
+Timeout (watchdog) : 5                
+Timeout (allocate) : 2            
+Timeout (loop)     : 1                                                                                                                                                                                                                        
+Timeout (msgwait)  : 10
+
+# dd if=/dev/loop0 bs=32 count=2 2>/dev/null | xxd                                                               
+00000000: 5342 445f 5342 445f 02ff 0000 0000 0200  SBD_SBD_........
+00000010: 0000 0005 0000 0002 0000 0001 0000 000a  ................
+00000020: 0182 33d0 a11f 944d 889e 2248 5d4d fc10  ..3....M.."H]M..
+00000030: 8000 0000 0000 0000 0000 0000 0000 0000  ................
+```
+
+``` shell
 
 systemctl enable sbd                               # MUST be enabled, creates dependency
                                                    # on cluster stack services
@@ -823,6 +845,8 @@ sbd -d /dev/<shared_lun>  message <node> test      # node's sbd would log the te
 
 sbd -d <block_dev> message <node> clear # clear sbd state for a node, restart pacemaker!
 ```
+
+
 
 ### csync2
 
