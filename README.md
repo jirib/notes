@@ -2864,8 +2864,8 @@ systemctl restart sshd
 Other tips:
 
 * `systemd.mask=swap.target`         # on SUSE
-* `system.device_wants_unit=off`     # on SUSE
-* `system.mask=dev-system-swap.swap` # on SUSE
+* `systemd.device_wants_unit=off`     # on SUSE
+* `systemd.mask=dev-system-swap.swap` # on SUSE
 * `systemctl list-units --type=swap`
 * `systemd-escape -p --suffix=swap /dev/system/swap` # returns 'dev-system-swap.swap'
 
