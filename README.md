@@ -1158,6 +1158,30 @@ automatically triggered btrfs snapshots
 snapper list
 ```
 
+### cifs
+
+#### debugging
+
+``` shell
+_start=$(date +"%Y-%m-%d %H:%M:%S") # sets start time variable
+
+echo 'module cifs +p' > /sys/kernel/debug/dynamic_debug/control
+echo 'file fs/cifs/*.c +p' > /sys/kernel/debug/dynamic_debug/control
+echo 1 > /proc/fs/cifs/cifsFYI
+```
+
+An operation trying to reproduce an issue.
+
+``` shell
+journalctl --since "${_start}"
+
+# turn off debugging
+unset _start
+echo 0 > /proc/fs/cifs/cifsFYI
+echo 'file fs/cifs/*.c -p' > /sys/kernel/debug/dynamic_debug/control
+echo 'module cifs -p' > /sys/kernel/debug/dynamic_debug/control
+```
+
 ### nfs
 
 #### nfsv4
