@@ -3419,8 +3419,20 @@ man 5 crontab | sed -n '/RANDOM_DELAY/,/^$/p' | fmt -w80
 ## shell
 
 ``` shell
-echo one two three | xargs -n1 # multiple columns into one
+$ echo one two three | xargs -n1 # multiple columns into one
+$ pr -m -f -Tt -w 200 file1 file1 # show files' content side by side
+```
 
+multiline variable in shell script
+
+``` shell
+read -r -d '' VAR << EOM
+This is line 1.
+This is line 2.
+Line 3.
+EOM
+
+echo "${VAR}"
 ```
 
 ### sed
