@@ -1162,6 +1162,9 @@ snapper list
 
 #### debugging
 
+This is for Samba but anyway see [Configuring Logging on a Samba
+Server](https://wiki.samba.org/index.php/Configuring_Logging_on_a_Samba_Server).
+
 ``` shell
 _start=$(date +"%Y-%m-%d %H:%M:%S") # sets start time variable
 
@@ -1180,6 +1183,22 @@ unset _start
 echo 0 > /proc/fs/cifs/cifsFYI
 echo 'file fs/cifs/*.c -p' > /sys/kernel/debug/dynamic_debug/control
 echo 'module cifs -p' > /sys/kernel/debug/dynamic_debug/control
+```
+
+#### troubleshooting
+
+a good way to troubleshoot is via `smbclient`
+
+``` shell
+$ smbclient //<server>/<share> password -W domain -U username << EOM
+<commands...>
+exit
+EOM
+
+# or
+
+$ smbclient //<server>/<share> password -W domain -U username \
+  -c '<commands...>;quit'
 ```
 
 ### nfs
