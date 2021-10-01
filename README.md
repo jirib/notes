@@ -818,18 +818,18 @@ sbd -d /dev/<shared_lun> dump                      # info about SBD
 ```
 
 ``` shell
-# . /etc/sysconfig/sbd;export SBD_DEVICE;sbd dump;sbd list   
+# . /etc/sysconfig/sbd;export SBD_DEVICE;sbd dump;sbd list
 ==Dumping header on disk /dev/loop0
-Header version     : 2.1                                                                                               
+Header version     : 2.1
 UUID               : 8233d0a1-1f94-4d88-9e22-485d4dfc1080
-Number of slots    : 255                                                                                               
-Sector size        : 512           
-Timeout (watchdog) : 5                
-Timeout (allocate) : 2            
-Timeout (loop)     : 1                                                                                                                                                                                                                        
+Number of slots    : 255
+Sector size        : 512
+Timeout (watchdog) : 5
+Timeout (allocate) : 2
+Timeout (loop)     : 1
 Timeout (msgwait)  : 10
 
-# dd if=/dev/loop0 bs=32 count=2 2>/dev/null | xxd                                                               
+# dd if=/dev/loop0 bs=32 count=2 2>/dev/null | xxd
 00000000: 5342 445f 5342 445f 02ff 0000 0000 0200  SBD_SBD_........
 00000010: 0000 0005 0000 0002 0000 0001 0000 000a  ................
 00000020: 0182 33d0 a11f 944d 889e 2248 5d4d fc10  ..3....M.."H]M..
@@ -1183,6 +1183,13 @@ echo 'module cifs -p' > /sys/kernel/debug/dynamic_debug/control
 ```
 
 ### nfs
+
+What NFS protocol version are support?
+
+``` shell
+# cat /proc/fs/nfsd/versions
+-2 +3 +4 +4.1 +4.2
+```
 
 #### nfsv4
 
@@ -1929,7 +1936,7 @@ ID_FS_TYPE=bcache
   # grep -H '' /sys/class/scsi_host/host*/device/fc_host/host*/port_name
   /sys/class/scsi_host/host12/device/fc_host/host12/port_name:0x21000024ff7d6a17
   /sys/class/scsi_host/host1/device/fc_host/host1/port_name:0x21000024ff7d6a16
-  
+
   # systool -c fc_host -A port_name
   Class = "fc_host"
 
@@ -2665,7 +2672,7 @@ vgrename -v rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom temp
   target ID, logical unit number
   ``` shell
   # lsscsi -c # same as `cat /proc/scsi/scsi'
-  Attached devices: 
+  Attached devices:
   Host: scsi0 Channel: 00 Target: 00 Lun: 00
     Vendor: ASR8805  Model: LogicalDrv 0     Rev: V1.0
     Type:   Direct-Access                    ANSI SCSI revision: 02
@@ -2694,10 +2701,10 @@ vgrename -v rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom temp
 - *LUN* (uppercase!), LU name, is an alias for disk LU, or logical disk on SAN
   ``` shell
   # lsscsi -U 1:0:*:0
-  [1:0:0:0]    disk    600d023100049aaa714c80f5169c0158  /dev/sda 
-  [1:0:3:0]    disk    600d023100049aaa714c80f5169c0158  /dev/sdb 
+  [1:0:0:0]    disk    600d023100049aaa714c80f5169c0158  /dev/sda
+  [1:0:3:0]    disk    600d023100049aaa714c80f5169c0158  /dev/sdb
   ```
-  
+
 #### SCSI reservations and SCSI persistent reservations
 
 good overview is at [What are SCSI Reservations and SCSI Persistent Reservations?
@@ -2723,7 +2730,7 @@ good overview is at [What are SCSI Reservations and SCSI Persistent Reservations
   Only registered systems can establish a reservation.
 - Persistent Reservations means ... With
   this method, blocking write access is as simple as removing registration from a device. A system wishing to eject another system may register, clear or preempt the other registered initiators. This method effectively avoids the split-brain condition.
-- 
+-
 the below issue seems to point to SCSI-3 persist reservation, see RH
 discussion [`kernel: sd 1:0:0:0: reservation
 conflict`](https://access.redhat.com/discussions/2931811). some notes
