@@ -2916,6 +2916,8 @@ ConditionPathExists=/path/to/needed_file
 - `systemd.log_level=debug systemd.log_target=console systemd.log_location=true systemd.show_status=true`
 - `systemd-analyze set-log-level <level>` - change logging level
 - `systemctl show -p LogLevel` - get current logging level
+- `kill -SIGRTMIN+22 1` - sets systemd loglevel to debug, see `systemd(1)`
+- `kill -SIGRTMIN+23 1` - sets systemd loglevel back to info
 
 ### journald
 
