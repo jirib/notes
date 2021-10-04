@@ -3354,6 +3354,16 @@ python3 -c 'import crypt; print(crypt.crypt("pass123", crypt.mksalt(crypt.METHOD
 $6$zyuGj55qkPCh/zht$PDk60osb/mzE6xCvJx/X3uDWtU/8jGRefSQHIjCDdYsDEiKcZE3XmX/0dW7Eyz6VUIujn5aJLVslsbywA7su0.
 ```
 
+### sudo
+
+#### debugging
+
+``` shell
+# grep '^Debug' /etc/sudo.conf
+Debug sudo /var/log/sudo_debug.log all@debug
+Debug sudoers.so /var/log/sudo_debug.log all@debug
+```
+
 ### tls / ssl
 
 #### openssl
