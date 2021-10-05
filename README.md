@@ -1160,6 +1160,24 @@ snapper list
 
 ### cifs
 
+#### samba
+
+##### issues
+
+- [https://wiki.archlinux.org/title/Samba#Windows_1709_or_up_does_not_discover_the_samba_server_in_Network_view](https://wiki.archlinux.org/title/Samba#Windows_10_1709_and_up_connectivity_problems_-_%22Windows_cannot_access%22_0x80004005)
+  ``` shell
+  # systemctl is-active wsdd
+  active
+  # testparm -sv 2>/dev/null | grep workgroup
+        workgroup = WORKGROUP
+  # egrep -v '^ *(#|$)' /etc/sysconfig/wsdd
+  WSDD_DOMAIN=""
+  WSDD_WORKGROUP="WORKGROUP"
+  WSDD_HOSTNAME=""
+  WSDD_INTERFACES="wlan0"
+  WSDD_ARGS="-4 -s -v"
+  ```
+
 #### debugging
 
 This is for Samba but anyway see [Configuring Logging on a Samba
