@@ -1314,12 +1314,20 @@ showmount -e <nfs_server> # list remote exports
 
 #### troubleshooting
 
+##### nfs server
+
+A description of `/proc/net/rpc/nfsd` could be found at [nfsd stats
+explained :
+/proc/net/rpc/nfsd](https://web.archive.org/web/20210409075630/https://www.svennd.be/nfsd-stats-explained-procnetrpcnfsd/).
+
 ``` shell
 grep -RH '^address: ' /proc/fs/nfsd/clients/*/info # list clients
 cat /var/lib/nfs/rpc_pipefs/nfsd4_cb/clnt*/info    # more brief info
 
 grep -RH '' /proc/fs/nfsd/ 2>/dev/null
 ```
+
+##### nfs client
 
 ``` shell
 rpcdebug -m <module> # status of debugging; 'nfs' (client), 'nfsd' (server)
