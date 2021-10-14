@@ -2941,7 +2941,7 @@ journalctl _SYSTEMD_UNIT=sshd + _UID=1000
 journalctl -o verbose -u sshd # details about message
 ```
 
-## distros
+## distributions
 
 ### RHEL
 
@@ -3523,6 +3523,14 @@ shutdown system down  4.18.0-80.el8.x8 Mon Aug 31 06:33:01 2020 - Mon Aug 31 06:
 # ungraceful shutdown has only 'reboot' pseudo user
 reboot   system boot  4.18.0-147.5.1.e Tue Sep  1 07:16:25 2020   still running
 reboot   system boot  4.18.0-147.5.1.e Mon Aug  3 07:10:56 2020   still running
+```
+
+### strace
+
+``` shell
+# strace -f -t -o /tmp/strace.txt -e trace=%file,%process <command> # file
+                                                                    # and exec
+                                                                    # operations
 ```
 
 ### validate LACP on switch
