@@ -1824,6 +1824,31 @@ curl --proxy-insecure --proxy https://127.0.0.1:8080 http://api.ipify.org
 ...
 ```
 
+### net-tools
+
+#### netstat
+
+``` shell
+$ netstat -i
+Kernel Interface table
+Iface             MTU    RX-OK RX-ERR RX-DRP RX-OVR    TX-OK TX-ERR TX-DRP TX-OVR Flg
+eth0             1500        0      0      0 0             0      0      0      0 BMU
+eth2             1500     9391      0      0 0          4100      0      0      0 BMRU
+lo              65536   148688      0      0 0        148688      0      0      0 LRU
+virbr0           1500        0      0      0 0             0      0      0      0 BMU
+virbr1           1500        0      0      0 0             0      0      0      0 BMU
+virbr2           1500        0      0      0 0             0      0      0      0 BMU
+vpn0             1406    27893      0      0 0         24691      0      0      0 MOPRU
+wlan0            1500  5482131      0      0 0       1911465      0      0      0 BMRU
+```
+
+> The MTU and Met fields show the current MTU and metric value for
+> that interface. The RX and TX columns show how many packets have
+> been received or transmitted error free (RX-OK/TX-OK), damaged
+> (RX-ERR/TX-ERR), how many were dropped (RX-DRP/TX-DRP), and how many
+> were lost because of an overrun (RX-OVR/TX-OVR).
+> https://tldp.org/LDP/nag/node76.html
+
 ## package management
 
 ## rpm
@@ -3270,6 +3295,47 @@ aa-complain <profile> # not enforcing but logging mode
   [`audit.h](https://github.com/torvalds/linux/blob/master/include/uapi/linux/audit.h)
 - `audit=0` as kernel boot parameter to suppress audit messages
 - `audit=1`
+
+``` shell
+# auditctl -l # list rules
+-a never,task
+-w /usr/bin/docker -p rwxa -k docker
+-w /var/lib/docker -p rwxa -k docker
+-w /etc/docker -p rwxa -k docker
+-w /usr/lib/systemd/system/docker-registry.service -p rwxa -k docker
+-w /usr/lib/systemd/system/docker.service -p rwxa -k docker
+-w /var/run/docker.sock -p rwxa -k docker
+-w /etc/sysconfig/docker -p rwxa -k docker
+-w /etc/sysconfig/docker-network -p rwxa -k docker
+-w /etc/sysconfig/docker-registry -p rwxa -k docker
+-w /etc/sysconfig/docker-storage -p rwxa -k docker
+-w /etc/default/docker -p rwxa -k docker
+```
+
+With the above `-a never,task` no audit events would appear. See below:
+
+``` shell
+$ man auditctl | col -b | sed -n '/never,task/,/^FILES/{/^FILES/q;p}' | \
+  fmt -w 80
+       On many systems auditd is configured to install an -a never,task
+       rule by default. This rule causes every new process to skip all audit
+       rule processing. This is usually done to avoid a small  performance
+       overhead  imposed  by syscall auditing. If you want to use auditd,
+       you need to remove that rule by deleting 10-no-audit.rules and adding
+       10-base-config.rules to the audit rules directory.
+
+       If you have defined audit rules that are not matching when they should,
+       check auditctl -l to make sure there is no never,task rule there.
+```
+
+Thus update the rules!
+
+``` shell
+# sed -i 's/^\-a task\,never/#&/' /etc/audit/rules.d/audit.rules # uncomment default
+# augenrules --check
+# augenrules --load
+# auditctl -l
+```
 
 ``` shell
 zgrep '^CONFIG_AUDIT=' /proc/config.gz # check support in kernel
