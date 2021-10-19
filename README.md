@@ -1651,10 +1651,10 @@ or [Calculating crashkernel allocation
 size](https://documentation.suse.com/sles/15-SP3/single-html/SLES-tuning/#sec-tuning-kexec-crashkernel).
 
 The *crashkernel* loads its initramfs where kdump would inspect memory
-image through /proc/vmcore. This exports the dump as an ELF-format
+image through `/proc/vmcore`. This exports the dump as an ELF-format
 file.
 
-Based `kdump` configuration
+Based on `kdump` configuration
 
 ``` shell
 $ /usr/sbin/kdumptool dump_config
