@@ -1560,21 +1560,140 @@ KRB5_TRACE=/dev/stdout kinit <args> # to get debug from any gssapi/krb library
 
 - `/proc/config.gz`
 
-### kdump
+### crash
 
+Kernel panic means a kernel crash which is controlled with following settings:
+
+``` shell
+kernel.sysrq = 184
+kernel.hardlockup_panic = 1
+kernel.hung_task_panic = 0
+kernel.panic = 0
+kernel.panic_on_io_nmi = 0
+kernel.panic_on_oops = 1
+kernel.panic_on_rcu_stall = 0
+kernel.panic_on_unrecovered_nmi = 0
+kernel.panic_on_warn = 0
+kernel.softlockup_panic = 0
+kernel.unknown_nmi_panic = 0
+```
+
+- *kernel.panic*: if there is a kernel panic the kernel will loop
+  forever (no automatic reboot)
+- *kernel.panic_on_oops'* kernel panics when an oops or BUG is
+  encountered, thus it panics immediately on these kernel issues
+- *kernel.hardlockup_panic*: kernel panics when a hard lockup is detected
+
+But kernel can be crash also while sending a magic sysrq key, see
 [sysrq
 key](https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html) in
-Linux
+Linux.
 
 ``` shell
-zgrep -P \
-  '^CONFIG_(RELOCATABLE|KEXEC|CRASH_DUMP|DEBUG_INFO|MAGIC_SYSRQ|PROC_VMCORE)=' \
-  /proc/config.gz # validate that kdump has configuration ready (value 'y')
+kernel.sysrq = 184
 ```
 
+*184* means  128+32+16+8 (that is: allow reboot/poweroff (128) plus
+enable remount read-only (32) plus enable sync command (16) plus
+enable debugging dumps of processes etc. (8), see above link for details.
+
+### kdump
+
+To have a kernel panic is useless if there would be no way to get
+crashed kernel dump, system's/kernel's memory, for analysis. `kdump`
+is a tool which with help of various functionalities in kernel allow
+to obtain the dump.
+
+To have
+[kdump](https://www.kernel.org/doc/html/latest/admin-guide/kdump/kdump.html)
+fully working following kernel configuration should be in place.
+
 ``` shell
-dmesg | grep crashkernel
+$ rpm2cpio kernel-default-4.12.14-122.91.2.x86_64.rpm' 2>/dev/null | \
+  cpio --to-stdout -i ./boot/config-4.12.14-122.91-default 2>/dev/null | \
+  grep -E -e '^CONFIG_MAGIC_SYSRQ=' \
+    -e '^CONFIG_(KEXEC|CRASH_DUMP|DEBUG_INFO|PROC_VMCORE|RELOCATABLE)='
+CONFIG_KEXEC=y
+CONFIG_CRASH_DUMP=y
+CONFIG_RELOCATABLE=y
+CONFIG_PROC_VMCORE=y
+CONFIG_DEBUG_INFO=y
+CONFIG_MAGIC_SYSRQ=y
 ```
+
+When a system crash occurs, triggers `panic()`, `die()`, `die_nmi()`
+and in the *sysrq* handler (ALT-SysRq-c) would via *kexec* load a
+*capture* kernel (an additional kernel residing in a reserved memory
+range that is inaccessible to the first kernel), this bypasses BIOS
+and preserves the contets of the first kernel's memory that would
+otherwise be lost.
+
+``` shell
+$ grep crashkernel proc.txt  | xargs -n 1
+BOOT_IMAGE=/vmlinuz-4.12.14-122.91-default
+root=/dev/mapper/rootvg-root_lv
+resume=/dev/sdb1
+splash=silent
+quiet
+showopts
+crashkernel=175M,high
+crashkernel=72M,low
+```
+
+The above *crashkernel* values define:
+
+- *high* means memory reservation for all available memory
+- *low* means memory reservation in the DMA32 zone, ie. for 32bit only devices
+
+See [crashkernel
+syntax](https://www.kernel.org/doc/html/latest/admin-guide/kdump/kdump.html#crashkernel-syntax)
+or [Calculating crashkernel allocation
+size](https://documentation.suse.com/sles/15-SP3/single-html/SLES-tuning/#sec-tuning-kexec-crashkernel).
+
+The *crashkernel* loads its initramfs where kdump would inspect memory
+image through /proc/vmcore. This exports the dump as an ELF-format
+file.
+
+Based `kdump` configuration
+
+``` shell
+$ /usr/sbin/kdumptool dump_config
+KDUMP_KERNELVER=
+KDUMP_CPUS=1
+KDUMP_COMMANDLINE=
+KDUMP_COMMANDLINE_APPEND=
+KEXEC_OPTIONS=
+MAKEDUMPFILE_OPTIONS=
+KDUMP_IMMEDIATE_REBOOT=yes
+KDUMP_TRANSFER=
+KDUMP_SAVEDIR=file:///var/crash
+KDUMP_KEEP_OLD_DUMPS=5
+KDUMP_FREE_DISK_SIZE=64
+KDUMP_VERBOSE=3
+KDUMP_DUMPLEVEL=0
+KDUMP_DUMPFORMAT=compressed
+KDUMP_CONTINUE_ON_ERROR=yes
+KDUMP_REQUIRED_PROGRAMS=
+KDUMP_PRESCRIPT=
+KDUMP_POSTSCRIPT=
+KDUMP_COPY_KERNEL=yes
+KDUMPTOOL_FLAGS=
+KDUMP_NETCONFIG=auto
+KDUMP_NET_TIMEOUT=30
+KDUMP_SMTP_SERVER=
+KDUMP_SMTP_USER=
+KDUMP_SMTP_PASSWORD=
+KDUMP_NOTIFICATION_TO=
+KDUMP_NOTIFICATION_CC=
+KDUMP_HOST_KEY=
+KDUMP_SSH_IDENTITY=
+```
+
+`kdump` would save first kernel's memory for later analysis. Here
+`kdump` would auto-detect right kernel version, find right initrd, use
+*KDUMP_DUMPLEVEL* to know if to strip pages that may not be necessary
+for analysis, ... and finally *KDUMP_SAVEDIR* as destination for the
+dump. See `man 5 kdump` for details.
 
 ### modules
 
@@ -3549,6 +3668,18 @@ EOM
 
 echo "${VAR}"
 ```
+- using BASH function in `find`
+   ``` shell
+   $ type _kdump
+   _kdump is a function
+   _kdump ()
+   {
+       sed -n '/find -L/,/^ *$/{/^ *$/q;p}' $1 | tail -n1 | grep --color=auto -qv '/var/crash/$' && echo $1
+   }
+   $ export -f _kdump
+   $ find ../../ -type f -name crash.txt -exec bash -c \
+     '_kdump "$@"' bash {} {} \;
+   ```
 
 ### sed
 
