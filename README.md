@@ -715,7 +715,7 @@ grep -P \
 time=2021-09-05T20:
 pattern='(SAPHana|sap|'
 grep -P \
-  "^${time}.* \w+ ${pattern:=(}corosync|pacemaker-(attrd|based|controld|execd|schedulerd|fenced)|stonith|systemd)' \
+  "^${time}.* \w+ ${pattern:=(}corosync|pacemaker-(attrd|based|controld|execd|schedulerd|fenced)|stonith|systemd)" \
   messages # grep log file for cluster messages
 ```
 
