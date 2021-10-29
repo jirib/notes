@@ -3648,6 +3648,9 @@ $6$zyuGj55qkPCh/zht$PDk60osb/mzE6xCvJx/X3uDWtU/8jGRefSQHIjCDdYsDEiKcZE3XmX/0dW7E
 
 #### AD users/groups
 
+See [Configure sudo authentication for Active Directory
+group](https://www.suse.com/support/kb/doc/?id=000018877).
+
 - winbind based authentication
 
 IIUC if not quoted, then use '\\' as separator and '\' before whitespaces.
