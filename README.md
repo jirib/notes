@@ -2715,6 +2715,85 @@ pvremove <unused_pv>
 pvs -o help # list of options
 ```
 
+#### raid
+
+``` shell
+
+```
+
+##### raid1
+
+``` shell
+$ lvcreate --type raid1 -m 1 -l 100%FREE -n raid-1 test
+
+$ lvs test/raid-1
+  LV     VG   Attr       LSize    Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert
+  raid-1 test rwi-a-r--- 1008.00m                                    100.00
+
+$ lvdisplay vgdbJJP00_01/lvJJP_ora
+  LV Path                /dev/vgdbJJP00_01/lvJJP_ora
+  LV Name                lvJJP_ora
+  VG Name                vgdbJJP00_01
+  LV UUID                i3qrhA-JJbq-D9X5-Guiv-dP7a-rZ8G-FIyMu9
+  LV Write Access        read/write
+  LV Creation host, time uttsapjjpdb00, 2021-09-13 15:40:24 +0100
+  LV Status              available
+  # open                 1
+  LV Size                45.00 GiB
+  Current LE             2880
+  Mirrored volumes       2
+  Segments               1
+  Allocation             inherit
+  Read ahead sectors     auto
+  - currently set to     1024
+  Block device           254:39
+
+$ dmsetup table | grep 'test-raid--1'
+test-raid--1: 0 2064384 raid raid1 3 0 region_size 4096 2 254:5 254:6 254:7 254:8
+                             ^^ type
+                                   ^^ no. of params
+                                     ^^ chunk size
+                                       ^^ region size <number>
+                                                        ^^ no. of devices
+test-raid--1_rimage_0: 0 2064384 linear 259:4 10240
+test-raid--1_rimage_1: 0 2064384 linear 259:6 10240
+test-raid--1_rmeta_0: 0 8192 linear 259:4 2048
+test-raid--1_rmeta_1: 0 8192 linear 259:6 2048
+```
+
+Description for `dmsetup table` output for *raid1* is at
+[device-mapper/dm-raid.txt](https://www.kernel.org/doc/Documentation/device-mapper/dm-raid.txt).
+
+Checking data coherency in a RAID logical volume:
+
+``` shell
+$ lvchange -v --syncaction check test/raid-1
+
+$ journal -f
+...
+Oct 27 12:41:51 t14s kernel: md: data-check of RAID array mdX
+Oct 27 12:41:57 t14s kernel: md: mdX: data-check done.
+Oct 27 12:41:57 t14s lvm[13194]: raid1 array, test-raid--1, is now in-sync.
+...
+
+$ lvs -o +raid_sync_action,raid_mismatch_count test/raid-1
+  LV     VG   Attr       LSize    Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert SyncAction Mismatches
+  raid-1 test rwi-a-r--- 1008.00m
+```
+
+Partial failure:
+
+``` shell
+$ lvs -o +raid_sync_action,raid_mismatch_count test/raid-1
+  WARNING: Couldn't find device with uuid 3vLD5P-5gQO-U9MS-EgD0-uax3-jhQz-7SRUUI.
+  WARNING: VG test is missing PV 3vLD5P-5gQO-U9MS-EgD0-uax3-jhQz-7SRUUI (last written to /dev/loop1p2).
+  LV     VG   Attr       LSize    Pool Origin Data%  Meta%  Move Log Cpy%Sync Convert SyncAction Mismatches
+  raid-1 test rwi-aor-p- 1008.00m                                    100.00           idle                0
+
+```
+
+See 'p' as 9th bit of lv_attrs.
+
 #### thinpool
 
 ``` shell
@@ -3566,6 +3645,24 @@ $6$zyuGj55qkPCh/zht$PDk60osb/mzE6xCvJx/X3uDWtU/8jGRefSQHIjCDdYsDEiKcZE3XmX/0dW7E
 ```
 
 ### sudo
+
+#### AD users/groups
+
+- winbind based authentication
+
+IIUC if not quoted, then use '\\' as separator and '\' before whitespaces.
+
+  ```
+  # AD user
+  "<DOMAIN>\<user>" ALL=(ALL) ALL
+  # AD group
+  "<DOMAIN>\<group name>" ALL=(ALL) ALL
+  ```
+- sssd based authentication
+  ```
+  # AD group
+  "<group name>@<realm>" ALL=(ALL) ALL
+  ```
 
 #### debugging
 
