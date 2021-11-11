@@ -232,7 +232,8 @@ borg extract --strip-components <digit> ::$(borg list --last 1 | awk '{ print $1
 tools to install GRUB on boot disk.
 
 ``` shell
-grub2-install -v <boot_device>
+grub2-install -v <boot_device> # bios
+grub2-install -v
 ```
 
 #### commands
@@ -3416,6 +3417,129 @@ man cupsd.conf | egrep -A 1 'MaxJobs(PerPrinter)* number' | fmt -w80
 #### tips
 
 - https://access.redhat.com/solutions/305283
+
+#### troubleshooting
+
+WIP!!!
+
+1. find `Receive print job for <printer>` in `messages`
+2. get job ID related to above `Receive...` line (for job id)
+3. see `Closing connection` for `cups-lpd` PID spawned for the above `Receive...` line
+4. find `POST /jobs/<job> HTTP/1.1` in `error_log` (for client number)
+5. get client ID from above `POST...` `error_log` line
+6. find `[Job <job>] argv[2]=` line in `error_log` line (for user)
+7. get `argv[2]` value from above line
+
+``` shell
+#!/bin/bash
+
+MESSAGES=$1
+ERRORLOG=$2
+TIME=$3
+PRINTER=$4
+
+get_jobid() {
+    local _out
+    local _lineno
+    local _pid
+    local _jobid
+
+    # get Recieve print job line
+   _out=$(grep -n "${TIME}.*Receive print job for ${PRINTER}" "${MESSAGES}")
+   [[ -z "${_out}" ]] && exit 1
+
+   # get Receive print job line number
+   _lineno="${_out%%:*}"
+   (( ${_lineno} )) || exit 1
+
+   # get cups-lpd pid
+   _pid=$(grep -Po 'cups-lpd\[\K(\d+)(?=.*)' <<< "${_out}")
+   (( ${_pid} )) || exit 1
+
+   # get job id
+   while read line; do
+       # skin unrelated files
+       if [[ ! "${line}" =~ ${_time}.*\ cups-lpd\[${_pid}\] ]]; then
+	   continue
+       elif ! (( ${_jobid} )); then
+	   _jobid=$(grep -Po "cups-lpd\[${_pid}\]: Print file \- job ID = \K(\d+)(?=.*)" <<< "${line}")
+       else
+	   break
+       fi
+   # read since matched Receive print job line till end...
+   done < <(sed -n ${_lineno}',$p' "${MESSAGES}")
+   echo ${_pid} ${_jobid}
+}
+
+get_jobdet() {
+    local _jobid=$1
+
+    local _client
+    local _user
+
+    _client=$(grep -Po '\[Client \K(\d+)(?=\] POST /jobs/'${_jobid}' HTTP/1\.1)' ${ERRORLOG})
+    (( ${_client} )) || exit 1
+
+   while read line; do
+       # not interested in CGI lines
+       [[ "${line}" =~ \[CGI\] ]] && continue
+
+       # not interested in different clients
+       [[ "${line}" =~ \[Client && ! "${line}" =~ ${_client} ]] && continue
+
+	# not interested in different job ids
+       [[ "${line}" =~ (\[Job|Send-Document) && ! "${line}" =~ ${_jobid} ]] && continue
+
+       # not interested in different printers
+       [[ "${line}" =~ (Create\-Job|Get\-Printer\-Attributes) && ! "${line}" =~ ${PRINTER} ]] && continue
+
+       # D [09/Nov/2021:10:58:19 +0100] [Job 3623832] argv[2]="BOHRO"
+       if [[ "${line}" =~ \[Job\ ${_jobid}\]\ argv\[2\]= ]]; then
+	   _user=$(cut -d'"' -f2 <<< "${line}")
+	   [[ -z "${_user}" ]] && exit 1
+       fi
+
+       # not interested in different printers
+       [[ "${line}" =~ add_job && ! "${line}" =~ "${_user}" ]] && continue
+
+       echo "${line}"
+
+       # probably last line for a job
+       [[ "${line}" =~ \[Job\ ${_jobid}\]\ Unloading\.\.\. ]] && break
+
+   # read since matched Receive print job line till end...
+   done < <(sed -n '/Client '${_client}'\]/,$p' "${ERRORLOG}")
+
+}
+
+# main
+read -r lpd jobid <<< $(get_jobid)
+get_jobdet ${jobid}
+```
+
+``` shell
+$ ./cups_trace.sh messages-20211110 error_log.O 2021-11-09T10:57:58 psebr00135_ps | grep -vE '(Discarding|cupsd)' | tail -n 20
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Reading command status...
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] lpd_command returning 0
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Sending data file (142382 bytes)
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Spooling job, 0% complete.
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Set job-printer-state-message to "Spooling job, 0% complete.", current level=INFO
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Spooling job, 23% complete.
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Set job-printer-state-message to "Spooling job, 23% complete.", current level=INFO
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Spooling job, 46% complete.
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Set job-printer-state-message to "Spooling job, 46% complete.", current level=INFO
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Spooling job, 69% complete.
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Set job-printer-state-message to "Spooling job, 69% complete.", current level=INFO
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Spooling job, 92% complete.
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Set job-printer-state-message to "Spooling job, 92% complete.", current level=INFO
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Data file sent successfully.
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Set job-printer-state-message to "Data file sent successfully.", current level=INFO
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] STATE: +cups-waiting-for-job-completed
+D [09/Nov/2021:10:58:19 +0100] [Job 3623826] time-at-completed=1636451899
+I [09/Nov/2021:10:58:19 +0100] [Job 3623826] Job completed.
+I [09/Nov/2021:10:58:19 +0100] Expiring subscriptions...
+D [09/Nov/2021:10:58:20 +0100] [Job 3623826] Unloading...
+```
 
 ### texlive
 
