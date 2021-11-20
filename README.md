@@ -954,6 +954,17 @@ Environment=HTTP_PROXY=http://127.0.0.1:8080 HTTPS_PROXY=https://127.0.0.1:8080 
 
 ## desktop
 
+### desktop files
+
+To override *exec* like for an `.desktop` file.
+
+``` shell
+$ desktop-file-install --dir ~/.local/share/applications/ /usr/share/applications/remote-viewer.desktop
+$ desktop-file-edit --set-key=Exec --set-value='myremote-viewer %u' ~/.local/share/applications/remote-viewer.desktop
+```
+
+and write your `myremote-viewer` wrapper (eg. to force some options).
+
 ### gtk
 
 #### file-chrooser
@@ -1847,6 +1858,108 @@ https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html
 ## networking
 
 ### bonding
+
+#### iproute2 way
+
+``` shell
+$ ethtool -P eth0
+Permanent address: 8c:8c:aa:d7:0c:33
+$ ethtool -P eth2
+Permanent address: 48:2a:e3:9a:78:85
+
+$ ip link add bond0 type bond miimon 100 mode active-backup
+$ ip link set eth0 master bond0
+
+[277801.073581] Generic FE-GE Realtek PHY r8169-0-200:00: attached PHY driver (mii_bus:phy_addr=r8169-0-200:00, irq=MAC)
+[277801.201647] r8169 0000:02:00.0 eth0: Link is Down
+[277801.202203] bond0: (slave eth0): Enslaving as a backup interface with a down link
+[277803.991225] r8169 0000:02:00.0 eth0: Link is Up - 1Gbps/Full - flow control off
+
+$ ip link set eth2 master bond0
+
+[277844.295426] bond0: (slave eth2): Enslaving as a backup interface with a down link
+[277844.314935] r8152 5-1.1:1.0 eth2: carrier on
+
+$ ip link show bond0
+22: bond0: <BROADCAST,MULTICAST,MASTER> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 6e:b9:1a:80:5b:ea brd ff:ff:ff:ff:ff:ff
+
+$ ip link set bond0
+
+[278012.113499] bond0: (slave eth0): link status definitely up, 1000 Mbps full duplex
+[278012.113554] bond0: (slave eth0): making interface the new active one
+[278012.113795] bond0: active interface up!
+[278012.251127] bond0: (slave eth2): link status definitely up, 1000 Mbps full duplex
+
+$ ip -s -d link show bond0
+24: bond0: <BROADCAST,MULTICAST,MASTER,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    link/ether 6e:b9:1a:80:5b:ea brd ff:ff:ff:ff:ff:ff promiscuity 0 minmtu 68 maxmtu 65535
+    bond mode active-backup active_slave eth0 miimon 100 updelay 0 downdelay 0 peer_notify_delay 0 use_carrier 1 arp_interval 0 arp_validate none arp_all_targets any primary_reselect always fail_over_mac none xmit_hash_policy layer2 resend_igmp 1 num_grat_arp 1 all_slaves_active 0 min_links 0 lp_interval 1 packets_per_slave 1 lacp_rate slow ad_select stable tlb_dynamic_lb 1 addrgenmode eui64 numtxqueues 16 numrxqueues 16 gso_max_size 16354 gso_max_segs 64
+    RX:  bytes packets errors dropped  missed   mcast
+         20036      71      0       0       0       7
+    TX:  bytes packets errors dropped carrier collsns
+          6634      32      0       0       0       0
+
+$ grep -RH '' /sys/class/net/bond0/bonding/{active_slave,miimon,mode,use_carrier,mii_status,slaves}
+/sys/class/net/bond0/bonding/active_slave:eth0
+/sys/class/net/bond0/bonding/miimon:100
+/sys/class/net/bond0/bonding/mode:active-backup 1
+/sys/class/net/bond0/bonding/use_carrier:1
+/sys/class/net/bond0/bonding/mii_status:up
+/sys/class/net/bond0/bonding/slaves:eth0 eth2
+
+# setting port down on the switch
+
+[278452.479531] r8169 0000:02:00.0 eth0: Link is Down
+[278452.561728] bond0: (slave eth0): link status definitely down, disabling slave
+[278452.561743] bond0: (slave eth2): making interface the new active one
+
+# tshark -i any -n -f "arp" -O arp
+...
+Capturing on 'any'
+Frame 1: 44 bytes on wire (352 bits), 44 bytes captured (352 bits) on interface any, id 0
+Linux cooked capture v1
+Address Resolution Protocol (ARP Announcement)
+    Hardware type: Ethernet (1)
+    Protocol type: IPv4 (0x0800)
+    Hardware size: 6
+    Protocol size: 4
+    Opcode: request (1)
+    [Is gratuitous: True]
+    [Is announcement: True]
+    Sender MAC address: 6e:b9:1a:80:5b:ea
+    Sender IP address: 192.168.1.199
+    Target MAC address: 00:00:00:00:00:00
+    Target IP address: 192.168.1.199
+
+Frame 2: 44 bytes on wire (352 bits), 44 bytes captured (352 bits) on interface any, id 0
+Linux cooked capture v1
+Address Resolution Protocol (ARP Announcement)
+    Hardware type: Ethernet (1)
+    Protocol type: IPv4 (0x0800)
+    Hardware size: 6
+    Protocol size: 4
+    Opcode: request (1)
+    [Is gratuitous: True]
+    [Is announcement: True]
+    Sender MAC address: 6e:b9:1a:80:5b:ea
+    Sender IP address: 192.168.1.199
+    Target MAC address: 00:00:00:00:00:00
+    Target IP address: 192.168.1.199
+...
+
+# switch dynamic (mac) address table is updated and points 6e:b9:1a:80:5b:ea
+# to new active iface/port
+
+$ ip -s -d link show bond0
+24: bond0: <BROADCAST,MULTICAST,MASTER,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    link/ether 6e:b9:1a:80:5b:ea brd ff:ff:ff:ff:ff:ff promiscuity 0 minmtu 68 maxmtu 65535
+    bond mode active-backup active_slave eth2 miimon 100 updelay 0 downdelay 0 peer_notify_delay 0 use_carrier 1 arp_interval 0 arp_validate none arp_all_targets any primary_reselect always fail_over_mac none xmit_hash_policy layer2 resend_igmp 1 num_grat_arp 1 all_slaves_active 0 min_links 0 lp_interval 1 packets_per_slave 1 lacp_rate slow ad_select stable tlb_dynamic_lb 1 addrgenmode eui64 numtxqueues 16 numrxqueues 16 gso_max_size 16354 gso_max_segs 64
+    RX:  bytes packets errors dropped  missed   mcast
+       1011042    1319      0       0       0      14
+    TX:  bytes packets errors dropped carrier collsns
+        141339    1115      0       0       0       0
+```
 
 *bonding* means aggregating several ethernet devices into a single device
 
