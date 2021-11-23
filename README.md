@@ -1982,6 +1982,79 @@ for details
 
 ### capturing network trace
 
+#### getting only part of pcap file
+
+Sometimes *pcap* files could be huge, so one would need to get only part of the trace.
+
+[`trigcap`](https://github.com/M0Rf30/xplico/tree/master/system/trigcap)
+seems handy tool to get parts of pcap file.
+
+``` shell
+$ trigcap -o 710868.pcap -f 1637473815_DRPLHNPRDB02.pcap -t 710868 -b 0 -a 0
+trigcap v1.1.0
+Part of Xplico Internet Traffic Decoder (NFAT).
+See http://www.xplico.org for more information.
+
+Copyright 2007-2011 Gianluca Costa & Andrea de Franceschi and contributors.
+This is free software; see the source for copying conditions. There is NO
+warranty; not even for MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.
+
+Trigger packet: 710868
+Total packet: 0
+Start packet: 710868
+Stop packet: 710868
+
+$ tshark -r 710868.pcap -Y 'lacp.version' -n -O lacp
+Frame 1: 126 bytes on wire (1008 bits), 126 bytes captured (1008 bits)
+Linux cooked capture v1
+Slow Protocols
+Link Aggregation Control Protocol
+    LACP Version: 0x01
+    TLV Type: Actor Information (0x01)
+    TLV Length: 0x14
+    Actor System Priority: 65535
+    Actor System ID: 00:90:fa:eb:88:be
+    Actor Key: 15
+    Actor Port Priority: 255
+    Actor Port: 1
+    Actor State: 0x4d, LACP Activity, Aggregation, Synchronization, Defaulted
+        .... ...1 = LACP Activity: Active
+        .... ..0. = LACP Timeout: Long Timeout
+        .... .1.. = Aggregation: Aggregatable
+        .... 1... = Synchronization: In Sync
+        ...0 .... = Collecting: Disabled
+        ..0. .... = Distributing: Disabled
+        .1.. .... = Defaulted: Yes
+        0... .... = Expired: No
+    [Actor State Flags: *F**SG*A]
+    Reserved: 000000
+    TLV Type: Partner Information (0x02)
+    TLV Length: 0x14
+    Partner System Priority: 65535
+    Partner System: 00:00:00:00:00:00
+    Partner Key: 1
+    Partner Port Priority: 255
+    Partner Port: 1
+    Partner State: 0x01, LACP Activity
+        .... ...1 = LACP Activity: Active
+        .... ..0. = LACP Timeout: Long Timeout
+        .... .0.. = Aggregation: Individual
+        .... 0... = Synchronization: Out of Sync
+        ...0 .... = Collecting: Disabled
+        ..0. .... = Distributing: Disabled
+        .0.. .... = Defaulted: No
+        0... .... = Expired: No
+    [Partner State Flags: *******A]
+    Reserved: 000000
+    TLV Type: Collector Information (0x03)
+    TLV Length: 0x10
+    Collector Max Delay: 0
+    Reserved: 000000000000000000000000
+    TLV Type: Terminator (0x00)
+    TLV Length: 0x00
+    Pad: 000000000000000000000000000000000000000000000000000000000000000000000000…
+```
+
 #### modifying network trace
 
 one way to modify a network trace is to use
@@ -2081,6 +2154,52 @@ wlan0            1500  5482131      0      0 0       1911465      0      0      
 > (RX-ERR/TX-ERR), how many were dropped (RX-DRP/TX-DRP), and how many
 > were lost because of an overrun (RX-OVR/TX-OVR).
 > https://tldp.org/LDP/nag/node76.html
+
+### traceroute
+
+`traceroute` works via setting TTL (Time-To-Live/Hop-Limit for IPv6) for IPv4 package to a specific number. Each device on the path decreases this number, when the number is 0 then the packet is returned.
+
+``` shell
+$ ip route show default 0.0.0.0/0
+default via 192.168.1.1 dev wlan0 proto dhcp metric 600
+
+$ traceroute 192.168.1.1
+
+# here we can see traceroute set TTL to 1, thus it was returned
+
+$ tshark -i wlan0 -n -c 1 -f "dst host 192.168.1.1 && udp && not port 53" -O ip
+Running as user "root" and group "root". This could be dangerous.
+Capturing on 'wlan0'
+Frame 1: 74 bytes on wire (592 bits), 74 bytes captured (592 bits) on interface wlan0, id 0
+Ethernet II, Src: 70:9c:d1:bd:4c:0a, Dst: 94:e3:ee:4b:ee:b5
+Internet Protocol Version 4, Src: 192.168.1.5, Dst: 192.168.1.1
+    0100 .... = Version: 4
+    .... 0101 = Header Length: 20 bytes (5)
+    Differentiated Services Field: 0x00 (DSCP: CS0, ECN: Not-ECT)
+        0000 00.. = Differentiated Services Codepoint: Default (0)
+        .... ..00 = Explicit Congestion Notification: Not ECN-Capable Transport (0)
+    Total Length: 60
+    Identification: 0xf7f4 (63476)
+    Flags: 0x00
+        0... .... = Reserved bit: Not set
+        .0.. .... = Don't fragment: Not set
+        ..0. .... = More fragments: Not set
+    Fragment Offset: 0
+    Time to Live: 1
+        [Expert Info (Note/Sequence): "Time To Live" only 1]
+            ["Time To Live" only 1]
+            [Severity level: Note]
+            [Group: Sequence]
+    Protocol: UDP (17)
+    Header Checksum: 0x3e66 [validation disabled]
+    [Header checksum status: Unverified]
+    Source Address: 192.168.1.5
+    Destination Address: 192.168.1.1
+User Datagram Protocol, Src Port: 55664, Dst Port: 33434
+Data (32 bytes)
+
+1 packet captured
+```
 
 ## package management
 
