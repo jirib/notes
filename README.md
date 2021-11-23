@@ -2164,6 +2164,154 @@ details partner lacp pdu:
 Thus we see '1007' in LLDP (*Aggregated Port Id*) and '1007' in both
 *Partner Key* and *oper key* in each slave block.
 
+LACP allows negotiation between peers of bundling of links, see
+[LACP](https://en.wikipedia.org/wiki/Link_aggregation#Link_Aggregation_Control_Protocol). That
+means that LACP packets are sent to multicast group MAC address
+01:80:C2:00:00:02.
+
+``` shell
+$ tshark -i eth1 -c 5 -t ad -n -f 'ether proto 0x8809' -Y 'lacp.version'
+Running as user "root" and group "root". This could be dangerous.
+Capturing on 'eth1'
+    1 2021-11-23 16:04:13.620451556 64:d8:14:5e:58:03 → 01:80:c2:00:00:02 LACP 124 v1 ACTOR 64:d8:14:5e:57:f9 P: 58 K: 1007 *F***G*A PARTNER 00:00:00:00:00:00 P: 0 K: 0 *F**SG**
+    2 2021-11-23 16:04:13.855216497 90:e2:ba:04:28:c0 → 01:80:c2:00:00:02 LACP 124 v1 ACTOR 90:e2:ba:04:28:c0 P: 1 K: 9 ****SG*A PARTNER 64:d8:14:5e:57:f9 P: 58 K: 1007 *F***G*A
+    3 2021-11-23 16:04:16.039213579 90:e2:ba:04:28:c0 → 01:80:c2:00:00:02 LACP 124 v1 ACTOR 90:e2:ba:04:28:c0 P: 1 K: 9 ****SG*A PARTNER 64:d8:14:5e:57:f9 P: 58 K: 1007 *F***G*A
+    4 2021-11-23 16:04:43.620073586 64:d8:14:5e:58:03 → 01:80:c2:00:00:02 LACP 124 v1 ACTOR 64:d8:14:5e:57:f9 P: 58 K: 1007 *****G*A PARTNER 90:e2:ba:04:28:c0 P: 1 K: 9 ****SG*A
+    5 2021-11-23 16:04:47.239214048 90:e2:ba:04:28:c0 → 01:80:c2:00:00:02 LACP 124 v1 ACTOR 90:e2:ba:04:28:c0 P: 1 K: 9 ****SG*A PARTNER 64:d8:14:5e:57:f9 P: 58 K: 1007 *****G*A
+5 packets captured
+```
+
+- *64:d8:14:5e:58:03* seems to correspond to switch LACP packets (they use same prefix)
+  ``` shell
+  $ grep -i 'Partner Mac Address' /proc/net/bonding/bond0
+        Partner Mac Address: 64:d8:14:5e:57:f9
+  ```
+- *90:e2:ba:04:28:c0* corresponds to bonding device MAC address
+  ``` shell
+  $ ip link show bond0
+  15: bond0: <BROADCAST,MULTICAST,MASTER,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP mode DEFAULT group default qlen 1000
+    link/ether 90:e2:ba:04:28:c0 brd ff:ff:ff:ff:ff:ff
+  $  grep 'System MAC address:' /proc/net/bonding/bond0
+  System MAC address: 90:e2:ba:04:28:c0
+  ```
+
+LACP from the server:
+
+``` shell
+$ tshark -i eth1 -c 1 -t ad -n -f 'ether proto 0x8809 and ether src 90:e2:ba:04:28:c0' -Y 'lacp.version' -O lacp
+Running as user "root" and group "root". This could be dangerous.
+Capturing on 'eth1'
+Frame 1: 124 bytes on wire (992 bits), 124 bytes captured (992 bits) on interface eth1, id 0
+Ethernet II, Src: 90:e2:ba:04:28:c0, Dst: 01:80:c2:00:00:02
+Slow Protocols
+Link Aggregation Control Protocol
+    LACP Version: 0x01
+    TLV Type: Actor Information (0x01)
+    TLV Length: 0x14
+    Actor System Priority: 65535
+    Actor System ID: 90:e2:ba:04:28:c0
+    Actor Key: 9
+    Actor Port Priority: 255
+    Actor Port: 1
+    Actor State: 0x3d, LACP Activity, Aggregation, Synchronization, Collecting, Distributing
+        .... ...1 = LACP Activity: Active
+        .... ..0. = LACP Timeout: Long Timeout
+        .... .1.. = Aggregation: Aggregatable
+        .... 1... = Synchronization: In Sync
+        ...1 .... = Collecting: Enabled
+        ..1. .... = Distributing: Enabled
+        .0.. .... = Defaulted: No
+        0... .... = Expired: No
+    [Actor State Flags: **DCSG*A]
+    Reserved: 000000
+    TLV Type: Partner Information (0x02)
+    TLV Length: 0x14
+    Partner System Priority: 1
+    Partner System: 64:d8:14:5e:57:f9
+    Partner Key: 1007
+    Partner Port Priority: 1
+    Partner Port: 58
+    Partner State: 0x3d, LACP Activity, Aggregation, Synchronization, Collecting, Distributing
+        .... ...1 = LACP Activity: Active
+        .... ..0. = LACP Timeout: Long Timeout
+        .... .1.. = Aggregation: Aggregatable
+        .... 1... = Synchronization: In Sync
+        ...1 .... = Collecting: Enabled
+        ..1. .... = Distributing: Enabled
+        .0.. .... = Defaulted: No
+        0... .... = Expired: No
+    [Partner State Flags: **DCSG*A]
+    Reserved: 000000
+    TLV Type: Collector Information (0x03)
+    TLV Length: 0x10
+    Collector Max Delay: 0
+    Reserved: 000000000000000000000000
+    TLV Type: Terminator (0x00)
+    TLV Length: 0x00
+    Pad: 000000000000000000000000000000000000000000000000000000000000000000000000…
+
+1 packet captured
+```
+
+LACP from the switch (capturing LACP with *64:d8:14* MAC addr prefix):
+
+``` shell
+
+$ tshark -i eth1 -c 1 -t ad -n -f 'ether proto 0x8809 and ((ether[0:4] & 0xffffff00 = 0x64d81400) or (ether[6:4] & 0xffffff00 = 0x64d81400))' -Y 'lacp.version' -O lacp
+Running as user "root" and group "root". This could be dangerous.
+Capturing on 'eth1'
+Frame 1: 124 bytes on wire (992 bits), 124 bytes captured (992 bits) on interface eth1, id 0
+Ethernet II, Src: 64:d8:14:5e:58:03, Dst: 01:80:c2:00:00:02
+Slow Protocols
+Link Aggregation Control Protocol
+    LACP Version: 0x01
+    TLV Type: Actor Information (0x01)
+    TLV Length: 0x14
+    Actor System Priority: 1
+    Actor System ID: 64:d8:14:5e:57:f9
+    Actor Key: 1007
+    Actor Port Priority: 1
+    Actor Port: 58
+    Actor State: 0x3d, LACP Activity, Aggregation, Synchronization, Collecting, Distributing
+        .... ...1 = LACP Activity: Active
+        .... ..0. = LACP Timeout: Long Timeout
+        .... .1.. = Aggregation: Aggregatable
+        .... 1... = Synchronization: In Sync
+        ...1 .... = Collecting: Enabled
+        ..1. .... = Distributing: Enabled
+        .0.. .... = Defaulted: No
+        0... .... = Expired: No
+    [Actor State Flags: **DCSG*A]
+    Reserved: 000000
+    TLV Type: Partner Information (0x02)
+    TLV Length: 0x14
+    Partner System Priority: 65535
+    Partner System: 90:e2:ba:04:28:c0
+    Partner Key: 9
+    Partner Port Priority: 255
+    Partner Port: 1
+    Partner State: 0x3d, LACP Activity, Aggregation, Synchronization, Collecting, Distributing
+        .... ...1 = LACP Activity: Active
+        .... ..0. = LACP Timeout: Long Timeout
+        .... .1.. = Aggregation: Aggregatable
+        .... 1... = Synchronization: In Sync
+        ...1 .... = Collecting: Enabled
+        ..1. .... = Distributing: Enabled
+        .0.. .... = Defaulted: No
+        0... .... = Expired: No
+    [Partner State Flags: **DCSG*A]
+    Reserved: 000000
+    TLV Type: Collector Information (0x03)
+    TLV Length: 0x10
+    Collector Max Delay: 0
+    Reserved: 000000000000000000000000
+    TLV Type: Terminator (0x00)
+    TLV Length: 0x00
+    Pad: 000000000000000000000000000000000000000000000000000000000000000000000000…
+
+1 packet captured
+```
+
 ##### lldp / cdp
 
 Depending on what is enabled for LLDP, you can see something like:
