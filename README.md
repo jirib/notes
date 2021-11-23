@@ -2099,6 +2099,212 @@ See [A tcpdump tutorial with
 examples...](https://web.archive.org/web/20210826070406/https://danielmiessler.com/study/tcpdump/)
 for some cool examples.
 
+#### tshark / wireshark
+
+##### lacp
+
+LLDP can be used to get announcements from a switch about 802.3ad, see below part from LLDP part obtained with `tshark`:
+
+``` shell
+    Ieee 802.3 - Link Aggregation
+        1111 111. .... .... = TLV Type: Organization Specific (127)
+        .... ...0 0000 1001 = TLV Length: 9
+        Organization Unique Code: 00:12:0f (Ieee 802.3)
+        IEEE 802.3 Subtype: Link Aggregation (0x03)
+            [Expert Info (Warning/Protocol): TLV has been deprecated]
+                [TLV has been deprecated]
+                [Severity level: Warning]
+                [Group: Protocol]
+        Aggregation Status: 0x03
+            .... ...1 = Aggregation Capability: Yes
+            .... ..1. = Aggregation Status: Enabled
+        Aggregated Port Id: 1007
+```
+
+Which seems to correspond to:
+
+``` shell
+$ sed -n '/^802\.3ad/,/^ *$/p' /proc/net/bonding/bond0
+802.3ad info
+LACP rate: slow
+Min links: 0
+Aggregator selection policy (ad_select): stable
+System priority: 65535
+System MAC address: 90:e2:ba:04:28:c0
+Active Aggregator Info:
+        Aggregator ID: 1
+        Number of ports: 1
+        Actor Key: 9
+        Partner Key: 1007
+        Partner Mac Address: 64:d8:14:5e:57:f9
+
+$ for i in eth1 eth3 ; do \
+  echo $i ; \
+  sed -n '/Slave Interface: '"$i"'$/,/^ *$/p' /proc/net/bonding/bond0 | \
+  sed -n '/^details partner lacp pdu:/,$p'; done
+eth1
+details partner lacp pdu:
+    system priority: 1
+    system mac address: 64:d8:14:5e:57:f9
+    oper key: 1007
+    port priority: 1
+    port number: 58
+    port state: 61
+
+eth3
+details partner lacp pdu:
+    system priority: 1
+    system mac address: 64:d8:14:5e:57:f9
+    oper key: 1007
+    port priority: 1
+    port number: 57
+    port state: 61
+```
+
+Thus we see '1007' in LLDP (*Aggregated Port Id*) and '1007' in both
+*Partner Key* and *oper key* in each slave block.
+
+##### lldp / cdp
+
+Depending on what is enabled for LLDP, you can see something like:
+
+``` shell
+$ tshark -i eth1 -c 1 -n -f "ether proto 0x88cc" -Y lldp -O lldp
+Running as user "root" and group "root". This could be dangerous.
+Capturing on 'eth1'
+Frame 1: 164 bytes on wire (1312 bits), 164 bytes captured (1312 bits) on interface eth1, id 0
+Ethernet II, Src: 64:d8:14:5e:58:03, Dst: 01:80:c2:00:00:0e
+Link Layer Discovery Protocol
+    Chassis Subtype = MAC address, Id: 64:d8:14:5e:57:f9
+        0000 001. .... .... = TLV Type: Chassis Id (1)
+        .... ...0 0000 0111 = TLV Length: 7
+        Chassis Id Subtype: MAC address (4)
+        Chassis Id: 64:d8:14:5e:57:f9
+    Port Subtype = Interface name, Id: gi10
+        0000 010. .... .... = TLV Type: Port Id (2)
+        .... ...0 0000 0101 = TLV Length: 5
+        Port Id Subtype: Interface name (5)
+        Port Id: gi10
+    Time To Live = 120 sec
+        0000 011. .... .... = TLV Type: Time to Live (3)
+        .... ...0 0000 0010 = TLV Length: 2
+        Seconds: 120
+    Ieee 802.3 - MAC/PHY Configuration/Status
+        1111 111. .... .... = TLV Type: Organization Specific (127)
+        .... ...0 0000 1001 = TLV Length: 9
+        Organization Unique Code: 00:12:0f (Ieee 802.3)
+        IEEE 802.3 Subtype: MAC/PHY Configuration/Status (0x01)
+        Auto-Negotiation Support/Status: 0x03
+            .... ...1 = Auto-Negotiation: Supported
+            .... ..1. = Auto-Negotiation: Enabled
+        PMD Auto-Negotiation Advertised Capability: 0x2401
+            .... .... .... ...1 = 1000BASE-T (full duplex mode): Capable
+            .... .... .... ..0. = 1000BASE-T (half duplex mode): Not capable
+            .... .... .... .0.. = 1000BASE-X (-LX, -SX, -CX full duplex mode): Not capable
+            .... .... .... 0... = 1000BASE-X (-LX, -SX, -CX half duplex mode): Not capable
+            .... .... ...0 .... = Asymmetric and Symmetric PAUSE (for full-duplex links): Not capable
+            .... .... ..0. .... = Symmetric PAUSE (for full-duplex links): Not capable
+            .... .... .0.. .... = Asymmetric PAUSE (for full-duplex links): Not capable
+            .... .... 0... .... = PAUSE (for full-duplex links): Not capable
+            .... ...0 .... .... = 100BASE-T2 (full duplex mode): Not capable
+            .... ..0. .... .... = 100BASE-T2 (half duplex mode): Not capable
+            .... .1.. .... .... = 100BASE-TX (full duplex mode): Capable
+            .... 0... .... .... = 100BASE-TX (half duplex mode): Not capable
+            ...0 .... .... .... = 100BASE-T4: Not capable
+            ..1. .... .... .... = 10BASE-T (full duplex mode): Capable
+            .0.. .... .... .... = 10BASE-T (half duplex mode): Not capable
+            0... .... .... .... = Other or unknown: Not capable
+        Same in inverse (wrong) bitorder
+            0... .... .... .... = 1000BASE-T (full duplex mode): Not capable
+            .0.. .... .... .... = 1000BASE-T (half duplex mode): Not capable
+            ..1. .... .... .... = 1000BASE-X (-LX, -SX, -CX full duplex mode): Capable
+            ...0 .... .... .... = 1000BASE-X (-LX, -SX, -CX half duplex mode): Not capable
+            .... 0... .... .... = Asymmetric and Symmetric PAUSE (for full-duplex links): Not capable
+            .... .1.. .... .... = Symmetric PAUSE (for full-duplex links): Capable
+            .... ..0. .... .... = Asymmetric PAUSE (for full-duplex links): Not capable
+            .... ...0 .... .... = PAUSE (for full-duplex links): Not capable
+            .... .... 0... .... = 100BASE-T2 (full duplex mode): Not capable
+            .... .... .0.. .... = 100BASE-T2 (half duplex mode): Not capable
+            .... .... ..0. .... = 100BASE-TX (full duplex mode): Not capable
+            .... .... ...0 .... = 100BASE-TX (half duplex mode): Not capable
+            .... .... .... 0... = 100BASE-T4: Not capable
+            .... .... .... .0.. = 10BASE-T (full duplex mode): Not capable
+            .... .... .... ..0. = 10BASE-T (half duplex mode): Not capable
+            .... .... .... ...1 = Other or unknown: Capable
+        Operational MAU Type: 1000BaseTFD - Four-pair Category 5 UTP, full duplex mode (0x001e)
+    Ieee 802.3 - Link Aggregation
+        1111 111. .... .... = TLV Type: Organization Specific (127)
+        .... ...0 0000 1001 = TLV Length: 9
+        Organization Unique Code: 00:12:0f (Ieee 802.3)
+        IEEE 802.3 Subtype: Link Aggregation (0x03)
+            [Expert Info (Warning/Protocol): TLV has been deprecated]
+                [TLV has been deprecated]
+                [Severity level: Warning]
+                [Group: Protocol]
+        Aggregation Status: 0x03
+            .... ...1 = Aggregation Capability: Yes
+            .... ..1. = Aggregation Status: Enabled
+        Aggregated Port Id: 1007
+    Ieee 802.3 - Maximum Frame Size
+        1111 111. .... .... = TLV Type: Organization Specific (127)
+        .... ...0 0000 0110 = TLV Length: 6
+        Organization Unique Code: 00:12:0f (Ieee 802.3)
+        IEEE 802.3 Subtype: Maximum Frame Size (0x04)
+        Maximum Frame Size: 1522
+    Port Description = gigabitethernet10
+        0000 100. .... .... = TLV Type: Port Description (4)
+        .... ...0 0001 0001 = TLV Length: 17
+        Port Description: gigabitethernet10
+    System Name = switch01
+        0000 101. .... .... = TLV Type: System Name (5)
+        .... ...0 0000 1000 = TLV Length: 8
+        System Name: switch01
+    System Description = SG300-20 20-Port Gigabit Managed Switch
+        0000 110. .... .... = TLV Type: System Description (6)
+        .... ...0 0010 0111 = TLV Length: 39
+        System Description: SG300-20 20-Port Gigabit Managed Switch
+    Capabilities
+        0000 111. .... .... = TLV Type: System Capabilities (7)
+        .... ...0 0000 0100 = TLV Length: 4
+        Capabilities: 0x0004
+            .... .... .... ...0 = Other: Not capable
+            .... .... .... ..0. = Repeater: Not capable
+            .... .... .... .1.. = Bridge: Capable
+            .... .... .... 0... = WLAN access point: Not capable
+            .... .... ...0 .... = Router: Not capable
+            .... .... ..0. .... = Telephone: Not capable
+            .... .... .0.. .... = DOCSIS cable device: Not capable
+            .... .... 0... .... = Station only: Not capable
+        Enabled Capabilities: 0x0004
+            .... .... .... ...0 = Other: Not capable
+            .... .... .... ..0. = Repeater: Not capable
+            .... .... .... .1.. = Bridge: Capable
+            .... .... .... 0... = WLAN access point: Not capable
+            .... .... ...0 .... = Router: Not capable
+            .... .... ..0. .... = Telephone: Not capable
+            .... .... .0.. .... = DOCSIS cable device: Not capable
+            .... .... 0... .... = Station only: Not capable
+    Management Address
+        0001 000. .... .... = TLV Type: Management Address (8)
+        .... ...0 0000 1100 = TLV Length: 12
+        Address String Length: 5
+        Address Subtype: IPv4 (1)
+        Management Address: 192.168.1.254
+        Interface Subtype: ifIndex (2)
+        Interface Number: 300000
+        OID String Length: 0
+    IEEE - Port VLAN ID
+        1111 111. .... .... = TLV Type: Organization Specific (127)
+        .... ...0 0000 0110 = TLV Length: 6
+        Organization Unique Code: 00:80:c2 (IEEE)
+        IEEE 802.1 Subtype: Port VLAN ID (0x01)
+        Port VLAN Identifier: 1 (0x0001)
+    End of LLDPDU
+        0000 000. .... .... = TLV Type: End of LLDPDU (0)
+        .... ...0 0000 0000 = TLV Length: 0
+```
+
+
 ### http(s) proxy
 
 ``` shell
