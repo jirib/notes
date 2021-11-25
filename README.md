@@ -2484,6 +2484,64 @@ curl --proxy-insecure --proxy https://127.0.0.1:8080 http://api.ipify.org
 ...
 ```
 
+### curl
+
+Using `curl` to *SFTP* via *SOCKS5* proxy using ssh key:
+
+``` shell
+$ curl -v -n --socks5-hostname 127.0.0.1:1080 \
+  -u root: sftp://192.168.122.1/root/TESTFILE 2>&1 | (head -n 11; echo ...; tail -n 7)
+*   Trying 127.0.0.1...
+* TCP_NODELAY set
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0* SOCKS5 communication to 192.168.122.1:22
+* SOCKS5 request granted.
+* Connected to 127.0.0.1 (127.0.0.1) port 1080 (#0)
+* User: root
+* Authentication using SSH public key file
+* Authentication using SSH public key file
+* Authentication using SSH public key file
+...
+* completed keyboard interactive authentication
+* Authentication complete
+{ [9 bytes data]
+100     9  100     9    0     0     34      0 --:--:-- --:--:-- --:--:--    34
+100     9  100     9    0     0     34      0 --:--:-- --:--:-- --:--:--    34
+* Connection #0 to host 127.0.0.1 left intact
+TESTFILE
+```
+
+Using `curl` to *SFTP* via *SOCKS5* proxy using interactive password
+authentication:
+
+``` shell
+$ echo 'machine 192.168.122.1 login root password <password>' > ~/.netrc
+$ chmod 600 ~/.netrc
+
+$ curl -v -n --socks5-hostname 127.0.0.1:1080 \
+  -u root: sftp://192.168.122.1/root/TESTFILE 2>&1 | (head -n 11; echo ...; tail -n 7)
+*   Trying 127.0.0.1...
+* TCP_NODELAY set
+  % Total    % Received % Xferd  Average Speed   Time    Time     Time  Current
+                                 Dload  Upload   Total   Spent    Left  Speed
+  0     0    0     0    0     0      0      0 --:--:-- --:--:-- --:--:--     0* SOCKS5 communication to 192.168.122.1:22
+* SOCKS5 request granted.
+* Connected to 127.0.0.1 (127.0.0.1) port 1080 (#0)
+* User: root
+* Authentication using SSH public key file
+* Authentication using SSH public key file
+* Authentication using SSH public key file
+...
+* completed keyboard interactive authentication
+* Authentication complete
+{ [9 bytes data]
+100     9  100     9    0     0     34      0 --:--:-- --:--:-- --:--:--    34
+100     9  100     9    0     0     34      0 --:--:-- --:--:-- --:--:--    34
+* Connection #0 to host 127.0.0.1 left intact
+TESTFILE
+```
+
 ### net-tools
 
 #### netstat
@@ -3435,6 +3493,11 @@ Disk identifier: 77396D23-9BA8-4A41-B730-FE71A498156B
 # pvcreate /dev/sdc
   Physical volume "/dev/sdc" successfully created.
 ```
+
+`pvmove` allows to move PE (physical extents) to new PV while allowing
+to define spefic LV or PE map. It could be handy to use `pvchange
+[-x|--allocatable] [y|n]` to allow/disallow new allocation of PEs on a
+specific PV (eg. during storage migration).
 
 renaming a VG with same name as already existing one
 
