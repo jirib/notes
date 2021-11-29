@@ -1855,6 +1855,48 @@ man dracut.conf
 
 https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html
 
+## mail
+
+### imap
+
+#### migrating mail from imap server to another
+
+```
+$ cat > ~/.mbsyncrc-migration <<EOF
+IMAPAccount original
+Host original.example.com
+User foo@original.example.com
+Pass <password>
+SSLType IMAPS
+SSLVersions TLSv1.2
+CertificateFile /etc/ssl/ca-bundle.pem
+
+IMAPAccount new
+Host new.example.com
+User foo@new.example.com
+Pass <password>
+SSLType IMAPS
+SSLVersions TLSv1.2
+CertificateFile /etc/ssl/ca-bundle.pem
+
+IMAPStore original
+Account original
+
+IMAPStore new
+Account new
+
+Channel mirror
+Far :original:
+Near :new:
+Patterns *
+Sync Pull # to sync to new
+Create Near # create missing mailboxes on new
+EOF
+```
+
+`mbsync -V mirror`.
+
+
 ## networking
 
 ### bonding
@@ -3795,6 +3837,9 @@ ConditionPathExists=/path/to/needed_file
 - `systemctl show -p LogLevel` - get current logging level
 - `kill -SIGRTMIN+22 1` - sets systemd loglevel to debug, see `systemd(1)`
 - `kill -SIGRTMIN+23 1` - sets systemd loglevel back to info
+
+If *SIGRTMIN+22/23* does not exist, just use number, ie. *SIGRTMIN* =
+*34* plus required number.
 
 ### journald
 
