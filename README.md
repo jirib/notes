@@ -236,13 +236,24 @@ grub2-install -v <boot_device> # bios
 grub2-install -v
 ```
 
-#### commands
+#### grub2-mkconfig
+
+`grub2-mkconfig` calls various helpers in the background, eg. `grub2-probe`.
 
 ``` shell
-set # list all set variables
-lsmod
-insmod <module>
+$ cryptsetup luksDump /dev/nvme0n1p2 | grep '^UUID:'
+UUID:           67096f4a-842a-4b4f-b0b1-4338a120807c
 
+$ pvs --noheading -o vg_uuid /dev/mapper/cr_nvme-SAMSUNG_MZALQ512HALU-000L1_S4YCNF0NC31508-part2 
+  1ZCjy2-WL2Q-7fQH-l7OV-cLGE-f5x7-aS2Wvu
+
+$ grub2-probe --device /dev/mapper/cr_nvme-SAMSUNG_MZALQ512HALU-000L1_S4YCNF0NC31508-part2 --target compatibility_hint
+cryptouuid/67096f4a842a4b4fb0b14338a120807c
+$ grub2-probe --device /dev/mapper/system-root --target compatibility_hint
+lvmid/1ZCjy2-WL2Q-7fQH-l7OV-cLGE-f5x7-aS2Wvu/6giGUs-ljLS-fia6-mffa-khdn-BxrL-uIsmq6
+$ grep -m1 -A1 'cryptomount' /boot/grub2/grub.cfg 
+        cryptomount -u 67096f4a842a4b4fb0b14338a120807c
+        set root='lvmid/1ZCjy2-WL2Q-7fQH-l7OV-cLGE-f5x7-aS2Wvu/6giGUs-ljLS-fia6-mffa-khdn-BxrL-uIsmq6'
 ```
 
 #### pxe
@@ -280,6 +291,21 @@ GRUB_SERIAL_COMMAND="serial --port=0x3e8 --speed=115200"
 ```
 
 and run `grub2-mkconfig -o /boot/grub2/grub.cfg`.
+
+#### shell commands
+
+See [The list of command-line and menu entry commands
+](https://www.gnu.org/software/grub/manual/grub/html_node/Command_002dline-and-menu-entry-commands.html#Command_002dline-and-menu-entry-commands).
+
+``` shell
+set # list all set variables
+lsmod
+insmod <module>
+ls # list devices or files
+echo $root
+echo $prefix # generally ($root)/boot/grub2
+```
+
 
 #### troubleshooting
 
