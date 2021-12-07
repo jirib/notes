@@ -4619,6 +4619,18 @@ man 5 crontab | sed -n '/RANDOM_DELAY/,/^$/p' | fmt -w80
               pattern is stored in  a shell variable, quoting the variable
               expansion forces the entire pattern to be matched as a string.
   ```
+  An example:
+  ``` shell
+  $ [[ ${URL} =~ ([^:]+)://([^/]+)(.*) ]]
+  $  echo ${BASH_REMATCH[*]}
+  https://www.kernel.org/doc/html/v5.12/networking/bonding.html https www.kernel.org /doc/html/v5.12/networking/bonding.html
+  $ read -r url protocol host path <<< $(echo ${BASH_REMATCH[*]})
+  $ echo $url $protocol $host $path | tr ' ' '\n'
+  https://www.kernel.org/doc/html/v5.12/networking/bonding.html
+  https
+  www.kernel.org
+  /doc/html/v5.12/networking/bonding.html
+  ```
 - list functions: `declare -F`
 - printing command output/multiline content saved in a variable
   ``` shell
@@ -4660,6 +4672,19 @@ echo "${VAR}"
    $ find ../../ -type f -name crash.txt -exec bash -c \
      '_kdump "$@"' bash {} {} \;
    ```
+- inherit `set -x` via *SHELLOPTS*
+  ``` shell
+  $ man bash | col -b | sed -rn '/^ *SHELLOPTS/,/^ *[[:upper:]]/p' | \
+      head -n -1 | fmt -w80
+       SHELLOPTS
+              A colon-separated list of enabled shell options.  Each word
+              in the list is a valid argument for the -o option to the set
+              builtin command (see SHELL BUILTIN COMMANDS below).  The options
+              appearing in SHELLOPTS are those reported as on by set -o.
+              If this variable is in the environment when bash starts up,
+              each shell option in the list will be enabled before reading
+              any startup files.  This variable is read-only.
+  ```
 
 ### sed
 
