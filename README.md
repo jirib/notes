@@ -1200,15 +1200,51 @@ snapper list
 
 #### samba
 
+##### ad member
+
+``` shell
+$ wbinfo -u # checking AD users
+HOME\administrator
+HOME\guest
+HOME\krbtgt
+HOME\testovic
+
+$ wbinfo -g # checking AD groups
+HOME\domain computers
+HOME\domain controllers
+HOME\schema admins
+HOME\enterprise admins
+HOME\cert publishers
+HOME\domain admins
+HOME\domain users
+HOME\domain guests
+HOME\group policy creator owners
+HOME\ras and ias servers
+HOME\allowed rodc password replication group
+HOME\denied rodc password replication group
+HOME\read-only domain controllers
+HOME\enterprise read-only domain controllers
+HOME\cloneable domain controllers
+HOME\protected users
+HOME\key admins
+HOME\enterprise key admins
+HOME\dnsadmins
+HOME\dnsupdateproxy
+
+$ # wbinfo --authenticate 'HOME\testovic%linux' #
+plaintext password authentication succeeded
+challenge/response password authentication succeeded
+```
+
 ##### issues
 
 - [https://wiki.archlinux.org/title/Samba#Windows_1709_or_up_does_not_discover_the_samba_server_in_Network_view](https://wiki.archlinux.org/title/Samba#Windows_10_1709_and_up_connectivity_problems_-_%22Windows_cannot_access%22_0x80004005)
   ``` shell
-  # systemctl is-active wsdd
+  $ systemctl is-active wsdd
   active
-  # testparm -sv 2>/dev/null | grep workgroup
+  $ testparm -sv 2>/dev/null | grep workgroup
         workgroup = WORKGROUP
-  # egrep -v '^ *(#|$)' /etc/sysconfig/wsdd
+  $ egrep -v '^ *(#|$)' /etc/sysconfig/wsdd
   WSDD_DOMAIN=""
   WSDD_WORKGROUP="WORKGROUP"
   WSDD_HOSTNAME=""
@@ -4571,9 +4607,34 @@ openssl s_server -key key.pem -cert cert.pem -accept 44330 -www \
 list certs data in ca bundle
 
 ``` shell
-openssl crl2pkcs7 -nocrl -certfile /etc/ssl/ca-bundle.pem | \
+$ openssl crl2pkcs7 -nocrl -certfile /etc/ssl/ca-bundle.pem | \
   openssl pkcs7 -print_certs -text -noout | \
-  grep -Po '\K(Subject:.*)'                                   # get all subjects
+  grep -Po '(\K(Subject:.*)|\K(Not (Before|After) *:.*))' | \
+  grep -A 2 Starfield
+Subject: C=US, O=Starfield Technologies, Inc., OU=Starfield Class 2 Certification Authority
+Not Before: Sep  1 00:00:00 2009 GMT
+Not After : Dec 31 23:59:59 2037 GMT
+Subject: C=US, ST=Arizona, L=Scottsdale, O=Starfield Technologies, Inc., CN=Starfield Root Certificate Authority - G2
+Not Before: Sep  1 00:00:00 2009 GMT
+Not After : Dec 31 23:59:59 2037 GMT
+Subject: C=US, ST=Arizona, L=Scottsdale, O=Starfield Technologies, Inc., CN=Starfield Services Root Certificate Authority - G2
+Not Before: Oct 25 08:30:35 2006 GMT
+Not After : Oct 25 08:30:35 2036 GMT
+
+# an alternative
+
+$ awk -v cmd='openssl x509 -noout -subject -startdate -enddate' \
+  '/BEGIN/{close(cmd)}; { print | cmd }' < /etc/ssl/ca-bundle.pem  2>/dev/null \
+  | grep -A 2 'Starfield'
+subject=C = US, O = "Starfield Technologies, Inc.", OU = Starfield Class 2 Certification Authority
+notBefore=Jun 29 17:39:16 2004 GMT
+notAfter=Jun 29 17:39:16 2034 GMT
+subject=C = US, ST = Arizona, L = Scottsdale, O = "Starfield Technologies, Inc.", CN = Starfield Root Certificate Authority - G2
+notBefore=Sep  1 00:00:00 2009 GMT
+notAfter=Dec 31 23:59:59 2037 GMT
+subject=C = US, ST = Arizona, L = Scottsdale, O = "Starfield Technologies, Inc.", CN = Starfield Services Root Certificate Authority - G2
+notBefore=Sep  1 00:00:00 2009 GMT
+notAfter=Dec 31 23:59:59 2037 GMT
 ```
 
 ## schedulers
@@ -5323,3 +5384,76 @@ EOF
 
 virsh define /tmp/esxi
 ```
+
+## windows
+
+### Active Directory
+
+``` shell
+> dcdiag
+
+Directory Server Diagnosis
+
+Performing initial setup:
+   Trying to find home server...
+   Home Server = win2k19-01
+   * Identified AD Forest.
+   Done gathering initial info.
+
+Doing initial required tests
+
+   Testing server: Default-First-Site-Name\WIN2K19-01
+      Starting test: Connectivity
+         The host 40adac3c-dd9c-462c-95b0-c347bc1195e7._msdcs.HOME.ARPA could not be resolved to an IP address. Check the
+         DNS server, DHCP, server name, etc.
+         Got error while checking LDAP and RPC connectivity. Please check your firewall settings.
+         ......................... WIN2K19-01 failed test Connectivity
+
+Doing primary tests
+
+   Testing server: Default-First-Site-Name\WIN2K19-01
+      Skipping all tests, because server WIN2K19-01 is not responding to directory service requests.
+
+
+   Running partition tests on : ForestDnsZones
+      Starting test: CheckSDRefDom
+         ......................... ForestDnsZones passed test CheckSDRefDom
+      Starting test: CrossRefValidation
+         ......................... ForestDnsZones passed test CrossRefValidation
+
+   Running partition tests on : DomainDnsZones
+      Starting test: CheckSDRefDom
+         ......................... DomainDnsZones passed test CheckSDRefDom
+      Starting test: CrossRefValidation
+         ......................... DomainDnsZones passed test CrossRefValidation
+
+   Running partition tests on : Schema
+      Starting test: CheckSDRefDom
+         ......................... Schema passed test CheckSDRefDom
+      Starting test: CrossRefValidation
+         ......................... Schema passed test CrossRefValidation
+
+   Running partition tests on : Configuration
+      Starting test: CheckSDRefDom
+         ......................... Configuration passed test CheckSDRefDom
+      Starting test: CrossRefValidation
+         ......................... Configuration passed test CrossRefValidation
+
+   Running partition tests on : HOME
+      Starting test: CheckSDRefDom
+         ......................... HOME passed test CheckSDRefDom
+      Starting test: CrossRefValidation
+         ......................... HOME passed test CrossRefValidation
+
+   Running enterprise tests on : HOME.ARPA
+      Starting test: LocatorCheck
+         ......................... HOME.ARPA passed test LocatorCheck
+      Starting test: Intersite
+         ......................... HOME.ARPA passed test Intersite
+```
+
+``` shell
+$ dig +short +noall +answer @192.168.122.200 _ldap._tcp.home.arpa. SRV
+0 100 389 win2k19-01.HOME.ARPA.
+```
+
