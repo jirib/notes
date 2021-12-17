@@ -45,6 +45,224 @@ domains = ldap
 homedir_substring = /home
 ```
 
+### kerberos
+
+#### client
+
+``` shell
+# one can use KRB5_CONFIG if editing /etc/krb5.conf is not wanted
+
+$ echo $KRB5_CONFIG
+/home/jiri/tmp/krb5.conf
+
+$ cat $KRB5_CONFIG
+[libdefaults]
+        dns_canonicalize_hostname = false
+        rdns = false
+        default_realm = DOMAIN01.EXAMPLE.COM
+        default_ccache_name = FILE:/home/jiri/tmp/krb5cc_%{uid}
+
+[realms]
+DOMAIN01.EXAMPLE.COM = {
+          kdc = 192.168.122.200
+          default_domain = domain01.example.com
+          admin_server = 192.168.122.200
+}
+
+[domain_realm]
+        .domain01.example.com = DOMAIN01.EXAMPLE.COM
+```
+
+``` shell
+$ KRB5_TRACE=/dev/stdout kinit -V testovic@DOMAIN01.EXAMPLE.COM
+Using default cache: /home/jiri/tmp/krb5cc_1000
+Using principal: testovic@DOMAIN01.EXAMPLE.COM
+[28873] 1639578371.989133: Getting initial credentials for testovic@DOMAIN01.EXAMPLE.COM
+[28873] 1639578371.989134: Error loading plugin module pkinit: 2/unable to find plugin [/usr/lib64/krb5/plugins/preauth/pkinit.so]: No such file or directory
+[28873] 1639578371.989135: Error loading plugin module spake: 2/unable to find plugin [/usr/lib64/krb5/plugins/preauth/spake.so]: No such file or directory
+[28873] 1639578371.989137: Sending unauthenticated request
+[28873] 1639578371.989138: Sending request (204 bytes) to DOMAIN01.EXAMPLE.COM
+[28873] 1639578371.989139: Resolving hostname 192.168.122.200
+[28873] 1639578371.989140: Sending initial UDP request to dgram 192.168.122.200:88
+[28873] 1639578371.989141: Received answer (212 bytes) from dgram 192.168.122.200:88
+[28873] 1639578371.989142: Sending DNS URI query for _kerberos.DOMAIN01.EXAMPLE.COM.
+[28873] 1639578372.001285: No URI records found
+[28873] 1639578372.001286: Sending DNS SRV query for _kerberos-master._udp.DOMAIN01.EXAMPLE.COM.
+[28873] 1639578372.001287: Sending DNS SRV query for _kerberos-master._tcp.DOMAIN01.EXAMPLE.COM.
+[28873] 1639578372.001288: No SRV records found
+[28873] 1639578372.001289: Response was not from primary KDC
+[28873] 1639578372.001290: Received error from KDC: -1765328359/Additional pre-authentication required
+[28873] 1639578372.001293: Preauthenticating using KDC method data
+[28873] 1639578372.001294: Processing preauth types: PA-PK-AS-REQ (16), PA-PK-AS-REP_OLD (15), PA-ETYPE-INFO2 (19), PA-ENC-TIMESTAMP (2)
+[28873] 1639578372.001295: Selected etype info: etype aes256-cts, salt "DOMAIN01.EXAMPLE.COMtestovic", params ""
+Password for testovic@DOMAIN01.EXAMPLE.COM: 
+[28873] 1639578373.588128: AS key obtained for encrypted timestamp: aes256-cts/A5EF
+[28873] 1639578373.588130: Encrypted timestamp (for 1639578372.716579): plain 301AA011180F32303231313231353134323631325AA10502030AEF23, encrypted C2E65EA174C5671956586E62E0D8852C64A3D089923E395EA36431E48BD0A379DF806EF09FA6F2E2543D7E139E22DCD6981258B8AAE4A168
+[28873] 1639578373.588131: Preauth module encrypted_timestamp (2) (real) returned: 0/Success
+[28873] 1639578373.588132: Produced preauth for next request: PA-ENC-TIMESTAMP (2)
+[28873] 1639578373.588133: Sending request (284 bytes) to DOMAIN01.EXAMPLE.COM
+[28873] 1639578373.588134: Resolving hostname 192.168.122.200
+[28873] 1639578373.588135: Sending initial UDP request to dgram 192.168.122.200:88
+[28873] 1639578373.588136: Received answer (112 bytes) from dgram 192.168.122.200:88
+[28873] 1639578373.588137: Sending DNS URI query for _kerberos.DOMAIN01.EXAMPLE.COM.
+[28873] 1639578373.588138: No URI records found
+[28873] 1639578373.588139: Sending DNS SRV query for _kerberos-master._udp.DOMAIN01.EXAMPLE.COM.
+[28873] 1639578373.588140: Sending DNS SRV query for _kerberos-master._tcp.DOMAIN01.EXAMPLE.COM.
+[28873] 1639578373.588141: No SRV records found
+[28873] 1639578373.588142: Response was not from primary KDC
+[28873] 1639578373.588143: Received error from KDC: -1765328332/Response too big for UDP, retry with TCP
+[28873] 1639578373.588144: Request or response is too big for UDP; retrying with TCP
+[28873] 1639578373.588145: Sending request (284 bytes) to DOMAIN01.EXAMPLE.COM (tcp only)
+[28873] 1639578373.588146: Resolving hostname 192.168.122.200
+[28873] 1639578373.588147: Initiating TCP connection to stream 192.168.122.200:88
+[28873] 1639578373.588148: Sending TCP request to stream 192.168.122.200:88
+[28873] 1639578373.588149: Received answer (1603 bytes) from stream 192.168.122.200:88
+[28873] 1639578373.588150: Terminating TCP connection to stream 192.168.122.200:88
+[28873] 1639578373.588151: Sending DNS URI query for _kerberos.DOMAIN01.EXAMPLE.COM.
+[28873] 1639578373.588152: No URI records found
+[28873] 1639578373.588153: Sending DNS SRV query for _kerberos-master._tcp.DOMAIN01.EXAMPLE.COM.
+[28873] 1639578373.588154: No SRV records found
+[28873] 1639578373.588155: Response was not from primary KDC
+[28873] 1639578373.588156: Processing preauth types: PA-ETYPE-INFO2 (19)
+[28873] 1639578373.588157: Selected etype info: etype aes256-cts, salt "DOMAIN01.EXAMPLE.COMtestovic", params ""
+[28873] 1639578373.588158: Produced preauth for next request: (empty)
+[28873] 1639578373.588159: AS key determined by preauth: aes256-cts/A5EF
+[28873] 1639578373.588160: Decrypted AS reply; session key is: aes256-cts/C121
+[28873] 1639578373.588161: FAST negotiation: unavailable
+[28873] 1639578373.588162: Initializing FILE:/home/jiri/tmp/krb5cc_1000 with default princ testovic@DOMAIN01.EXAMPLE.COM
+[28873] 1639578373.588163: Storing testovic@DOMAIN01.EXAMPLE.COM -> krbtgt/DOMAIN01.EXAMPLE.COM@DOMAIN01.EXAMPLE.COM in FILE:/home/jiri/tmp/krb5cc_1000
+[28873] 1639578373.588164: Storing config in FILE:/home/jiri/tmp/krb5cc_1000 for krbtgt/DOMAIN01.EXAMPLE.COM@DOMAIN01.EXAMPLE.COM: pa_type: 2
+[28873] 1639578373.588165: Storing testovic@DOMAIN01.EXAMPLE.COM -> krb5_ccache_conf_data/pa_type/krbtgt\/DOMAIN01.EXAMPLE.COM\@DOMAIN01.EXAMPLE.COM@X-CACHECONF: in FILE:/home/jiri/tmp/krb5cc_1000
+Authenticated to Kerberos v5
+
+$ klist -5feaC
+Ticket cache: FILE:/home/jiri/tmp/krb5cc_1000
+Default principal: testovic@DOMAIN01.EXAMPLE.COM
+
+Valid starting       Expires              Service principal
+12/15/2021 15:26:12  12/16/2021 01:26:12  krbtgt/DOMAIN01.EXAMPLE.COM@DOMAIN01.EXAMPLE.COM
+        renew until 12/16/2021 15:26:11, Flags: RIA
+        Etype (skey, tkt): aes256-cts-hmac-sha1-96, aes256-cts-hmac-sha1-96 
+        Addresses: (none)
+config: pa_type(krbtgt/DOMAIN01.EXAMPLE.COM@DOMAIN01.EXAMPLE.COM) = 2
+        Addresses: (none)
+```
+
+#### server
+
+When using kerberos with `sshd` on a machine conntected to AD/Samba/Winbind,
+`yast samba-client` should take care of *ALMOST* all settings but there's a need
+to *fix* `/etc/krb5.conf`; because a user uses *DOMAIN\username* when
+authenticating to SSH daemon, but *kerberos* does not know anything about
+*DOMAIN\\* part, thus there's need to strip it via `auth_to_local`.
+
+```
+# sshd
+
+$ sshd -T | grep -Pi '^(gss|kerberos|password|chal|pam)'
+kerberosauthentication no
+kerberosorlocalpasswd yes
+kerberosticketcleanup yes
+gssapiauthentication yes
+gssapikeyexchange no
+gssapicleanupcredentials yes
+gssapistrictacceptorcheck no
+gssapistorecredentialsonrekey no
+passwordauthentication no
+challengeresponseauthentication yes
+
+# modified krb5.conf, see comments inline
+
+$ cat /etc/krb5.conf
+[libdefaults]
+        dns_canonicalize_hostname = false
+        rdns = false
+        default_realm = DOMAIN01.EXAMPLE.COM
+        default_ccache_name = FILE:/tmp/krb5cc_%{uid}
+        clockskew = 300
+
+[realms]
+        DOMAIN01.EXAMPLE.COM = {
+                kdc = w2k19-ad-01.domain01.example.com
+                default_domain = domain01.example.com
+                admin_server = w2k19-ad-01.domain01.example.com
+
+                # WARNING: auth_to_local must be manually added!
+                # 
+                auth_to_local = RULE:[1:DOMAIN01\$1]
+                auth_to_local = DEFAULT
+        }
+
+[logging]
+        kdc = FILE:/var/log/krb5/krb5kdc.log
+        admin_server = FILE:/var/log/krb5/kadmind.log
+        default = SYSLOG:NOTICE:DAEMON
+
+[domain_realm]
+        .domain01.example.com = DOMAIN01.EXAMPLE.COM
+
+[appdefaults]
+        pam = {
+                ticket_lifetime = 1d
+                renew_lifetime = 1d
+                forwardable = true
+                proxiable = false
+                minimum_uid = 1
+        }
+
+# what does the manpage says?
+
+$ man krb5.conf | col -b | \
+  sed -n '/^ *auth_to_local *$/,/^ *auth_to_local_names/{/^ *auth_to_local_name/q;p}' | \
+  fmt -w 80
+       auth_to_local
+              This tag allows you to set a general rule for mapping principal
+              names to local user names.  It will be used if there is not
+              an explicit mapping for the principal name that is being
+              translated. The possible values are:
+
+              RULE:exp
+                     The local name will be formulated from exp.
+
+                     The format for exp
+                     is [n:string](regexp)s/pattern/replacement/g.
+                     The integer n indicates how many components the
+                     target principal should have.  If this matches,
+                     then a string will be formed from string,  substi-
+                     tuting  the  realm  of  the  principal for $0 and
+                     the n'th component of the principal for $n (e.g.,
+                     if the principal was johndoe/admin then [2:$2$1foo]
+                     would result in the string adminjohndoefoo).  If this
+                     string matches regexp, then the s//[g] substitution
+                     command will be run over the string.  The optional g
+                     will cause the substitution to be global over the string,
+                     instead of replacing only the first match in the string.
+
+              DEFAULT
+                     The principal name will be used as the local user name.
+                     If the principal has more than one component or is not
+                     in the default realm, this rule is not applicable and
+                     the conversion will fail.
+
+              For example:
+
+                 [realms]
+                     ATHENA.MIT.EDU = {
+                         auth_to_local = RULE:[2:$1](johndoe)s/^.*$/guest/
+                         auth_to_local = RULE:[2:$1;$2](^.*;admin$)s/;admin$//
+                         auth_to_local = RULE:[2:$2](^.*;root)s/^.*$/root/
+                         auth_to_local = DEFAULT
+                     }
+
+              would result in any principal without root or admin as the
+              second component to be translated with the default rule.
+              A principal with a second component of admin will become its
+              first component.  root will  be  used  as the local name for
+              any principal with a second component of root.  The exception
+              to these two rules are any principals johndoe/*, which will
+              always get the local name guest.
+```
+
 ### nscd, nss-pam-ldapd, pam_ldap
 
 #### rhel7
@@ -1051,6 +1269,16 @@ readelf -sW <shared_library> | \
 
 ### git
 
+
+#### cloning
+
+cloning a huge repo could take ages because of its history, adding `--depth 1`
+will copy only the latest revision of everything in the repository.
+
+``` shell
+$ git clone --depth 1 git@github.com:torvalds/linux.git
+```
+
 #### SSH
 
 If one uses different SSH keys for various projects (which are hosted
@@ -1201,6 +1429,37 @@ snapper list
 #### samba
 
 ##### ad member
+
+``` shell
+$ yast samba-client
+```
+
+``` shell
+$ net ads --help # list of AD related commands
+$ net ads info
+LDAP server: 192.168.122.200
+LDAP server name: w2k19-ad-01.home.arpa
+Realm: HOME.ARPA
+Bind Path: dc=HOME,dc=ARPA
+LDAP port: 389
+Server time: Fri, 10 Dec 2021 23:33:31 CET
+KDC server: 192.168.122.200
+Server time offset: -1
+Last machine account password change: Thu, 09 Dec 2021 15:41:58 CET
+$ net ads testjoin
+Join is OK
+
+$ net ads user -U Administrator # list users
+Enter Administrator's password:
+Administrator
+Guest
+krbtgt
+testovic
+$ net ads user info testovic -U Administrator # user's details
+Enter Administrator's password:
+Domain Users
+```
+
 
 ``` shell
 $ wbinfo -u # checking AD users
@@ -1921,7 +2180,7 @@ https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html
 
 ### imap
 
-#### migrating mail from imap server to another
+#### mbsync / migrating mail from imap server to another
 
 ```
 $ cat > ~/.mbsyncrc-migration <<EOF
@@ -1957,6 +2216,69 @@ EOF
 ```
 
 `mbsync -V mirror`.
+
+### neomutt / mutt
+
+Limiting messages in index (list of mails), for full list of patterns see
+https://neomutt.org/guide/advancedusage#3-1-%C2%A0pattern-modifier .
+
+"simulating" a thread view via
+[message-id](https://web.archive.org/web/20211216172803/https://www.hostknox.com/tutorials/email/headers)
+and reference ids; basically every mail has message-id and references refer to
+related ids of a thread.
+
+```
+l: ~i HE1P191MB002657DBE4B2A65657D7FFD6E9550@HE1P191MB0026.EURP191.PROD.OUTLOOK.COM | ~x HE1P191MB002657DBE4B2A65657D7FFD6E9550@HE1P191MB0026.EURP191.PROD.OUTLOOK.COM
+```
+
+### notmuch
+
+``` shell
+$ whatis notmuch
+notmuch (1)          - thread-based email index, search, and tagging
+```
+Basically `notmuch` creates a virtual view on your mails, based on tagging,
+while keeping the mail messages as they are on the filesystem. A `notmuch`
+frontend like `neomutt` can thus view this *view* as a virtual mailbox, which
+could simulate Gmail-like experience (ie. seeing your sent replies next to the
+original mail etc...).
+
+``` shell
+$ notmuch search folder:/example\.com/
+thread:0000000000000158 21 mins. ago [1/1(2)] info@example.com; test (sent example)
+thread:0000000000000002  November 15 [1/1] info@example.com; my cool subject
+thread:0000000000000003  November 15 [1/1] Jiri B; test (inbox example)
+thread:0000000000000001  November 15 [1/1] cPanel on example.com; [example.com] Client configuration settings for “info@example.com”. (attachment inbox example)
+
+$ notmuch search --output files folder:/example\.com/
+/home/jiri/.mail/example.com/Inbox/cur/1639677793.23980_1.t14s,U=2:2,S
+/home/jiri/.mail/example.com/Sent/cur/1639677742.R15663579783284099041.t14s,U=2:2,S
+/home/jiri/.mail/example.com/Sent/cur/1639235128.31076_2.t14s,U=1:2,S
+/home/jiri/.mail/example.com/Trash/cur/1639235129.31076_3.t14s,U=1:2,S
+/home/jiri/.mail/example.com/Inbox/cur/1639235126.31076_1.t14s,U=1:2,S
+```
+
+`notmuch` could have hooks
+
+``` shell
+$ cat $(notmuch config get database.hook_dir)/pre-new
+#!/bin/bash
+
+mbsync -Va
+
+$ cat $(notmuch config get database.hook_dir)/post-new
+#!/bin/bash
+
+# retag all "new" messages "inbox" and "unread"
+notmuch tag +inbox +unread -new -- tag:new
+
+# tag all messages in 'Sent' folder as send
+notmuch tag -new -inbox +sent -- path:/Sent/
+
+# projects
+notmuch tag +example.com path:/example.com/
+notmuch tag +example.org path:/example.org/
+```
 
 
 ## networking
@@ -4141,16 +4463,14 @@ zypper search --provides --type package -x view
 
 ``` shell
 # zypper rm -u <package> # removes package and all deps
-# zypper se --provides -x /usr/bin/gnat # search package owning path
-
-# zypper se --provides --match-exact 'libssl.so.1.1(OPENSSL_1_1_1)(64bit)'
+# zypper se -x --provides /usr/bin/gnat # search package owning path
+# zypper se -x --provides 'libssl.so.1.1(OPENSSL_1_1_1)(64bit)'
 Loading repository data...
 Reading installed packages...
 
 S | Name          | Summary                                     | Type
 --+---------------+---------------------------------------------+--------
 i | libopenssl1_1 | Secure Sockets and Transport Layer Security | package
-
 ```
 
 ##### patches
@@ -4158,6 +4478,7 @@ i | libopenssl1_1 | Secure Sockets and Transport Layer Security | package
 ``` shell
 zypper lp
 zypper pchk
+zypper patch # updates only affected/vulnerable packages
 ```
 
 ## printing
@@ -5387,7 +5708,13 @@ virsh define /tmp/esxi
 
 ## windows
 
+### easy passwords
+
+See https://serverfault.com/a/19613/451558.
+
 ### Active Directory
+
+See https://www.virtualgyanis.com/post/step-by-step-how-to-install-and-configure-domain-controller-on-windows-server-2019 .
 
 ``` shell
 > dcdiag
@@ -5456,4 +5783,8 @@ Doing primary tests
 $ dig +short +noall +answer @192.168.122.200 _ldap._tcp.home.arpa. SRV
 0 100 389 win2k19-01.HOME.ARPA.
 ```
+
+### OpenSSH server
+
+See https://docs.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse
 
