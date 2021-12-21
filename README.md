@@ -778,29 +778,70 @@ corosync-cpgtool          # see if pacemaker is known to corosync,
 ###### pacemaker cli
 
 ``` shell
-crmadmin -N # show member nodes
-crmadmin -D # show designated coordinator (DC)
+$ crmadmin -N # show member nodes
+member node: s153cl02 (1084783552)
+member node: s153cl01 (1084783549)
 
-crm_mon -1 # show cluster status
+$ crmadmin -D # show designated coordinator (DC)
+Designated Controller is: s153cl01
 
-# pacemaker cli tools
-```
+$ crm_mon -1 # show cluster status
+Cluster Summary:
+  * Stack: corosync
+  * Current DC: s153cl01 (version 2.0.5+20201202.ba59be712-4.13.1-2.0.5+20201202.ba59be712) - partition with quorum
+  * Last updated: Tue Dec 21 17:08:34 2021
+  * Last change:  Tue Dec 21 16:59:17 2021 by root via cibadmin on s153cl01
+  * 2 nodes configured
+  * 3 resource instances configured
 
-``` shell
-cibadmin -Q -o nodes      # list nodes in pacemaker
-cibadmin -Q -o crm_config # list cluster options configuration in pacemaker
-crm_verify -LV            # check configuration used by cluster, verbose
+              *** Resource management is DISABLED ***
+  The cluster will not attempt to start, stop or recover services
+
+Node List:
+  * Online: [ s153cl01 s153cl02 ]
+
+Active Resources:
+  * Resource Group: g-Group1 (unmanaged):
+    * p-vIP     (ocf::heartbeat:IPaddr2):        Started s153cl01 (unmanaged)
+    * p-Dummy   (ocf::heartbeat:Dummy):  Started s153cl01 (unmanaged)
+
+$ cibadmin -Q -o nodes # list nodes in pacemaker
+<nodes>
+  <node id="1084783552" uname="s153cl02"/>
+  <node id="1084783549" uname="s153cl01"/>
+</nodes>
+
+$ cibadmin -Q -o crm_config # list cluster options configuration in pacemaker
+<crm_config>
+  <cluster_property_set id="cib-bootstrap-options">
+    <nvpair id="cib-bootstrap-options-have-watchdog" name="have-watchdog" value="true"/>
+    <nvpair id="cib-bootstrap-options-dc-version" name="dc-version" value="2.0.5+20201202.ba59be712-4.13.1-2.0.5+20201202.ba59be712"/>
+    <nvpair id="cib-bootstrap-options-cluster-infrastructure" name="cluster-infrastructure" value="corosync"/>
+    <nvpair id="cib-bootstrap-options-cluster-name" name="cluster-name" value="s153cl0"/>
+    <nvpair name="stonith-timeout" value="12" id="cib-bootstrap-options-stonith-timeout"/>
+    <nvpair name="maintenance-mode" value="true" id="cib-bootstrap-options-maintenance-mode"/>
+  </cluster_property_set>
+</crm_config>
+
+$ cibadmin -Q --xpath '//*/primitive[@type="external/sbd"]' # query with xpath
+<primitive id="stonith-sbd" class="stonith" type="external/sbd">
+  <instance_attributes id="stonith-sbd-instance_attributes">
+    <nvpair name="pcmk_delay_max" value="30" id="stonith-sbd-instance_attributes-pcmk_delay_max"/>
+  </instance_attributes>
+</primitive>
+
+$ crm_verify -LV            # check configuration used by cluster, verbose
                           # can show important info
 ```
 
 general cluster mgmt
 
 ``` shell
-crm_mon                                                 # general overview, part of pacemaker
-crm_mon [-n | --group-by-node ]
-crm_mon -nforA                                          # incl. fail, counts, operations...
-cibadmin [-Q | --query]                                 # expert xml administration, part of pacemaker
-crm_attribute --type <scope> --name <attribute> --query # another query solution
+$ crm_mon                                                 # general overview, part of pacemaker
+$ crm_mon [-n | --group-by-node ]
+$ crm_mon -nforA                                          # incl. fail, counts, operations...
+$ cibadmin [-Q | --query]                                 # expert xml administration, part of pacemaker
+$ crm_attribute --type <scope> --name <attribute> --query # another query solution
 ```
 
 ###### crm (crmsh)
@@ -4163,7 +4204,37 @@ PR out: command (Register) successful
 ### udev
 
 ``` shell
-udevadm info -q property -n <dev> # info about a device
+$ udevadm info --attribute-walk \
+  --path=$(udevadm info --query=path --name=/dev/watchdog1) | \
+  sed -n '/^ *looking at device/,/^ *$/{/^ *$/q;p}'           # getting info
+  looking at device '/devices/pci0000:00/0000:00:1f.0/iTCO_wdt.1.auto/watchdog/watchdog1':
+    KERNEL=="watchdog1"
+    SUBSYSTEM=="watchdog"
+    DRIVER==""
+    ATTR{bootstatus}=="0"
+    ATTR{identity}=="iTCO_wdt"
+    ATTR{nowayout}=="0"
+    ATTR{power/async}=="disabled"
+    ATTR{power/control}=="auto"
+    ATTR{power/runtime_active_kids}=="0"
+    ATTR{power/runtime_active_time}=="0"
+    ATTR{power/runtime_enabled}=="disabled"
+    ATTR{power/runtime_status}=="unsupported"
+    ATTR{power/runtime_suspended_time}=="0"
+    ATTR{power/runtime_usage}=="0"
+    ATTR{state}=="inactive"
+    ATTR{status}=="0x100"
+    ATTR{timeleft}=="4"
+    ATTR{timeout}=="5"
+
+$ cat /etc/udev/rules.d/99-sbd-watchdog.rules 
+SUBSYSTEM=="watchdog", ATTRS{identity}=="iTCO_wdt", SYMLINK+="iTCO_wdt"
+
+$ ls -l /dev/{watchdog*,iTCO_wdt}
+lrwxrwxrwx 1 root root      9 Dec 21 15:57 /dev/iTCO_wdt -> watchdog1
+crw------- 1 root root 248, 1 Dec 21 15:57 /dev/watchdog1
+
+$ udevadm info -q property -n <dev> # info about a device
 ```
 
 ## systemd / journald
