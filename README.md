@@ -263,6 +263,24 @@ $ man krb5.conf | col -b | \
               always get the local name guest.
 ```
 
+##### troubleshooting
+
+- `KRB5_TRACE=/dev/stdout` env var
+- `No key table entry found matching host/s153sam01@`, consequence is the user
+  cannot login.
+  It seems related to not-having a FQDN in `hostnamectl --static`.
+  1. `GSSAPIStrictAcceptorCheck = no` in `sshd_config`
+  2. `ignore_acceptor_hostname = true` in `krb5.conf`
+  3. correction of FQDN via `hostnamectl`
+     ``` shell
+     $ python3 -c 'import socket; print(socket.gethostname());'
+     s153sam01
+     $ hostnamectl set-hostname s153sam01.example.net
+     $ python3 -c 'import socket; print(socket.gethostname());'
+    s153sam01.example.net
+    ```
+  Details at https://web.mit.edu/kerberos/krb5-1.13/doc/admin/princ_dns.html .
+
 ### nscd, nss-pam-ldapd, pam_ldap
 
 #### rhel7
@@ -1372,22 +1390,72 @@ See https://www.perl.com/pub/2004/08/09/commandline.html/.
 
 ### dnsmasq
 
-TODO: this break because on *apparmor* on SUSE
+#### dnsmasq as authoritative dns server
 
 ``` shell
-cat > /etc/dnsmasq.<iface>.conf <<EOF
-strict-order
-pid-file=/run/dnsmasq/<iface>.pid
-except-interface=lo
-bind-dynamic
-interface=<iface>
-dhcp-range=<ip_start>,<ip_end>,<mask>
-dhcp-no-override
-dhcp-authoritative
-dhcp-lease-max=253
-dhcp-hostsfile=/run/dnsmasq/<iface>.hostsfile
-addn-hosts=/run/dnsmasq/<iface>.addnhosts
-EOF
+$ grep -RHPv '^ *(#|$)' /etc/dnsmasq.{conf,d/*.conf} | \
+  grep -Pv ':((enable-)?tftp|(log-)?dhcp)'
+/etc/dnsmasq.conf:listen-address=192.168.122.1,192.168.123.1,192.168.124.1
+/etc/dnsmasq.conf:except-interface=lo
+/etc/dnsmasq.conf:bind-interfaces
+/etc/dnsmasq.conf:domain-needed
+/etc/dnsmasq.conf:bogus-priv
+/etc/dnsmasq.conf:conf-dir=/etc/dnsmasq.d/,*.conf
+/etc/dnsmasq.d/auth-dns.conf:auth-server=ns.example.com
+/etc/dnsmasq.d/auth-dns.conf:host-record=ns.example.com,192.168.123.1
+/etc/dnsmasq.d/auth-dns.conf:auth-soa=2021122203,jiri@example.com
+/etc/dnsmasq.d/cl.example.com.conf:auth-zone=cl.example.com,192.168.123.0/24
+/etc/dnsmasq.d/cl.example.com.conf:local=/cl.example.com/192.168.123.1
+/etc/dnsmasq.d/cl.example.com.conf:host-record=s15301.cl.example.com,192.168.123.189
+/etc/dnsmasq.d/cl.example.com.conf:host-record=s15302.cl.example.com,192.168.123.192
+/etc/dnsmasq.d/example.net.conf:auth-zone=example.net,192.168.124.0/24
+/etc/dnsmasq.d/example.net.conf:local=/example.net/192.168.124.1
+/etc/dnsmasq.d/example.net.conf:host-record=w2k19.example.net,192.168.124.200
+/etc/dnsmasq.d/trust-anchors.conf:trust-anchor=.,20326,8,2,E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D
+```
+
+#### dnsmasq as dhcp server for multiple networks
+
+``` shell
+$ grep -RHPv '^ *(#|$)' /etc/dnsmasq.{conf,d/*.conf} | \
+  grep -Pv ':(auth|local|host|(enable-)?tftp)'
+/etc/dnsmasq.conf:listen-address=192.168.122.1,192.168.123.1,192.168.124.1
+/etc/dnsmasq.conf:except-interface=lo
+/etc/dnsmasq.conf:bind-interfaces
+/etc/dnsmasq.conf:domain-needed
+/etc/dnsmasq.conf:bogus-priv
+/etc/dnsmasq.conf:log-dhcp
+/etc/dnsmasq.conf:conf-dir=/etc/dnsmasq.d/,*.conf
+/etc/dnsmasq.d/example.net.conf:dhcp-range=set:examplenet,192.168.124.10,192.168.124.199
+/etc/dnsmasq.d/example.net.conf:dhcp-option=tag:examplenet,3,0.0.0.0
+/etc/dnsmasq.d/example.net.conf:dhcp-option=tag:examplenet,6,0.0.0.0
+/etc/dnsmasq.d/example.net.conf:dhcp-host=52:54:00:70:78:d5,192.168.124.200
+/etc/dnsmasq.d/trust-anchors.conf:trust-anchor=.,20326,8,2,E06D44B80B8F1D39A95C0B0D7C65D08458E880409BBC683457104237C7F8EC8D
+
+$ ip a s dev examplenet
+34: examplenet: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc noqueue state UP group default qlen 1000
+    link/ether 12:f2:2b:20:28:8f brd ff:ff:ff:ff:ff:ff
+    inet 192.168.124.1/24 brd 192.168.124.255 scope global noprefixroute examplenet
+       valid_lft forever preferred_lft forever
+    inet6 fe80::692:abf4:ce1d:29fa/64 scope link noprefixroute 
+       valid_lft forever preferred_lft forever
+
+```
+
+#### dnsmasq as pxe/tftp
+
+``` shell
+$ grep -RHPv '^ *(#|$)' /etc/dnsmasq.{conf,d/*.conf} | \
+  grep -P ':((enable-)?tftp|dhcp-(match|boot))'
+/etc/dnsmasq.conf:enable-tftp
+/etc/dnsmasq.conf:tftp-no-blocksize
+/etc/dnsmasq.conf:tftp-root=/srv/tftpboot
+/etc/dnsmasq.conf:dhcp-match=set:efi-x86_64,option:client-arch,7
+/etc/dnsmasq.conf:dhcp-match=set:i386-pc,option:client-arch,0
+/etc/dnsmasq.conf:dhcp-boot=tag:efi-x86_64,ipxe.efi
+/etc/dnsmasq.conf:dhcp-boot=tag:i386-pc,undionly.kpxe
+/etc/dnsmasq.conf:dhcp-match=set:ipxe,175
+/etc/dnsmasq.conf:dhcp-boot=tag:ipxe,tftp://192.168.122.1/menu.ipxe
 ```
 
 ### named / bind
@@ -1468,6 +1536,124 @@ snapper list
 ### cifs
 
 #### samba
+
+A text from `samba(7)`:
+
+``` shell
+The Samba software suite is a collection of programs that implements
+the Server Message Block (commonly abbreviated as SMB) protocol
+for UNIX systems and provides Active Directory services. The first
+version of the SMB protocol is sometimes also referred to as the
+Common Internet File System (CIFS). For a more thorough description,
+see http://www.ubiqx.org/cifs/. Samba also implements the NetBIOS
+protocol in nmbd.
+
+samba(8)
+The samba daemon provides the Active Directory services and file
+and print services to SMB clients. The configuration file for
+this daemon is described in smb.conf(5).
+
+smbd(8)
+The smbd daemon provides the file and print services to SMB
+clients. The configuration file for this daemon is described
+in smb.conf(5).
+
+nmbd(8)
+The nmbd daemon provides NetBIOS nameservice and browsing
+support. The configuration file for this daemon is described
+in smb.conf(5).
+
+winbindd(8)
+winbindd is a daemon that is used for integrating authentication
+and the user database into unix.
+
+smbclient(1)
+The smbclient program implements a simple ftp-like client. This is
+useful for accessing SMB shares on other compatible SMB servers,
+and can also be used to allow a UNIX box to print to a printer
+attached to any SMB server.
+
+samba-tool(8)
+The samba-tool is the main Samba Administration tool regarding
+Active Directory services.
+
+testparm(1)
+The testparm utility is a simple syntax checker for Samba's
+smb.conf(5) configuration file. In AD server mode samba-tool
+testparm should be used though.
+
+smbstatus(1)
+The smbstatus tool provides access to information about the
+current connections to smbd.
+
+nmblookup(1)
+The nmblookup tool allows NetBIOS name queries to be made.
+
+smbpasswd(8)
+The smbpasswd command is a tool for setting passwords on local
+Samba but also on remote SMB servers.
+
+smbcacls(1)
+The smbcacls command is a tool to set ACL's on remote SMB servers.
+
+smbtree(1)
+The smbtree command is a text-based network neighborhood tool.
+
+smbtar(1)
+The smbtar can make backups of data directly from SMB servers.
+
+smbspool(8)
+smbspool is a helper utility for printing on printers connected
+to SMB servers.
+
+smbcontrol(1)
+smbcontrol is a utility that can change the behaviour of running
+samba, smbd, nmbd and winbindd daemons.
+
+rpcclient(1)
+rpcclient is a utility that can be used to execute RPC commands
+on remote SMB servers.
+
+pdbedit(8)
+The pdbedit command can be used to maintain the local user database
+on a Samba server.
+
+net(8)
+The net command is the main administration tool for Samba member
+and standalone servers.
+
+wbinfo(1)
+wbinfo is a utility that retrieves and stores information related
+to winbind.
+
+profiles(1)
+profiles is a command-line utility that can be used to replace
+all occurrences of a certain SID with another SID.
+
+log2pcap(1)
+log2pcap is a utility for generating pcap trace files from Samba
+log files.
+
+vfstest(1)
+vfstest is a utility that can be used to test vfs modules.
+
+ntlm_auth(1)
+ntlm_auth is a helper-utility for external programs wanting to
+do NTLM-authentication.
+
+smbcquotas(1)
+smbcquotas is a tool to manage quotas on remote SMB servers.
+```
+
+Samba operational modes:
+
+- AD member, `security = ads`
+- *standalone*, just file and print services server
+  - `security = user` with unspecified `server role`
+  - `[security = AUTO]`, unspecified `server role`
+  - unspecified `security` with `server role = STANDALONE`
+- *DC*, domain controller
+- `[security = AUTO]`, `server role = active directory domain controller`
 
 ##### ad member
 
