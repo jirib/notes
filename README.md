@@ -277,8 +277,8 @@ $ man krb5.conf | col -b | \
      s153sam01
      $ hostnamectl set-hostname s153sam01.example.net
      $ python3 -c 'import socket; print(socket.gethostname());'
-    s153sam01.example.net
-    ```
+     s153sam01.example.net
+     ```
   Details at https://web.mit.edu/kerberos/krb5-1.13/doc/admin/princ_dns.html .
 
 ### nscd, nss-pam-ldapd, pam_ldap
