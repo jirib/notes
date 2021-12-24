@@ -1763,6 +1763,37 @@ echo 'file fs/cifs/*.c -p' > /sys/kernel/debug/dynamic_debug/control
 echo 'module cifs -p' > /sys/kernel/debug/dynamic_debug/control
 ```
 
+#### shares
+
+``` shell
+$ smbclient -L //t14s -U guest%
+
+        Sharename       Type      Comment
+        ---------       ----      -------
+        pub             Disk      public
+        foo             Disk      foo
+        IPC$            IPC       IPC Service (Samba 4.15.2-git.193.a4d6307f1fdSUSE-oS15.5-x86_64)
+SMB1 disabled -- no workgroup available
+```
+
+What is this magic `IPC$` share? The `IPC$` share allows users to anonymously
+fetch a list of shared resources from a server. It can be used as a point of
+attack into a system.
+
+> The IPC$ share is also known as a null session connection. By using this
+> session, Windows lets anonymous users perform certain activities, such as
+> enumerating the names of domain accounts and network shares.
+>
+> The IPC$ share is created by the Windows Server service. This special share
+> exists to allow for subsequent named pipe connections to the server. The
+> server's named pipes are created by built-in operating system components and
+> by any applications or services that are installed on the system. When the
+> named pipe is being created, the process specifies the security that is
+> associated with the pipe, and then makes sure that access is only granted to
+> the specified users or groups.
+>
+> -- [IPC$ share and null session behavior in > Windows](https://support.microsoft.com/en-us/kb/3034016)
+
 #### troubleshooting
 
 a good way to troubleshoot is via `smbclient`
