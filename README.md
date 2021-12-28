@@ -418,6 +418,11 @@ Jun 10 15:50:50 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS
 Jun 10 15:50:52 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
 Jun 10 15:50:56 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
 ```
+
+- `sss_cache -E` invalidate all cached entries, with the exception of sudo rules
+- `sss_cache -u <username>`, invalidate a specific user entries
+- `systemctl stop sssd; rm -rf /var/lib/sss/db/*; systemctl restart sssd`
+
 ## backup
 
 ### borg
@@ -2188,6 +2193,21 @@ kernel.sysrq = 184
 enable remount read-only (32) plus enable sync command (16) plus
 enable debugging dumps of processes etc. (8), see above link for details.
 
+## fadump
+
+*fadump* (Firmware Assisted Dump) is a robus crash dump mechanism using Power
+Systems unique firmware features; when the OS crashes or when invoked manually
+via 'Dump' restart LPAR option from the HMC, Power firmware on POWER6 and newer
+is informed about the crash, takes care of preserving the memory image at the
+time of failure and reboot follows the normal booting process (non-kexec); the
+boot loader loads the default kernel and initramfs. Like kdump, fadump also
+exports the memory dump in ELF format. This enables the reuse of existing kdump
+infrastructure for dump capture and filtering.
+
+Details at [Firmware assisted dump support on PowerLinux
+systems](https://web.archive.org/web/20211224222833/http://webcache.googleusercontent.com/search?q=cache%3Ay7qPCtzP6iYJ%3Ahttps%3A%2F%2Fwww.ibm.com%2Fsupport%2Fpages%2Ffirmware-assisted-dump-support-powerlinux-systems&lr=lang_cs%257Clang_sk%257Clang_ru&hl=cs&gl=cz&tbs=lr%3Alang_1cs%257Clang_1sk%257Clang_1ru&strip=1&vwsrc=0)
+and [firmware-assisted-dump.txt](https://lwn.net/Articles/488132/).
+
 ### kdump
 
 To have a kernel panic is useless if there would be no way to get
@@ -2700,6 +2720,22 @@ default *bonding* mode is *balance-rr*, see
 [bonding.txt](https://www.kernel.org/doc/Documentation/networking/bonding.txt)
 for details
 
+#### troubleshooting
+
+We can fake an issue of a network card with removing it from devices in *sysfs*.
+
+``` shell
+$ find /sys -name *eth0
+/sys/devices/pci0000:00/0000:00:15.0/0000:03:00.0/net/eth0
+/sys/devices/virtual/net/bond0/lower_eth0
+/sys/class/net/eth0
+
+$ echo 1 > /sys/devices/pci000:00/000:00:15.0/remove
+
+# to rediscover
+
+$ echo 1 > /sys/bus/pci/rescan
+```
 ### capturing network trace
 
 #### getting only part of pcap file
@@ -3289,7 +3325,9 @@ wlan0            1500  5482131      0      0 0       1911465      0      0      
 
 ### traceroute
 
-`traceroute` works via setting TTL (Time-To-Live/Hop-Limit for IPv6) for IPv4 package to a specific number. Each device on the path decreases this number, when the number is 0 then the packet is returned.
+`traceroute` works via setting TTL (Time-To-Live/Hop-Limit for IPv6) for IPv4
+package to a specific number. Each device on the path decreases this number,
+when the number is 0 then the packet is returned.
 
 ``` shell
 $ ip route show default 0.0.0.0/0
@@ -4940,6 +4978,49 @@ D [09/Nov/2021:10:58:19 +0100] [Job 3623826] time-at-completed=1636451899
 I [09/Nov/2021:10:58:19 +0100] [Job 3623826] Job completed.
 I [09/Nov/2021:10:58:19 +0100] Expiring subscriptions...
 D [09/Nov/2021:10:58:20 +0100] [Job 3623826] Unloading...
+```
+
+CUPS files decribes: for a job it creates in spool directory at least two files,
+at least one data file - eg. `d123456-001` (multidocument jobs could have more
+data files with same `d<job id>` prefix) - and a control file - eg. `c123456`.
+`testipp` which is not built by default but with `make unittests` could be used
+to dissect a control file, an example taken from
+[stackoverflow.com](https://stackoverflow.com/questions/53688075/how-to).
+
+``` shell
+$ ./testipp /var/spool/cups/c00089
+
+ operation-attributes-tag:
+
+     attributes-charset (charset): utf-8
+     attributes-natural-language (naturalLanguage): en-us
+
+ job-attributes-tag:
+
+     printer-uri (uri): ipp://localhost:631/printers/hp
+     job-originating-user-name (nameWithoutLanguage): kurtpfeifle
+     job-name (nameWithoutLanguage): hosts
+     copies (integer): 1
+     finishings (enum): none
+     job-cancel-after (integer): 10800
+     job-hold-until (keyword): no-hold
+     job-priority (integer): 50
+     job-sheets (1setOf nameWithoutLanguage): none,none
+     number-up (integer): 1
+     job-uuid (uri): urn:uuid:ca854775-f721-34a5-57e0-b38b8fb0f4c8
+     job-originating-host-name (nameWithoutLanguage): localhost
+     time-at-creation (integer): 1472022731
+     time-at-processing (integer): 1472022731
+     time-at-completed (integer): 1472022732
+     job-id (integer): 89
+     job-state (enum): completed
+     job-state-reasons (keyword): processing-to-stop-point
+     job-media-sheets-completed (integer): 0
+     job-printer-uri (uri): ipp://host13.local:631/printers/hp
+     job-k-octets (integer): 1
+     document-format (mimeMediaType): text/plain
+     job-printer-state-message (textWithoutLanguage): Printing page 1, 4% complete.
+     job-printer-state-reasons (keyword): none
 ```
 
 ### texlive
