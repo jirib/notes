@@ -2308,6 +2308,8 @@ dump. See `man 5 kdump` for details.
 
 ### modules
 
+kernel modules are usually loaded by `udev` based *uevent*, see [udev](#udev).
+
 ``` shell
 echo "blacklist pcspkr" > /etc/modprobe.d/bell.conf # blacklist a module
 rmmod pcspkr
@@ -4491,6 +4493,71 @@ crw------- 1 root root 248, 1 Dec 21 15:57 /dev/watchdog1
 
 $ udevadm info -q property -n <dev> # info about a device
 ```
+
+#### modules loading
+
+> The default rules provided with Udev will cause udevd to call out to
+> /sbin/modprobe with the contents of the MODALIAS uevent environment variable
+> (which should be the same as the contents of the modalias file in sysfs), thus
+> loading all modules whose aliases match this string after wildcard expansion."
+> -- [Overview of Device and Module
+> Handling](https://web.archive.org/web/20190921024300/https://www.linuxfromscratch.org/lfs/view/development/chapter07/udev.html)
+
+``` shell
+$ ethtool -i wlan0
+driver: iwlwifi
+version: 5.15.11-2.g730a488-default
+firmware-version: 63.c04f3485.0 cc-a0-63.ucode
+expansion-rom-version:
+bus-info: 0000:03:00.0
+supports-statistics: yes
+supports-test: no
+supports-eeprom-access: no
+supports-register-dump: no
+supports-priv-flags: no
+
+$ lspci -nnvs 03:00.0
+03:00.0 Network controller [0280]: Intel Corporation Wi-Fi 6 AX200 [8086:2723] (rev 1a)
+        Subsystem: Intel Corporation Device [8086:0080]
+        Physical Slot: 0
+        Flags: bus master, fast devsel, latency 0, IRQ 84, IOMMU group 12
+        Memory at fd600000 (64-bit, non-prefetchable) [size=16K]
+        Capabilities: [c8] Power Management version 3
+        Capabilities: [d0] MSI: Enable- Count=1/1 Maskable- 64bit+
+        Capabilities: [40] Express Endpoint, MSI 00
+        Capabilities: [80] MSI-X: Enable+ Count=16 Masked-
+        Capabilities: [100] Advanced Error Reporting
+        Capabilities: [14c] Latency Tolerance Reporting
+        Capabilities: [154] L1 PM Substates
+        Kernel driver in use: iwlwifi
+        Kernel modules: iwlwifi
+
+# no explicitly enabled
+
+$ grep -IRc iwlwifi /etc/modules-load.d/ /proc/cmdline
+/proc/cmdline:0
+
+$ grep -RH '' /sys/bus/pci/devices/0000\:03\:00.0/{modalias,vendor,device,uevent}
+/sys/bus/pci/devices/0000:03:00.0/modalias:pci:v00008086d00002723sv00008086sd00000080bc02sc80i00
+/sys/bus/pci/devices/0000:03:00.0/vendor:0x8086
+/sys/bus/pci/devices/0000:03:00.0/device:0x2723
+/sys/bus/pci/devices/0000:03:00.0/uevent:DRIVER=iwlwifi
+/sys/bus/pci/devices/0000:03:00.0/uevent:PCI_CLASS=28000
+/sys/bus/pci/devices/0000:03:00.0/uevent:PCI_ID=8086:2723
+/sys/bus/pci/devices/0000:03:00.0/uevent:PCI_SUBSYS_ID=8086:0080
+/sys/bus/pci/devices/0000:03:00.0/uevent:PCI_SLOT_NAME=0000:03:00.0
+/sys/bus/pci/devices/0000:03:00.0/uevent:MODALIAS=pci:v00008086d00002723sv00008086sd00000080bc02sc80i00
+
+# an attempt to see how udev could load it
+
+$ awk '/^alias pci:/ && $NF == "iwlwifi" { print NR,$2,$NF }' \
+  /lib/modules/`uname -r`/modules.alias | \
+  while read no alias drv; do
+    [[ $(cat /sys/bus/pci/devices/0000\:03\:00.0/modalias) == ${alias} ]] \
+      && echo matched: ${no} ${alias} ${drv} 
+  done
+matched: 8515 pci:v00008086d00002723sv*sd*bc*sc*i* iwlwifi
+
 
 ## systemd / journald
 
