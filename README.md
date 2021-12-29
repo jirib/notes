@@ -4557,6 +4557,7 @@ $ awk '/^alias pci:/ && $NF == "iwlwifi" { print NR,$2,$NF }' \
       && echo matched: ${no} ${alias} ${drv} 
   done
 matched: 8515 pci:v00008086d00002723sv*sd*bc*sc*i* iwlwifi
+```
 
 
 ## systemd / journald
