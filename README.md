@@ -4830,7 +4830,7 @@ samba-4.13.13+git.539.fdbc44a8598.x86_64.rpm
 
 ### sealing / templating
 
-# TODO: NetworkManager networking style
+*TODO*: NetworkManager networking style; validate dbus/machine-id
 
 ``` shell
 # generic
