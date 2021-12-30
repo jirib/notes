@@ -1542,8 +1542,38 @@ automatically triggered btrfs snapshots
 snapper list
 ```
 
-### cifs
+### SMB
 
+#### CIFS (linux SMB) filesystem
+
+``` shell
+$ modinfo cifs| grep ^description | fmt -w80
+description:    VFS to access SMB3 servers e.g. Samba, Macs, Azure and Windows
+(and also older servers complying with the SNIA CIFS Specification)
+```
+
+A way to get good troubleshooting info:
+
+``` shell
+_start=$(date +"%Y-%m-%d %H:%M:%S") # sets start time variable
+
+echo 'module cifs +p' > /sys/kernel/debug/dynamic_debug/control
+echo 'file fs/cifs/*.c +p' > /sys/kernel/debug/dynamic_debug/control
+echo 1 > /proc/fs/cifs/cifsFYI
+```
+
+...then do an operation which tries to reproduce an issue, get the log and
+disable debugging.
+
+``` shell
+journalctl --since "${_start}"
+
+# turn off debugging
+unset _start
+echo 0 > /proc/fs/cifs/cifsFYI
+echo 'file fs/cifs/*.c -p' > /sys/kernel/debug/dynamic_debug/control
+echo 'module cifs -p' > /sys/kernel/debug/dynamic_debug/control
+```
 #### samba
 
 A text from `samba(7)`:
@@ -1664,6 +1694,9 @@ Samba operational modes:
 - *DC*, domain controller
 - `[security = AUTO]`, `server role = active directory domain controller`
 
+For logging, see [Configuring Logging on a Samba
+Server](https://wiki.samba.org/index.php/Configuring_Logging_on_a_Samba_Server).
+
 ##### ad member
 
 ``` shell
@@ -1672,16 +1705,18 @@ $ yast samba-client
 
 ``` shell
 $ net ads --help # list of AD related commands
+
 $ net ads info
-LDAP server: 192.168.122.200
-LDAP server name: w2k19-ad-01.home.arpa
-Realm: HOME.ARPA
-Bind Path: dc=HOME,dc=ARPA
+LDAP server: 192.168.124.200
+LDAP server name: w2k19.example.net
+Realm: EXAMPLE.NET
+Bind Path: dc=EXAMPLE,dc=NET
 LDAP port: 389
-Server time: Fri, 10 Dec 2021 23:33:31 CET
-KDC server: 192.168.122.200
+Server time: Thu, 30 Dec 2021 15:14:01 CET
+KDC server: 192.168.124.200
 Server time offset: -1
-Last machine account password change: Thu, 09 Dec 2021 15:41:58 CET
+Last machine account password change: Thu, 30 Dec 2021 13:31:05 CET
+
 $ net ads testjoin
 Join is OK
 
@@ -1692,8 +1727,10 @@ Guest
 krbtgt
 testovic
 $ net ads user info testovic -U Administrator # user's details
+net user info testovic -U Administrator
 Enter Administrator's password:
 Domain Users
+Administrators
 ```
 
 
@@ -1731,6 +1768,47 @@ plaintext password authentication succeeded
 challenge/response password authentication succeeded
 ```
 
+###### identity mapping
+
+``` shell
+$ man winbindd 2>/dev/null | \
+  sed -n '/^NAME AND ID RESOLUTION/,/^[A-Z]/{/^CONFIG/q;p}' | \
+  head -n -1 | fmt -w 80
+NAME AND ID RESOLUTION
+       Users and groups on a Windows NT server are assigned a security id
+       (SID) which is globally unique when the user or group is created. To
+       convert the Windows NT user or group into a unix user or group, a
+       mapping between SIDs and unix user and group ids is required. This
+       is one of the jobs that winbindd performs.
+
+       As winbindd users and groups are resolved from a server, user and
+       group ids are allocated from a specified range. This is done on
+       a first come, first served basis, although all existing users and
+       groups will be mapped as soon as a client performs a user or group
+       enumeration command. The allocated unix ids are stored in a database
+       and will be remembered.
+
+       WARNING: The SID to unix id database is the only location where
+       the user and group mappings are stored by winbindd. If this store
+       is deleted or corrupted, there is no way for winbindd to determine
+       which user and group ids correspond to Windows NT user and group rids.
+```
+
+SUSE maintains a document about pros/cons for various identity mapping, see
+[General Information, Including Pros & Cons, And Examples, Of Various Identity
+Mapping (idmap) Options](https://www.suse.com/support/kb/doc/?id=000017458).
+
+There could be various issues with users in AD member mode.
+
+- if authentication (always against AD) succeeds, it can still fail because
+  Samba needs to map and user (SID) to UID/GID.
+  - returned UID/GID is below `min domain uid`, see
+    [CVE-2020-25717.html](https://www.samba.org/samba/security/CVE-2020-25717.html).
+  - deployments which depends on a fallback from 'DOMAIN\user' to just 'user',
+    this fallback was removed as it is dangerous. See
+    [CVE-2020-25717.html](https://www.samba.org/samba/security/CVE-2020-25717.html)
+
+
 ##### issues
 
 - [https://wiki.archlinux.org/title/Samba#Windows_1709_or_up_does_not_discover_the_samba_server_in_Network_view](https://wiki.archlinux.org/title/Samba#Windows_10_1709_and_up_connectivity_problems_-_%22Windows_cannot_access%22_0x80004005)
@@ -1747,30 +1825,7 @@ challenge/response password authentication succeeded
   WSDD_ARGS="-4 -s -v"
   ```
 
-#### debugging
 
-This is for Samba but anyway see [Configuring Logging on a Samba
-Server](https://wiki.samba.org/index.php/Configuring_Logging_on_a_Samba_Server).
-
-``` shell
-_start=$(date +"%Y-%m-%d %H:%M:%S") # sets start time variable
-
-echo 'module cifs +p' > /sys/kernel/debug/dynamic_debug/control
-echo 'file fs/cifs/*.c +p' > /sys/kernel/debug/dynamic_debug/control
-echo 1 > /proc/fs/cifs/cifsFYI
-```
-
-An operation trying to reproduce an issue.
-
-``` shell
-journalctl --since "${_start}"
-
-# turn off debugging
-unset _start
-echo 0 > /proc/fs/cifs/cifsFYI
-echo 'file fs/cifs/*.c -p' > /sys/kernel/debug/dynamic_debug/control
-echo 'module cifs -p' > /sys/kernel/debug/dynamic_debug/control
-```
 
 #### shares
 
