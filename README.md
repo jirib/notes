@@ -1373,6 +1373,10 @@ git submodule update
 exists
 ```
 
+### json
+
+A [playgroun](https://jqplay.org/) for `jq`.
+
 ### perl
 
 #### perl command line
@@ -4684,7 +4688,7 @@ journalctl -o verbose -u sshd # details about message
 - `etc/fstab`
 - `{free,proc/meminfo}`
 
-### SUSE
+### SLES
 
 #### installation
 
@@ -4774,13 +4778,63 @@ ps auxww | grep 'puma .*\[rmt\]$' # main rmt pid
 > _rmt     25199  1.3  0.5 281652 87396 ?        Ssl  14:54   0:01 puma 5.3.2 (tcp://127.0.0.1:4224) [rmt]
 ```
 
+#### SUSE customer center (SCC)
+
+a little and stupid wrapper for SCC/swagger API
+
+``` shell
+$ cat ~/bin/sccpkgsearch 
+#!/bin/bash
+#set -x
+set -o pipefail
+
+PACKAGE=$1
+VERSION=$2
+
+prod_url='https://scc.suse.com/api/package_search/products'
+pkg_url='https://scc.suse.com/api/package_search/packages?product_id=%s&query=%s'
+
+get_prodid() {
+    local _prod="SLES/${VERSION/-SP/.}/x86_64"
+    curl -sL -X 'GET' \
+         -H 'accept: application/json' \
+         -H 'Accept: application/vnd.scc.suse.com.v4+json' \
+        ${prod_url} | \
+        jq -e -r --arg prod ${_prod} \
+           '.data[] | select(.identifier == $prod) | .id'
+}
+
+# main
+PRODID=$(get_prodid)
+curl -sL -X 'GET' \
+     -H 'accept: application/json' \
+     -H 'Accept: application/vnd.scc.suse.com.v4+json' \
+     $(printf "${pkg_url}" ${PRODID} ${PACKAGE}) | \
+    jq -re --arg pkg ${PACKAGE} \
+       '.data[] | select(.name == $pkg) | { name, version} | @text' | \
+    awk -v pkg=$PACKAGE -F: \
+        '{ gsub(/"/,""); gsub(/}/,""); print pkg"-"$(NF)".x86_64.rpm" }' | \
+    sort -Vu
+```
+
+``` shell
+$ sccpkgsearch samba 15-SP3
+samba-4.13.4+git.187.5ad4708741a.x86_64.rpm
+samba-4.13.6+git.211.555d60b24ba.x86_64.rpm
+samba-4.13.10+git.236.0517d0e6bdf.x86_64.rpm
+samba-4.13.13+git.528.140935f8d6a.x86_64.rpm
+samba-4.13.13+git.531.903f5c0ccdc.x86_64.rpm
+samba-4.13.13+git.539.fdbc44a8598.x86_64.rpm
+```
+
+
 ### sealing / templating
 
 # TODO: NetworkManager networking style
 
 ``` shell
 # generic
-rm /{etc,var/lib/dbus}/machine-id # machine-id in /var/lib/dbus is symlink
+rm /etc/machine-id # machine-id in /var/lib/dbus is symlink
 rm /etc/ssh/{ssh_host*,moduli}
 rm /etc/udev/rules.d/*-persistent-*.rules
 
@@ -5526,6 +5580,25 @@ size=212G features='1 queue_if_no_path' hwhandler='1 alua' wp=rw
   |- 2:0:1:5  sdap 66:144 active ready running
   |- 3:0:1:5  sdbk 67:224 active ready running
   `- 4:0:1:5  sdch 69:80  active ready running
+```
+
+do not print content of a file till pattern (excl/incl):
+
+``` shell
+$ cat /tmp/input 
+jedna
+dva
+tri
+ctyri
+pet
+
+$ sed '1,/tri/d' /tmp/input  # excluding the pattern
+ctyri
+pet
+$ sed '/tri/,$!d' /tmp/input # including the pattern
+tri
+ctyri
+pet
 ```
 
 ## troubleshooting
