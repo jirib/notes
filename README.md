@@ -1808,18 +1808,17 @@ There could be various issues with users in AD member mode.
     this fallback was removed as it is dangerous. See
     [CVE-2020-25717.html](https://www.samba.org/samba/security/CVE-2020-25717.html)
 
-####### idmap_ad
+- idmap_ad
+  ``` shell
+  $ net ads dn 'CN=testovic,CN=Users,DC=example,DC=net' -U Administrator%<pw> | \
+    tail -n +3 | head -n -1 | \
+    grep -P '^((uid|gid)Number|unixHomeDirectory|loginShell):' | sort
+  gidNumber: 10000
+  loginShell: /bin/sh
+  uidNumber: 10000
+  unixHomeDirectory: /home/ad-testovic
 
-``` shell
-$ net ads dn 'CN=testovic,CN=Users,DC=example,DC=net' -U Administrator%<pw> | \
-  tail -n +3 | head -n -1 | \
-  grep -P '^((uid|gid)Number|unixHomeDirectory|loginShell):' | sort
-gidNumber: 10000
-loginShell: /bin/sh
-uidNumber: 10000
-unixHomeDirectory: /home/ad-testovic
-
-$ testparm -sv 2>/dev/null | grep -P '^\s+(idmap config|template|min domain)'
+  $ testparm -sv 2>/dev/null | grep -P '^\s+(idmap config|template|min domain)'
         min domain uid = 1000
         template homedir = /home/%D/%U
         template shell = /bin/bash
@@ -1830,7 +1829,7 @@ $ testparm -sv 2>/dev/null | grep -P '^\s+(idmap config|template|min domain)'
         idmap config examplenet : backend = ad
         idmap config * : range = 100000-200000
         idmap config * : backend = tdb
-```
+  ```
 
 
 ##### issues
