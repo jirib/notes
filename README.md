@@ -1798,16 +1798,6 @@ SUSE maintains a document about pros/cons for various identity mapping, see
 [General Information, Including Pros & Cons, And Examples, Of Various Identity
 Mapping (idmap) Options](https://www.suse.com/support/kb/doc/?id=000017458).
 
-There could be various issues with users in AD member mode.
-
-- if authentication (always against AD) succeeds, it can still fail because
-  Samba needs to map and user (SID) to UID/GID.
-  - returned UID/GID is below `min domain uid`, see
-    [CVE-2020-25717.html](https://www.samba.org/samba/security/CVE-2020-25717.html).
-  - deployments which depends on a fallback from 'DOMAIN\user' to just 'user',
-    this fallback was removed as it is dangerous. See
-    [CVE-2020-25717.html](https://www.samba.org/samba/security/CVE-2020-25717.html)
-
 - idmap_ad
   ``` shell
   $ net ads dn 'CN=testovic,CN=Users,DC=example,DC=net' -U Administrator%<pw> | \
@@ -1830,6 +1820,18 @@ There could be various issues with users in AD member mode.
         idmap config * : range = 100000-200000
         idmap config * : backend = tdb
   ```
+
+There could be various issues with users in AD member mode.
+
+- if authentication (always against AD) succeeds, it can still fail because
+  Samba needs to map and user (SID) to UID/GID.
+  - returned UID/GID is below `min domain uid`, see
+    [CVE-2020-25717.html](https://www.samba.org/samba/security/CVE-2020-25717.html).
+  - deployments which depends on a fallback from 'DOMAIN\user' to just 'user',
+    this fallback was removed as it is dangerous. See
+    [CVE-2020-25717.html](https://www.samba.org/samba/security/CVE-2020-25717.html)
+
+
 
 
 ##### issues
