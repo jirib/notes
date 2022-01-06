@@ -1552,6 +1552,55 @@ description:    VFS to access SMB3 servers e.g. Samba, Macs, Azure and Windows
 (and also older servers complying with the SNIA CIFS Specification)
 ```
 
+When `mount.cifs` occurs there's need to map SIDs to UIDs and GIDs.
+
+Since it is kernel what does mounting and filesystem management, it uses
+kernel's key management facility and finally there's a call to userspace to
+get the data. This is done this via `request-key` callback which
+consults `/etc/request-key.{d/*.conf,conf}`, that is it would ask `cifs.idmap`
+utility depending on a plugin in `/etc/cifs-utils/idmap-plugin` (it is in fact a
+symlink to a library) providing the data (usually via *winbind*).
+
+
+``` shell
+$ grep cifs.idma /proc/keys 
+1b7de0ca I--Q---     1   6m 39010000     0     0 cifs.idma gs:S-1-22-2-0: 4
+21191b10 I--Q---     1   6m 39010000     0     0 cifs.idma os:S-1-22-1-0: 4
+365f605e I------     1 perm 1f030000     0     0 keyring   .cifs_idmap: 2
+
+$ findmnt /mnt
+TARGET SOURCE               FSTYPE OPTIONS
+/mnt   //192.168.124.35/tmp cifs   rw,relatime,vers=3.1.1,cache=strict,username=testovic,domain=EXAMPLENET,uid=0,noforceuid,gid=0,noforcegid,addr=192.168.124.35,file_mode=0755,dir_mode=0755,soft,nounix,serverino,mapposix,cifsacl,rsize=4194304,wsize=4194304,bsize=1048576,echo_interval=60,actimeo=1
+
+$ grep cifs.idma /proc/keys 
+1b7de0ca I--Q---     1   5m 39010000     0     0 cifs.idma gs:S-1-22-2-0: 4
+206e6ff3 I--Q---     1   9m 39010000     0     0 cifs.idma os:S-1-5-21-2185718108-4266305927-1067147705-1105: 4
+211768c0 I--Q---     1   9m 39010000     0     0 cifs.idma gs:S-1-5-21-2185718108-4266305927-1067147705-513: 4
+21191b10 I--Q---     1   5m 39010000     0     0 cifs.idma os:S-1-22-1-0: 4
+365f605e I------     1 perm 1f030000     0     0 keyring   .cifs_idmap: 4
+
+$ wbinfo -S S-1-5-21-2185718108-4266305927-1067147705-1105
+11105
+$ wbinfo -Y S-1-5-21-2185718108-4266305927-1067147705-513
+10513
+$ python3 -c 'import pwd; print(pwd.getpwuid(11105))'
+pwd.struct_passwd(pw_name='EXAMPLENET\\testovic', pw_passwd='*', pw_uid=11105, pw_gid=10513, pw_gecos='', pw_dir='/home/testovic', pw_shell='/bin/bash')
+
+$ python3 -c 'import grp; print(grp.getgrgid(10513))'
+grp.struct_group(gr_name='EXAMPLENET\\domain users', gr_passwd='x', gr_gid=10513, gr_mem=[])
+
+$ stat /mnt/fstab 
+  File: /mnt/fstab
+  Size: 1952            Blocks: 8          IO Block: 1048576 regular file
+Device: 40h/64d Inode: 10985884002298803652  Links: 1
+Access: (0744/-rwxr--r--)  Uid: (11105/EXAMPLENET\testovic)   Gid: (10513/EXAMPLENET\domain users)
+Access: 2022-01-06 12:06:21.489089700 +0100
+Modify: 2022-01-06 12:06:21.489089700 +0100
+Change: 2022-01-06 12:06:21.489089700 +0100
+ Birth: 2022-01-06 12:06:21.480949700 +0100
+```
+
+
 A way to get good troubleshooting info:
 
 ``` shell
@@ -1797,6 +1846,23 @@ NAME AND ID RESOLUTION
 SUSE maintains a document about pros/cons for various identity mapping, see
 [General Information, Including Pros & Cons, And Examples, Of Various Identity
 Mapping (idmap) Options](https://www.suse.com/support/kb/doc/?id=000017458).
+
+``` shell
+$ net ads dn 'CN=testovic,CN=Users,DC=example,DC=net' objectSID \
+  -U Administrator
+Enter Administrator's password:
+Got 1 replies
+
+objectSid: S-1-5-21-2185718108-4266305927-1067147705-1105
+
+$ wbinfo -s S-1-5-21-2185718108-4266305927-1067147705-1105
+EXAMPLENET\testovic 1
+$ wbinfo -S S-1-5-21-2185718108-4266305927-1067147705-1105
+10000
+
+$ getent passwd EXAMPLENET\\testovic
+testovic:*:10000:10000:testovic:/home/ad-testovic:/bin/sh
+```
 
 - idmap_ad
   ``` shell
@@ -2649,7 +2715,7 @@ notmuch tag +example.org path:/example.org/
 
 ### bonding
 
-### theory
+#### theory
 
 #### ARP monitoring
 
@@ -3292,6 +3358,78 @@ Link Layer Discovery Protocol
     End of LLDPDU
         0000 000. .... .... = TLV Type: End of LLDPDU (0)
         .... ...0 0000 0000 = TLV Length: 0
+```
+
+### firewall
+
+#### firewalld
+
+``` shell
+# would ping (icmp echoreq) work?
+
+$ firewall-cmd --list-all | grep -P '^\s+(target|icmp)'
+  target: default
+  icmp-block-inversion: no
+  icmp-blocks: 
+
+$ nft list chain inet firewalld filter_IN_public | grep -i icmp
+                meta l4proto { icmp, ipv6-icmp } accept
+
+# how is that possible? 'default' target still allows some traffic
+
+$ man firewall-cmd | sed -n '/--set-target=/,/2\./{/2\./q;p}' | fmt -w 80
+       --permanent [--zone=zone] [--policy=policy] --set-target=zone
+           Set the target.
+
+           For zones target is one of: default, ACCEPT, DROP, REJECT
+
+           For policies target is one of: CONTINUE, ACCEPT, DROP, REJECT
+
+           default is similar to REJECT, but has special meaning in the
+           following scenarios:
+
+            1. ICMP explicitly allowed
+
+               At the end of the zone's ruleset ICMP packets are explicitly
+               allowed.
+```
+
+#### nftables
+
+``` shell
+# let's show how firewalld translates to nftables
+
+$ firewall-cmd --list-all
+public (active)
+  target: default
+  icmp-block-inversion: no
+  interfaces: eth0
+  sources: 
+  services: dhcpv6-client ssh
+  ports: 
+  protocols: 
+  forward: no
+  masquerade: no
+  forward-ports: 
+  source-ports: 
+  icmp-blocks: 
+  rich rules:
+
+$ nft list tables
+table inet firewalld
+table ip firewalld
+table ip6 firewalld
+
+$ nft list table inet firewalld | grep 'chain .*IN_public_allow'
+        chain filter_IN_public_allow {
+
+$ nft list chain inet firewalld filter_IN_public_allow
+table inet firewalld {
+        chain filter_IN_public_allow {
+                tcp dport 22 ct state { new, untracked } accept
+                ip6 daddr fe80::/64 udp dport 546 ct state { new, untracked } accept
+        }
+}
 ```
 
 
@@ -4860,7 +4998,8 @@ ps auxww | grep 'puma .*\[rmt\]$' # main rmt pid
 
 #### SUSE customer center (SCC)
 
-a little and stupid wrapper for SCC/swagger API
+a little and stupid wrapper for SCC/swagger [API](
+  https://scc.suse.com/api/package_search/v4/documentation)
 
 ``` shell
 $ cat ~/bin/sccpkgsearch 
