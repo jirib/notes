@@ -1556,12 +1556,35 @@ description:    VFS to access SMB3 servers e.g. Samba, Macs, Azure and Windows
 When `mount.cifs` occurs there's need to map SIDs to UIDs and GIDs.
 
 Since it is kernel what does mounting and filesystem management, it uses
-kernel's key management facility and finally there's a call to userspace to
-get the data. This is done this via `request-key` callback which
+kernel's key management facility (Linux key service) and finally there's a call
+to userspace to get the data. This is done this via `request-key` callback which
 consults `/etc/request-key.{d/*.conf,conf}`, that is it would ask `cifs.idmap`
 utility depending on a plugin in `/etc/cifs-utils/idmap-plugin` (it is in fact a
-symlink to a library) providing the data (usually via *winbind*).
+symlink to a library) providing the data (usually via *winbind*), there's also a
+plugin for
+[SSSD](https://sssd.io/design-pages/integrate_sssd_with_cifs_client.html).
 
+``` shell
+$ls -l /etc/cifs-utils/idmap-plugin
+lrwxrwxrwx 1 root root 35 Dec 27 16:11 /etc/cifs-utils/idmap-plugin -> /etc/alternatives/cifs-idmap-plugin
+
+$ update-alternatives --display cifs-idmap-plugin
+cifs-idmap-plugin - auto mode
+  link best version is /usr/lib64/cifs-utils/idmapwb.so
+  link currently points to /usr/lib64/cifs-utils/idmapwb.so
+  link cifs-idmap-plugin is /etc/cifs-utils/idmap-plugin
+/usr/lib64/cifs-utils/cifs_idmap_sss.so - priority 10
+/usr/lib64/cifs-utils/idmapwb.so - priority 20
+
+$ rpm -qf /usr/lib64/cifs-utils/cifs_idmap_sss.so
+sssd-2.6.2-1.1.x86_6
+
+# getcifsacl can be used to get SID->UID/GID mapping for objects on filesystem
+$ rpm -ql cifs-utils | egrep 'bin/.+cifsacl'
+/usr/bin/getcifsacl
+/usr/bin/setcifsacl
+
+```
 
 ``` shell
 $ grep cifs.idma /proc/keys 
@@ -5197,10 +5220,13 @@ awk '/^#==\[ Command \]=+#$/ {getline;print NR,$0}' sysfs.txt
 ##### repos
 
 ``` shell
-zypper lr # list repos
-zypper lr -d <repo> # details about a repo
-zypper mr -e <repo>
-zypper mr -e --all # enable all repos
+$ zypper lr # list repos
+$ zypper lr -d <repo> # details about a repo
+$ zypper mr -e <repo>
+$ zypper mr -e --all # enable all repos
+
+# install from disabled repository
+$ zypper -v --plus-content SUSE-PackageHub-15-SP3-Backports-Pool install tmate
 ```
 
 ##### patterns
@@ -5908,6 +5934,38 @@ tri
 ctyri
 pet
 ```
+
+### tmux
+
+#### tmate
+
+[`tmate`](https://tmate.io/) does not seem to be working with proxy jumps specified
+in `ssh_config`, thus a workaround is to use eg. `proxychains4`.
+
+``` shell
+$ cat /etc/proxychains.conf
+[proxychains]
+strict_chain
+remote_dns_subnet 10
+remote_dns_subnet 224
+tcp_read_time_out 15000
+tcp_connect_time_out 8000
+localnet 192.168.0.0/255.255.0.0
+[ProxyList]
+socks5  192.168.124.1 9999
+
+# to use custom tmate server
+$ cat ~/.tmate.conf
+set -g tmate-server-host "tmate.example.com"
+set -g tmate-server-port "23"
+
+# fingerprints in SHA256 format for tmate > 2.2.*
+#set -g tmate-server-rsa-fingerprint "SHA256:a6o2NWaAGRzeWq8H7zia5v/3y3hkzre9YJug5vaKjYo"
+
+# fingerprints in MD5 format for tmate 2.2.* (as in Leap 15.2)
+set -g tmate-server-rsa-fingerprint "91:cf:4f:cd:45:6b:c5:e0:9a:54:2e:90:7e:61:62:e2"
+```
+
 
 ## troubleshooting
 
