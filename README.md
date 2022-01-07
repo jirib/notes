@@ -280,6 +280,92 @@ $ man krb5.conf | col -b | \
      s153sam01.example.net
      ```
   Details at https://web.mit.edu/kerberos/krb5-1.13/doc/admin/princ_dns.html .
+- authentication details (at lest `log level = 3`):
+  - NTLM successful authentication:
+    ```
+    $ egrep -A 1 '\(auth_check_ntlm_password\)$' log.smbd
+    [2022/01/07 10:49:20.333714,  3] ../../source3/auth/auth.c:201(auth_check_ntlm_password)
+      check_ntlm_password:  Checking password for unmapped user [EXAMPLENET]\[testovic]@[S153ADMEM01] with the new password interface
+    [2022/01/07 10:49:20.333727,  3] ../../source3/auth/auth.c:204(auth_check_ntlm_password)
+      check_ntlm_password:  mapped user is: [EXAMPLENET]\[testovic]@[S153ADMEM01]
+    [2022/01/07 10:49:20.341081,  3] ../../source3/auth/auth.c:268(auth_check_ntlm_password)
+      auth_check_ntlm_password: winbind authentication for user [testovic] succeeded
+    --
+    [2022/01/07 10:49:20.341517,  2] ../../source3/auth/auth.c:329(auth_check_ntlm_password)
+      check_ntlm_password:  authentication for user [testovic] -> [testovic] -> [EXAMPLENET\testovic] succeeded
+    ```
+  - NTLM unsuccessful authentication:
+    ``` shell
+    $ egrep -A 1 '\(auth_check_ntlm_password\)$' log.smbd
+    [2022/01/07 10:52:26.471941,  3] ../../source3/auth/auth.c:201(auth_check_ntlm_password)
+      check_ntlm_password:  Checking password for unmapped user [EXAMPLENET]\[testovic]@[S153ADMEM01] with the new password interface
+    [2022/01/07 10:52:26.471954,  3] ../../source3/auth/auth.c:204(auth_check_ntlm_password)
+      check_ntlm_password:  mapped user is: [EXAMPLENET]\[testovic]@[S153ADMEM01]
+    [2022/01/07 10:52:26.480242,  2] ../../source3/auth/auth.c:347(auth_check_ntlm_password)
+      check_ntlm_password:  Authentication for user [testovic] -> [testovic] FAILED with error NT_STATUS_WRONG_PASSWORD, authoritative=1
+    ```
+  - Kerberos successful authentication:
+    ``` shell
+    $ egrep -A 1 '\(auth.*pac\)$' log.smbd
+    [2022/01/07 10:58:27.359780,  5] ../../source3/auth/auth_generic.c:168(auth3_generate_session_info_pac)
+      check_ntlm_password:  PAM Account for user [EXAMPLENET\testovic] succeeded
+    [2022/01/07 10:58:27.359789,  3] ../../source3/auth/auth_generic.c:171(auth3_generate_session_info_pac)
+      Kerberos ticket principal name is [testovic@EXAMPLE.NET]
+    --
+    [2022/01/07 10:58:27.362180,  5] ../../source3/auth/auth_generic.c:252(auth3_generate_session_info_pac)
+      ../../source3/auth/auth_generic.c:252OK: user: testovic domain: EXAMPLENET client: 192.168.124.35
+    ```
+- authorization details (at least `log level = 3`):
+  - an example of being in `invalid users` list:
+    ``` shell
+    $ egrep -A 1 'service\.c:.*connection' log.smbd
+    [2022/01/07 11:08:07.115208,  3] ../../source3/smbd/service.c:609(make_connection_snum)
+      make_connection_snum: Connect path is '/tmp' for service [IPC$]
+    --
+    [2022/01/07 11:08:07.115339,  3] ../../source3/smbd/service.c:852(make_connection_snum)
+      192.168.124.35 (ipv4:192.168.124.35:50306) connect to service IPC$ initially as user EXAMPLENET\testovic (uid=11105, gid=10513) (pid 11255)
+    --
+    [2022/01/07 11:08:07.116281,  1] ../../source3/smbd/service.c:366(create_connection_session_info)
+      create_connection_session_info: user 'EXAMPLENET\testovic' (from session setup) not permitted to access this share (tmp)
+    [2022/01/07 11:08:07.116303,  1] ../../source3/smbd/service.c:544(make_connection_snum)
+      create_connection_session_info failed: NT_STATUS_ACCESS_DENIED
+    ```
+- kerberos PAC, a part of a Kerberos ticket, the so called Authorization Data.
+  Some details at [Howto/Inspecting the PAC](https://www.freeipa.org/page/Howto/Inspecting_the_PAC).
+  ``` shell
+  $ grep -m 1 -A 30 'PAC_BUFFER' log.winbindd
+              buffers: struct PAC_BUFFER
+                  type                     : PAC_TYPE_LOGON_INFO (1)
+                  _ndr_size                : 0x000001d0 (464)
+                  info                     : *
+                      info                     : union PAC_INFO(case 1)
+                      logon_info: struct PAC_LOGON_INFO_CTR
+                          info                     : *
+                              info: struct PAC_LOGON_INFO
+                                  info3: struct netr_SamInfo3
+                                      base: struct netr_SamBaseInfo
+                                          logon_time               : Fri Jan  7 10:56:53 AM 2022 CET
+                                          logoff_time              : Thu Sep 14 04:48:05 AM 30828 CEST
+                                          kickoff_time             : Thu Sep 14 04:48:05 AM 30828 CEST
+                                          last_password_change     : Thu Dec 23 12:23:24 PM 2021 CET
+                                          allow_password_change    : Fri Dec 24 12:23:24 PM 2021 CET
+                                          force_password_change    : Thu Feb  3 12:23:24 PM 2022 CET
+                                          account_name: struct lsa_String
+                                              length                   : 0x0010 (16)
+                                              size                     : 0x0010 (16)
+                                              string                   : *
+                                                  string                   : 'testovic'
+                                          full_name: struct lsa_String
+                                              length                   : 0x0010 (16)
+                                              size                     : 0x0010 (16)
+                                              string                   : *
+                                                  string                   : 'testovic'
+                                          logon_script: struct lsa_String
+                                              length                   : 0x0000 (0)
+                                              size                     : 0x0000 (0)
+                                              string                   : *
+                                                  string                   : ''
+  ```
 
 ### nscd, nss-pam-ldapd, pam_ldap
 
