@@ -4038,6 +4038,8 @@ iscsiadm -m iface -I <name>                                          # show logi
 
 #### target
 
+See [LIO Admin Manual](http://www.linux-iscsi.org/Doc/LIO%20Admin%20Manual.pdf).
+
 usually there's a service restoring configuration for in-kernel LIO
 target
 
@@ -4045,16 +4047,113 @@ target
 # SUSE
 [[ -e /etc/sysconfig/target ]] && egrep -v '^(\s*[;#]| *$)' /etc/sysconfig/target
 
-systemctl --no-pager show -p ExecStart -p EnvironmentFiles -p Environment target
+$ systemctl --no-pager show -p ExecStart -p EnvironmentFiles \
+  -p Environment target
 ExecStart={ path=/usr/bin/targetctl ; argv[]=/usr/bin/targetctl restore $CONFIG_FILE ; ignore_errors=no ; start_time=[n/1] ; stop_time=[n/a] ; pid=0 ; code=(null) ; status=0/0 }
 Environment=CONFIG_FILE=/etc/target/saveconfig.json
 EnvironmentFiles=/etc/sysconfig/target (ignore_errors=yes)
 ```
 
-non-interactive way of `targetcli`
+non-interactive way of `targetcli` management
 
 ``` shell
-targetcli <path> <command> [<args>]
+$ targetcli <path> <command> [<args>]
+```
+
+``` shell
+# default configuration with no customization
+$ grep -RH '' /sys/kernel/config/target/iscsi
+/sys/kernel/config/target/iscsi/discovery_auth/enforce_discovery_auth:0
+/sys/kernel/config/target/iscsi/discovery_auth/password_mutual:NULL
+/sys/kernel/config/target/iscsi/discovery_auth/userid_mutual:NULL
+/sys/kernel/config/target/iscsi/discovery_auth/authenticate_target:0
+/sys/kernel/config/target/iscsi/discovery_auth/password:NULL
+/sys/kernel/config/target/iscsi/discovery_auth/userid:NULL
+/sys/kernel/config/target/iscsi/lio_version:Datera Inc. iSCSI Target v4.1.0
+
+$ targetcli ls /
+o- / ......................................................................................................................... [...]
+  o- backstores .............................................................................................................. [...]
+  | o- block .................................................................................................. [Storage Objects: 0]
+  | o- fileio ................................................................................................. [Storage Objects: 0]
+  | o- pscsi .................................................................................................. [Storage Objects: 0]
+  | o- ramdisk ................................................................................................ [Storage Objects: 0]
+  | o- rbd .................................................................................................... [Storage Objects: 0]
+  o- iscsi ............................................................................................................ [Targets: 0]
+  o- loopback ......................................................................................................... [Targets: 0]
+  o- vhost ............................................................................................................ [Targets: 0]
+  o- xen-pvscsi ....................................................................................................... [Targets: 0]
+localhost:~ # targetcli ls /iscsi
+o- iscsi .............................................................................................................. [Targets: 0]
+
+$ targetcli /iscsi get discovery_auth
+DISCOVERY_AUTH CONFIG GROUP
+===========================
+enable=False
+------------
+The enable discovery_auth parameter.
+
+mutual_password=
+----------------
+The mutual_password discovery_auth parameter.
+
+mutual_userid=
+--------------
+The mutual_userid discovery_auth parameter.
+
+password=
+---------
+The password discovery_auth parameter.
+
+userid=
+-------
+The userid discovery_auth parameter.
+```
+
+A quick setup:
+
+``` shell
+$ targetcli /backstores/fileio create test01 /iscsi/test01.raw 1G
+Created fileio test01 with size 1073741824
+
+$ targetcli /iscsi create
+Created target iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.19d749eec97b.
+Created TPG 1.
+
+$ targetcli /iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.19d749eec97b/tpg1/portals create
+Using default IP port 3260
+Binding to INADDR_ANY (0.0.0.0)
+Created network portal 0.0.0.0:3260.
+
+$ targetcli /iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.19d749eec97b/tpg1/luns create /backstores/fileio/test01
+Created LUN 0.
+
+$ targetcli saveconfig
+Last 10 configs saved in /etc/target/backup/.
+Configuration saved to /etc/target/saveconfig.json
+
+$ syspath=/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664\:sn.68237979a01d/tpgt_1/
+$ for i in acls attrib auth; do
+  grep -RH '' $syspath/$i | sort ; done
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/attrib/authentication:0
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/attrib/cache_dynamic_acls:0
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/attrib/default_cmdsn_depth:64
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/attrib/default_erl:0
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/attrib/demo_mode_discovery:1
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/attrib/demo_mode_write_protect:1
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/attrib/fabric_prot_type:0
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/attrib/generate_node_acls:0
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/attrib/login_keys_workaround:1
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/attrib/login_timeout:15
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/attrib/netif_timeout:2
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/attrib/prod_mode_write_protect:0
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/attrib/t10_pi:0
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/attrib/tpg_enabled_sendtargets:1
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/auth/authenticate_target:0
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/auth/password:
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/auth/password_mutual:
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/auth/userid:
+/sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.localhost.x8664:sn.68237979a01d/tpgt_1/auth/userid_mutual:
 ```
 
 ##### acls / permissions
@@ -4793,6 +4892,39 @@ PR out: command (Register) successful
 ```
 
 ### udev
+
+As for rules processing order, see
+
+``` shell
+$ man udev | sed -n '/RULES FILES/,/^ *Opera/{/^ *Oper/q;p}' | fmt -w 80
+RULES FILES
+       The udev rules are read from the files located in the system rules
+       directories /usr/lib/udev/rules.d and /usr/local/lib/udev/rules.d,
+       the volatile runtime directory /run/udev/rules.d and the local
+       administration directory /etc/udev/rules.d. All rules files are
+       collectively sorted and processed in lexical order, regardless of the
+       directories in which they live. However, files with identical filenames
+       replace each other. Files in /etc/ have the highest priority, files in
+       /run/ take precedence over files with the same name under /usr/. This
+       can be used to override a system-supplied rules file with a local file
+       if needed; a symlink in /etc/ with the same name as a rules file in
+       /usr/lib/, pointing to /dev/null, disables the rules file entirely. Rule
+       files must have the extension .rules; other extensions are ignored.
+
+       Every line in the rules file contains at least one key-value
+       pair. Except for empty lines or lines beginning with "#", which are
+       ignored. There are two kinds of keys: match and assignment. If all
+       match keys match against their values, the rule gets applied and the
+       assignment keys get the specified values assigned.
+
+       A matching rule may rename a network interface, add symlinks pointing
+       to the device node, or run a specified program as part of the event
+       handling.
+
+       A rule consists of a comma-separated list of one or more
+       key-operator-value expressions. Each expression has a distinct effect,
+       depending on the key and operator used.
+```
 
 ``` shell
 $ udevadm info --attribute-walk \
