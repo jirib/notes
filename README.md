@@ -4899,7 +4899,7 @@ system, could be used as tape library virtualization.
 On OpenSUSE TW *mhvtl* consists of:
 
 - `mhvtl-load-modules.service` systemd unit which loads `mhvtl` kernel module
-  which also acts as a pseudo HBA
+  and also acts as a pseudo HBA
   ``` shell
   $ lsscsi -C | grep mhvtl
   [1]    mhvtl
@@ -4926,7 +4926,7 @@ On OpenSUSE TW *mhvtl* consists of:
     vtllibrary@10.service
     vtltape@11.service
     vtltape@12.service
-  ```
+```
 
 Each library defined in `/etc/mhvtl/device.conf` has a corresponding
 `/etc/mhvtl/library_contents.<id>`.
