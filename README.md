@@ -4894,7 +4894,7 @@ PR out: command (Register) successful
 ### tapes
 
 [*mhvtl*](http://sites.google.com/site/linuxvtl2/), A Virtual Tape & Library
-system, could be used as tape library virtualizatio
+system, could be used as tape library virtualization.
 
 On OpenSUSE TW *mhvtl* consists of:
 
