@@ -4929,7 +4929,20 @@ On OpenSUSE TW *mhvtl* consists of:
   ```
 
 Each library defined in `/etc/mhvtl/device.conf` has a corresponding
-`/etc/mhvtl/library_contents.<id>`.
+`/etc/mhvtl/library_contents.<id>`, see `generate_device_conf(1)`,
+`generate_library_contents(1)`, `make_vtl_media(1)` man pages, and *mhvtl* RPM
+post-install script:
+
+``` shell
+rpm --scripts -q mhvtl | sed -n '/^postinstall/,/^preuninstall/{/^preun/q;p}' \
+  | sed -n '/"$1" = 1/,$p'
+if [ "$1" = 1 ]; then
+        /usr/bin/make_vtl_media --force \
+                --config-dir=/etc/mhvtl \
+                --home-dir=/var/lib/mhvtl \
+                --mktape-path=/usr/bin
+fi
+```
 
 An example:
 
@@ -4938,42 +4951,58 @@ $ grep -Pv '^\s*(#|$)' /etc/mhvtl/device.conf
 VERSION: 5
 Library: 10 CHANNEL: 00 TARGET: 00 LUN: 00
  Vendor identification: STK
- Product identification: SL150
- NAA:  50:01:04:f0:00:dd:90:af
+ Product identification: VLSTK
+ Unit serial number: VLSTK
+ NAA: 30:22:33:44:ab:00:08:00
+ Compression: factor 1 enabled 1
+ Compression type: lzo
  Home directory: /var/lib/mhvtl
- PERSIST: False
+ PERSIST: True
  Backoff: 400
-Drive: 11 CHANNEL: 00 TARGET: 01 LUN: 00
- Library ID: 10 Slot: 01
- Vendor identification: HP
- Product identification: Ultrium 6-SCSI
- NAA: 10:22:33:44:ab:00:01:00
+Drive: 11 CHANNEL: 00 TARGET: 1 LUN: 00
+ Library ID: 10 Slot: 1
+ Vendor identification: STK
+ Product identification: MHVTL
+ Unit serial number: VDSTK1
+ NAA: 30:22:33:44:ab:00:09:00
  Compression: factor 1 enabled 1
  Compression type: lzo
  Backoff: 400
-Drive: 12 CHANNEL: 00 TARGET: 02 LUN: 00
- Library ID: 10 Slot: 02
- Vendor identification: HP
- Product identification: Ultrium 6-SCSI
- NAA: 10:22:33:44:ab:00:02:00
+Drive: 12 CHANNEL: 00 TARGET: 2 LUN: 00
+ Library ID: 10 Slot: 2
+ Vendor identification: STK
+ Product identification: MHVTL
+ Unit serial number: VDSTK2
+ NAA: 30:22:33:44:ab:00:09:00
  Compression: factor 1 enabled 1
  Compression type: lzo
- Backoff: 400
 
-$ grep -Pv '^\s*(#|$)' /etc/mhvtl/library_contents.10
+$ grep -Pv '^\s*(#|$)' /etc/mhvtl/library_contents.10 
 VERSION: 2
-Drive 1: XYZZY_A1
-Drive 2: XYZZY_A2
+Drive 1: VDSTK1
+Drive 2: VDSTK2
 Picker 1:
 MAP 1:
-Slot 1: E01001L8
-Slot 2: E01002L8
-Slot 3: E01003L8
-Slot 4: E01004L8
-Slot 5: E01005L8
-Slot 6: E01006L8
-Slot 7: E01007L8
-Slot 8: E01008L8
+Slot 1: V01001TA
+Slot 2: V01002TA
+Slot 3: V01003TA
+Slot 4: V01004TA
+Slot 5: V01005TA
+Slot 6: V01006TA
+Slot 7: V01007TA
+Slot 8:
+Slot 9:
+Slot 10:
+```
+
+Some *mhvtl* operations:
+
+```
+# genereate library database from library_content.<id>
+$ rm -rf /var/lib/mhvtl/*
+$ make_vtl_media -C /etc/mhvtl -H /var/lib/mhvtl >/dev/null 2>&1
+$ ls /var/lib/mhvtl/ | wc -l
+48
 ```
 
 Some operations:
@@ -4986,20 +5015,174 @@ Product ID: 'SL150           '
 Revision: '0164'
 Attached Changer API: No
 
-$ mtx -f /dev/sch0 status
-  Storage Changer /dev/sch0:2 Drives, 9 Slots ( 1 Import/Export )
+$ mtx -f /dev/sch0 status | head -6
+  Storage Changer /dev/sch0:4 Drives, 43 Slots ( 4 Import/Export )
 Data Transfer Element 0:Empty
 Data Transfer Element 1:Empty
+Data Transfer Element 2:Empty
+Data Transfer Element 3:Empty
       Storage Element 1:Full :VolumeTag=E01001L8                            
-      Storage Element 2:Full :VolumeTag=E01002L8                            
-      Storage Element 3:Full :VolumeTag=E01003L8                            
-      Storage Element 4:Full :VolumeTag=E01004L8                            
-      Storage Element 5:Full :VolumeTag=E01005L8                            
-      Storage Element 6:Full :VolumeTag=E01006L8                            
-      Storage Element 7:Full :VolumeTag=E01007L8                            
-      Storage Element 8:Full :VolumeTag=E01008L8                            
-      Storage Element 9 IMPORT/EXPORT:Empty
+
+$ mtx -f /dev/sch0 load 1 0
+Loading media from Storage Element 1 into drive 0...done
+
+$ mtx -f /dev/sch0 status | head -6
+  Storage Changer /dev/sch0:4 Drives, 43 Slots ( 4 Import/Export )
+Data Transfer Element 0:Full (Storage Element 1 Loaded):VolumeTag = E01001L8                            
+Data Transfer Element 1:Empty
+Data Transfer Element 2:Empty
+Data Transfer Element 3:Empty
+      Storage Element 1:Empty
+
+$ mtx -f /dev/sch0 unload 1 0
+Unloading drive 0 into Storage Element 1...done
+
+$ mtx -f /dev/sch0 status | head -6
+  Storage Changer /dev/sch0:4 Drives, 43 Slots ( 4 Import/Export )
+Data Transfer Element 0:Empty
+Data Transfer Element 1:Empty
+Data Transfer Element 2:Empty
+Data Transfer Element 3:Empty
+      Storage Element 1:Full :VolumeTag=E01001L8
 ```
+
+``` shell
+$ lsscsi -itg | grep tape
+[1:0:1:0]    tape                                    /dev/st0   -  /dev/sg2 
+[1:0:2:0]    tape                                    /dev/st1   -  /dev/sg3
+
+$ ls -l /dev/*st0
+crw-rw---- 1 root tape 9, 128 Jan 26 13:59 /dev/nst0
+crw-rw---- 1 root tape 9,   0 Jan 26 13:59 /dev/st0
+
+$ mt -f /dev/nst0 status
+SCSI 2 tape drive:
+File number=-1, block number=-1, partition=0.
+Tape block size 0 bytes. Density code 0x4a (SDLT600, T10000A).
+Soft error count since last status=0
+General status bits on (1010000):
+ ONLINE IM_REP_EN
+
+# see barcode of tape
+$ mtx -f /dev/sch0 status | head -n3
+  Storage Changer /dev/sch0:2 Drives, 11 Slots ( 1 Import/Export )
+Data Transfer Element 0:Full (Storage Element 1 Loaded):VolumeTag = V01001TA                            
+Data Transfer Element 1:Empty
+
+$ lsscsi -itg | grep tape
+[1:0:1:0]    tape                                    /dev/st0   -  /dev/sg2 
+[1:0:2:0]    tape                                    /dev/st1   -  /dev/sg3
+
+$ ls -l /dev/*st0
+crw-rw---- 1 root tape 9, 128 Jan 26 13:59 /dev/nst0
+crw-rw---- 1 root tape 9,   0 Jan 26 13:59 /dev/st0
+
+$ tar -cf /dev/st0 /etc
+tar: Removing leading `/' from member names
+$ du -sh /var/lib/mhvtl/V01001TA/*
+12M     /var/lib/mhvtl/V01001TA/data
+2.1M    /var/lib/mhvtl/V01001TA/indx
+4.0K    /var/lib/mhvtl/V01001TA/meta
+```
+
+``` shell
+$ lsscsi -itg | egrep '(mediumx|tape)'
+[1:0:0:0]    mediumx                                 /dev/sch0  -  /dev/sg1 
+[1:0:1:0]    tape                                    /dev/st0   -  /dev/sg2 
+[1:0:2:0]    tape                                    /dev/st1   -  /dev/sg3 
+
+$ for i in {1..3}; do
+  targetcli /backstores/pscsi create sg$i /dev/sg$i
+done
+
+$ targetcli /backstores/pscsi ls
+o- pscsi ...................................................................................................... [Storage Objects: 3]
+  o- sg1 .................................................................................................... [/dev/sg1 deactivated]
+  | o- alua ....................................................................................................... [ALUA Groups: 0]
+  o- sg2 .................................................................................................... [/dev/sg2 deactivated]
+  | o- alua ....................................................................................................... [ALUA Groups: 0]
+  o- sg3 .................................................................................................... [/dev/sg3 deactivated]
+    o- alua ....................................................................................................... [ALUA Groups: 0]
+
+$ targetcli /iscsi create
+Created target iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842.
+Created TPG 1.
+
+$ targetcli /iscsi/iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842/tpg1 \
+  set attribute \
+  authentication=0 demo_mode_discovery=1 \
+  demo_mode_write_protect=0 \
+  generate_node_acls=1 \
+  cache_dynamic_acls=1
+Parameter authentication is now '0'.
+Parameter demo_mode_discovery is now '1'.
+Parameter demo_mode_write_protect is now '0'.
+Parameter generate_node_acls is now '1'.
+Parameter cache_dynamic_acls is now '1'.
+
+$ for i in {1..3}; do
+  targetcli /iscsi/iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842/tpg1/luns \
+    create /backstores/pscsi/sg$i
+done
+Created LUN 0.
+Created LUN 1.
+Created LUN 2.
+
+$ targetcli \
+  /iscsi/iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842/tpg1/portals \
+  create 192.168.124.1
+Using default IP port 3260
+Created network portal 192.168.124.1:3260.
+
+$  targetcli /iscsi/iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842 ls
+o- iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842 ................................................................ [TPGs: 1]
+  o- tpg1 ...................................................................................................... [gen-acls, no-auth]
+    o- acls .............................................................................................................. [ACLs: 0]
+    o- luns .............................................................................................................. [LUNs: 3]
+    | o- lun0 ........................................................................................ [pscsi/sg1 (/dev/sg1) (None)]
+    | o- lun1 ........................................................................................ [pscsi/sg2 (/dev/sg2) (None)]
+    | o- lun2 ........................................................................................ [pscsi/sg3 (/dev/sg3) (None)]
+    o- portals ........................................................................................................ [Portals: 1]
+      o- 192.168.124.1:3260 ................................................................................................... [OK]
+```
+
+A system attaching tape library robot and tapes via iSCSI:
+
+```
+$ iscsiadm -m node -T iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842 -l
+Logging in to [iface: default, target: iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842, portal: 192.168.124.1,3260]
+Login to [iface: default, target: iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842, portal: 192.168.124.1,3260] successful.
+
+$ lsscsi -itg
+[6:0:0:0]    mediumx iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842,t,0x1  /dev/sch0  -  /dev/sg0 
+[6:0:0:1]    tape    iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842,t,0x1  /dev/st0   -  /dev/sg1 
+[6:0:0:2]    tape    iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842,t,0x1  /dev/st1   -  /dev/sg2 
+
+$ tar -cf /tmp/nst1 /etc
+tar: Removing leading `/' from member names
+
+# and on iscsi target with mhvtl we see...
+$ mt -f /dev/st1 status
+SCSI 2 tape drive:
+File number=0, block number=0, partition=0.
+Tape block size 0 bytes. Density code 0x4a (SDLT600, T10000A).
+Soft error count since last status=0
+General status bits on (41010000):
+ BOT ONLINE IM_REP_EN
+
+$ du -sh /var/lib/mhvtl/V01007TA/*
+4.1M    /var/lib/mhvtl/V01007TA/data
+732K    /var/lib/mhvtl/V01007TA/indx
+4.0K    /var/lib/mhvtl/V01007TA/meta
+```
+
+See also:
+
+- https://eoscta.docs.cern.ch/install/mhvtl/#configure-mhvtl
+- https://www.cyberciti.biz/hardware/unix-linux-basic-tape-management-commands/
+- https://access.redhat.com/solutions/68115
+- https://karellen.blogspot.com/2012/01/mhvtl-virtual-tape-library.html
+
 
 ### udev
 
