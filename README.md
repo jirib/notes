@@ -4926,7 +4926,7 @@ On OpenSUSE TW *mhvtl* consists of:
     vtllibrary@10.service
     vtltape@11.service
     vtltape@12.service
-```
+  ```
 
 Each library defined in `/etc/mhvtl/device.conf` has a corresponding
 `/etc/mhvtl/library_contents.<id>`.
@@ -4999,7 +4999,7 @@ Data Transfer Element 1:Empty
       Storage Element 7:Full :VolumeTag=E01007L8                            
       Storage Element 8:Full :VolumeTag=E01008L8                            
       Storage Element 9 IMPORT/EXPORT:Empty
-
+```
 
 ### udev
 
