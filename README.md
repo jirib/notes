@@ -4891,6 +4891,116 @@ PR out: command (Register) successful
   PR generation=0x4, there are NO registered reservation keys
 ```
 
+### tapes
+
+[*mhvtl*](http://sites.google.com/site/linuxvtl2/), A Virtual Tape & Library
+system, could be used as tape library virtualizatio
+
+On OpenSUSE TW *mhvtl* consists of:
+
+- `mhvtl-load-modules.service` systemd unit which loads `mhvtl` kernel module
+  which also acts as a pseudo HBA
+  ``` shell
+  $ lsscsi -C | grep mhvtl
+  [1]    mhvtl
+
+  $ lsscsi -ig 1
+  [1:0:0:0]    mediumx STK      SL150            0164  /dev/sch0  -  /dev/sg1 
+  [1:0:1:0]    tape    HP       Ultrium 6-SCSI   0164  /dev/st0   -  /dev/sg2 
+  [1:0:2:0]    tape    HP       Ultrium 6-SCSI   0164  /dev/st1   -  /dev/sg3 
+  ```
+- systemd units and generator to make the VTL itself work:
+  ``` shell
+  $ rpm -ql mhvtl | grep -P 'systemd/system(-generators/|/(\.target|vtl))'
+  /usr/lib/systemd/system-generators/mhvtl-device-conf-generator
+  /usr/lib/systemd/system/vtllibrary@.service
+  /usr/lib/systemd/system/vtltape@.service
+  ```
+
+  The generator creates individual vtlibrary and vtltape instances parsing
+  `/etc/mhvtl/device.conf`:
+  ``` shell
+  $ systemctl --plain list-dependencies mhvtl.target
+  mhvtl.target
+    mhvtl-load-modules.service
+    vtllibrary@10.service
+    vtltape@11.service
+    vtltape@12.service
+  ```
+
+Each library defined in `/etc/mhvtl/device.conf` has a corresponding
+`/etc/mhvtl/library_contents.<id>`.
+
+An example:
+
+``` shell
+$ grep -Pv '^\s*(#|$)' /etc/mhvtl/device.conf
+VERSION: 5
+Library: 10 CHANNEL: 00 TARGET: 00 LUN: 00
+ Vendor identification: STK
+ Product identification: SL150
+ NAA:  50:01:04:f0:00:dd:90:af
+ Home directory: /var/lib/mhvtl
+ PERSIST: False
+ Backoff: 400
+Drive: 11 CHANNEL: 00 TARGET: 01 LUN: 00
+ Library ID: 10 Slot: 01
+ Vendor identification: HP
+ Product identification: Ultrium 6-SCSI
+ NAA: 10:22:33:44:ab:00:01:00
+ Compression: factor 1 enabled 1
+ Compression type: lzo
+ Backoff: 400
+Drive: 12 CHANNEL: 00 TARGET: 02 LUN: 00
+ Library ID: 10 Slot: 02
+ Vendor identification: HP
+ Product identification: Ultrium 6-SCSI
+ NAA: 10:22:33:44:ab:00:02:00
+ Compression: factor 1 enabled 1
+ Compression type: lzo
+ Backoff: 400
+
+$ grep -Pv '^\s*(#|$)' /etc/mhvtl/library_contents.10
+VERSION: 2
+Drive 1: XYZZY_A1
+Drive 2: XYZZY_A2
+Picker 1:
+MAP 1:
+Slot 1: E01001L8
+Slot 2: E01002L8
+Slot 3: E01003L8
+Slot 4: E01004L8
+Slot 5: E01005L8
+Slot 6: E01006L8
+Slot 7: E01007L8
+Slot 8: E01008L8
+```
+
+Some operations:
+
+``` shell
+$ mtx -f /dev/sch0 inquiry
+Product Type: Medium Changer
+Vendor ID: 'STK     '
+Product ID: 'SL150           '
+Revision: '0164'
+Attached Changer API: No
+
+$ mtx -f /dev/sch0 status
+  Storage Changer /dev/sch0:2 Drives, 9 Slots ( 1 Import/Export )
+Data Transfer Element 0:Empty
+Data Transfer Element 1:Empty
+      Storage Element 1:Full :VolumeTag=E01001L8                            
+      Storage Element 2:Full :VolumeTag=E01002L8                            
+      Storage Element 3:Full :VolumeTag=E01003L8                            
+      Storage Element 4:Full :VolumeTag=E01004L8                            
+      Storage Element 5:Full :VolumeTag=E01005L8                            
+      Storage Element 6:Full :VolumeTag=E01006L8                            
+      Storage Element 7:Full :VolumeTag=E01007L8                            
+      Storage Element 8:Full :VolumeTag=E01008L8                            
+      Storage Element 9 IMPORT/EXPORT:Empty
+
+
 ### udev
 
 As for rules processing order, see
