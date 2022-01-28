@@ -95,7 +95,7 @@ Using principal: testovic@DOMAIN01.EXAMPLE.COM
 [28873] 1639578372.001293: Preauthenticating using KDC method data
 [28873] 1639578372.001294: Processing preauth types: PA-PK-AS-REQ (16), PA-PK-AS-REP_OLD (15), PA-ETYPE-INFO2 (19), PA-ENC-TIMESTAMP (2)
 [28873] 1639578372.001295: Selected etype info: etype aes256-cts, salt "DOMAIN01.EXAMPLE.COMtestovic", params ""
-Password for testovic@DOMAIN01.EXAMPLE.COM: 
+Password for testovic@DOMAIN01.EXAMPLE.COM:
 [28873] 1639578373.588128: AS key obtained for encrypted timestamp: aes256-cts/A5EF
 [28873] 1639578373.588130: Encrypted timestamp (for 1639578372.716579): plain 301AA011180F32303231313231353134323631325AA10502030AEF23, encrypted C2E65EA174C5671956586E62E0D8852C64A3D089923E395EA36431E48BD0A379DF806EF09FA6F2E2543D7E139E22DCD6981258B8AAE4A168
 [28873] 1639578373.588131: Preauth module encrypted_timestamp (2) (real) returned: 0/Success
@@ -142,7 +142,7 @@ Default principal: testovic@DOMAIN01.EXAMPLE.COM
 Valid starting       Expires              Service principal
 12/15/2021 15:26:12  12/16/2021 01:26:12  krbtgt/DOMAIN01.EXAMPLE.COM@DOMAIN01.EXAMPLE.COM
         renew until 12/16/2021 15:26:11, Flags: RIA
-        Etype (skey, tkt): aes256-cts-hmac-sha1-96, aes256-cts-hmac-sha1-96 
+        Etype (skey, tkt): aes256-cts-hmac-sha1-96, aes256-cts-hmac-sha1-96
         Addresses: (none)
 config: pa_type(krbtgt/DOMAIN01.EXAMPLE.COM@DOMAIN01.EXAMPLE.COM) = 2
         Addresses: (none)
@@ -188,7 +188,7 @@ $ cat /etc/krb5.conf
                 admin_server = w2k19-ad-01.domain01.example.com
 
                 # WARNING: auth_to_local must be manually added!
-                # 
+                #
                 auth_to_local = RULE:[1:DOMAIN01\$1]
                 auth_to_local = DEFAULT
         }
@@ -486,14 +486,14 @@ grub2-install -v
 $ cryptsetup luksDump /dev/nvme0n1p2 | grep '^UUID:'
 UUID:           67096f4a-842a-4b4f-b0b1-4338a120807c
 
-$ pvs --noheading -o vg_uuid /dev/mapper/cr_nvme-SAMSUNG_MZALQ512HALU-000L1_S4YCNF0NC31508-part2 
+$ pvs --noheading -o vg_uuid /dev/mapper/cr_nvme-SAMSUNG_MZALQ512HALU-000L1_S4YCNF0NC31508-part2
   1ZCjy2-WL2Q-7fQH-l7OV-cLGE-f5x7-aS2Wvu
 
 $ grub2-probe --device /dev/mapper/cr_nvme-SAMSUNG_MZALQ512HALU-000L1_S4YCNF0NC31508-part2 --target compatibility_hint
 cryptouuid/67096f4a842a4b4fb0b14338a120807c
 $ grub2-probe --device /dev/mapper/system-root --target compatibility_hint
 lvmid/1ZCjy2-WL2Q-7fQH-l7OV-cLGE-f5x7-aS2Wvu/6giGUs-ljLS-fia6-mffa-khdn-BxrL-uIsmq6
-$ grep -m1 -A1 'cryptomount' /boot/grub2/grub.cfg 
+$ grep -m1 -A1 'cryptomount' /boot/grub2/grub.cfg
         cryptomount -u 67096f4a842a4b4fb0b14338a120807c
         set root='lvmid/1ZCjy2-WL2Q-7fQH-l7OV-cLGE-f5x7-aS2Wvu/6giGUs-ljLS-fia6-mffa-khdn-BxrL-uIsmq6'
 ```
@@ -1447,7 +1447,7 @@ $ ip a s dev examplenet
     link/ether 12:f2:2b:20:28:8f brd ff:ff:ff:ff:ff:ff
     inet 192.168.124.1/24 brd 192.168.124.255 scope global noprefixroute examplenet
        valid_lft forever preferred_lft forever
-    inet6 fe80::692:abf4:ce1d:29fa/64 scope link noprefixroute 
+    inet6 fe80::692:abf4:ce1d:29fa/64 scope link noprefixroute
        valid_lft forever preferred_lft forever
 
 ```
@@ -1587,7 +1587,7 @@ $ rpm -ql cifs-utils | egrep 'bin/.+cifsacl'
 ```
 
 ``` shell
-$ grep cifs.idma /proc/keys 
+$ grep cifs.idma /proc/keys
 1b7de0ca I--Q---     1   6m 39010000     0     0 cifs.idma gs:S-1-22-2-0: 4
 21191b10 I--Q---     1   6m 39010000     0     0 cifs.idma os:S-1-22-1-0: 4
 365f605e I------     1 perm 1f030000     0     0 keyring   .cifs_idmap: 2
@@ -1596,7 +1596,7 @@ $ findmnt /mnt
 TARGET SOURCE               FSTYPE OPTIONS
 /mnt   //192.168.124.35/tmp cifs   rw,relatime,vers=3.1.1,cache=strict,username=testovic,domain=EXAMPLENET,uid=0,noforceuid,gid=0,noforcegid,addr=192.168.124.35,file_mode=0755,dir_mode=0755,soft,nounix,serverino,mapposix,cifsacl,rsize=4194304,wsize=4194304,bsize=1048576,echo_interval=60,actimeo=1
 
-$ grep cifs.idma /proc/keys 
+$ grep cifs.idma /proc/keys
 1b7de0ca I--Q---     1   5m 39010000     0     0 cifs.idma gs:S-1-22-2-0: 4
 206e6ff3 I--Q---     1   9m 39010000     0     0 cifs.idma os:S-1-5-21-2185718108-4266305927-1067147705-1105: 4
 211768c0 I--Q---     1   9m 39010000     0     0 cifs.idma gs:S-1-5-21-2185718108-4266305927-1067147705-513: 4
@@ -1613,7 +1613,7 @@ pwd.struct_passwd(pw_name='EXAMPLENET\\testovic', pw_passwd='*', pw_uid=11105, p
 $ python3 -c 'import grp; print(grp.getgrgid(10513))'
 grp.struct_group(gr_name='EXAMPLENET\\domain users', gr_passwd='x', gr_gid=10513, gr_mem=[])
 
-$ stat /mnt/fstab 
+$ stat /mnt/fstab
   File: /mnt/fstab
   Size: 1952            Blocks: 8          IO Block: 1048576 regular file
 Device: 40h/64d Inode: 10985884002298803652  Links: 1
@@ -3482,7 +3482,7 @@ Link Layer Discovery Protocol
 $ firewall-cmd --list-all | grep -P '^\s+(target|icmp)'
   target: default
   icmp-block-inversion: no
-  icmp-blocks: 
+  icmp-blocks:
 
 $ nft list chain inet firewalld filter_IN_public | grep -i icmp
                 meta l4proto { icmp, ipv6-icmp } accept
@@ -3516,15 +3516,15 @@ public (active)
   target: default
   icmp-block-inversion: no
   interfaces: eth0
-  sources: 
+  sources:
   services: dhcpv6-client ssh
-  ports: 
-  protocols: 
+  ports:
+  protocols:
   forward: no
   masquerade: no
-  forward-ports: 
-  source-ports: 
-  icmp-blocks: 
+  forward-ports:
+  source-ports:
+  icmp-blocks:
   rich rules:
 
 $ nft list tables
@@ -4905,9 +4905,9 @@ On OpenSUSE TW *mhvtl* consists of:
   [1]    mhvtl
 
   $ lsscsi -ig 1
-  [1:0:0:0]    mediumx STK      SL150            0164  /dev/sch0  -  /dev/sg1 
-  [1:0:1:0]    tape    HP       Ultrium 6-SCSI   0164  /dev/st0   -  /dev/sg2 
-  [1:0:2:0]    tape    HP       Ultrium 6-SCSI   0164  /dev/st1   -  /dev/sg3 
+  [1:0:0:0]    mediumx STK      SL150            0164  /dev/sch0  -  /dev/sg1
+  [1:0:1:0]    tape    HP       Ultrium 6-SCSI   0164  /dev/st0   -  /dev/sg2
+  [1:0:2:0]    tape    HP       Ultrium 6-SCSI   0164  /dev/st1   -  /dev/sg3
   ```
 - systemd units and generator to make the VTL itself work:
   ``` shell
@@ -4977,7 +4977,7 @@ Drive: 12 CHANNEL: 00 TARGET: 2 LUN: 00
  Compression: factor 1 enabled 1
  Compression type: lzo
 
-$ grep -Pv '^\s*(#|$)' /etc/mhvtl/library_contents.10 
+$ grep -Pv '^\s*(#|$)' /etc/mhvtl/library_contents.10
 VERSION: 2
 Drive 1: VDSTK1
 Drive 2: VDSTK2
@@ -5021,14 +5021,14 @@ Data Transfer Element 0:Empty
 Data Transfer Element 1:Empty
 Data Transfer Element 2:Empty
 Data Transfer Element 3:Empty
-      Storage Element 1:Full :VolumeTag=E01001L8                            
+      Storage Element 1:Full :VolumeTag=E01001L8
 
 $ mtx -f /dev/sch0 load 1 0
 Loading media from Storage Element 1 into drive 0...done
 
 $ mtx -f /dev/sch0 status | head -6
   Storage Changer /dev/sch0:4 Drives, 43 Slots ( 4 Import/Export )
-Data Transfer Element 0:Full (Storage Element 1 Loaded):VolumeTag = E01001L8                            
+Data Transfer Element 0:Full (Storage Element 1 Loaded):VolumeTag = E01001L8
 Data Transfer Element 1:Empty
 Data Transfer Element 2:Empty
 Data Transfer Element 3:Empty
@@ -5048,7 +5048,7 @@ Data Transfer Element 3:Empty
 
 ``` shell
 $ lsscsi -itg | grep tape
-[1:0:1:0]    tape                                    /dev/st0   -  /dev/sg2 
+[1:0:1:0]    tape                                    /dev/st0   -  /dev/sg2
 [1:0:2:0]    tape                                    /dev/st1   -  /dev/sg3
 
 $ ls -l /dev/*st0
@@ -5066,11 +5066,11 @@ General status bits on (1010000):
 # see barcode of tape
 $ mtx -f /dev/sch0 status | head -n3
   Storage Changer /dev/sch0:2 Drives, 11 Slots ( 1 Import/Export )
-Data Transfer Element 0:Full (Storage Element 1 Loaded):VolumeTag = V01001TA                            
+Data Transfer Element 0:Full (Storage Element 1 Loaded):VolumeTag = V01001TA
 Data Transfer Element 1:Empty
 
 $ lsscsi -itg | grep tape
-[1:0:1:0]    tape                                    /dev/st0   -  /dev/sg2 
+[1:0:1:0]    tape                                    /dev/st0   -  /dev/sg2
 [1:0:2:0]    tape                                    /dev/st1   -  /dev/sg3
 
 $ ls -l /dev/*st0
@@ -5087,9 +5087,9 @@ $ du -sh /var/lib/mhvtl/V01001TA/*
 
 ``` shell
 $ lsscsi -itg | egrep '(mediumx|tape)'
-[1:0:0:0]    mediumx                                 /dev/sch0  -  /dev/sg1 
-[1:0:1:0]    tape                                    /dev/st0   -  /dev/sg2 
-[1:0:2:0]    tape                                    /dev/st1   -  /dev/sg3 
+[1:0:0:0]    mediumx                                 /dev/sch0  -  /dev/sg1
+[1:0:1:0]    tape                                    /dev/st0   -  /dev/sg2
+[1:0:2:0]    tape                                    /dev/st1   -  /dev/sg3
 
 $ for i in {1..3}; do
   targetcli /backstores/pscsi create sg$i /dev/sg$i
@@ -5154,9 +5154,9 @@ Logging in to [iface: default, target: iqn.2003-01.org.linux-iscsi.t14s.x8664:sn
 Login to [iface: default, target: iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842, portal: 192.168.124.1,3260] successful.
 
 $ lsscsi -itg
-[6:0:0:0]    mediumx iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842,t,0x1  /dev/sch0  -  /dev/sg0 
-[6:0:0:1]    tape    iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842,t,0x1  /dev/st0   -  /dev/sg1 
-[6:0:0:2]    tape    iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842,t,0x1  /dev/st1   -  /dev/sg2 
+[6:0:0:0]    mediumx iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842,t,0x1  /dev/sch0  -  /dev/sg0
+[6:0:0:1]    tape    iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842,t,0x1  /dev/st0   -  /dev/sg1
+[6:0:0:2]    tape    iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.cc9236ede842,t,0x1  /dev/st1   -  /dev/sg2
 
 $ tar -cf /tmp/nst1 /etc
 tar: Removing leading `/' from member names
@@ -5243,7 +5243,7 @@ $ udevadm info --attribute-walk \
     ATTR{timeleft}=="4"
     ATTR{timeout}=="5"
 
-$ cat /etc/udev/rules.d/99-sbd-watchdog.rules 
+$ cat /etc/udev/rules.d/99-sbd-watchdog.rules
 SUBSYSTEM=="watchdog", ATTRS{identity}=="iTCO_wdt", SYMLINK+="iTCO_wdt"
 
 $ ls -l /dev/{watchdog*,iTCO_wdt}
@@ -5313,7 +5313,7 @@ $ awk '/^alias pci:/ && $NF == "iwlwifi" { print NR,$2,$NF }' \
   /lib/modules/`uname -r`/modules.alias | \
   while read no alias drv; do
     [[ $(cat /sys/bus/pci/devices/0000\:03\:00.0/modalias) == ${alias} ]] \
-      && echo matched: ${no} ${alias} ${drv} 
+      && echo matched: ${no} ${alias} ${drv}
   done
 matched: 8515 pci:v00008086d00002723sv*sd*bc*sc*i* iwlwifi
 ```
@@ -5449,6 +5449,12 @@ journalctl -o verbose -u sshd # details about message
 
 *linuxrc* is *init* instead of *systemd*
 
+An example of `linuxrc` options for using bonding:
+
+``` shell
+insmod=bonding ifcfg="bond0=dhcp,BONDING_MASTER=yes,BONDING_SLAVE1=eth0,BONDING_MODULE_OPTS=mode=1 miimon=100" ifcfg="eth*=BOOTPROTO=none,STARTMODE=hotplug" hwprobe=+200:*:*:bond0
+```
+
 #### networking
 
 classical static networking
@@ -5539,7 +5545,7 @@ a little and stupid wrapper for SCC/swagger [API](
   https://scc.suse.com/api/package_search/v4/documentation)
 
 ``` shell
-$ cat ~/bin/sccpkgsearch 
+$ cat ~/bin/sccpkgsearch
 #!/bin/bash
 #set -x
 set -o pipefail
@@ -6344,7 +6350,7 @@ size=212G features='1 queue_if_no_path' hwhandler='1 alua' wp=rw
 do not print content of a file till pattern (excl/incl):
 
 ``` shell
-$ cat /tmp/input 
+$ cat /tmp/input
 jedna
 dva
 tri
@@ -7088,4 +7094,3 @@ $ dig +short +noall +answer @192.168.122.200 _ldap._tcp.home.arpa. SRV
 ### OpenSSH server
 
 See https://docs.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse
-
