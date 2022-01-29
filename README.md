@@ -4029,11 +4029,44 @@ in MPIO we usually want iSCSI connection go over multiple separate
 interfaces
 
 ``` shell
-iscsiadm -m iface -P 1                                               # list initiator interfaces
-iscsiadm -m iface -I <name> -o new                                   # add new interface named '<name>'
-iscsiadm -m iface -I <name> -o update -n iface.hwaddress -v <hwaddr> # assing logical iface to hardware
+$ iscsiadm -m iface -P 1                                               # list initiator interfaces
+$ iscsiadm -m iface -I <name> -o new                                   # add new interface named '<name>'
+$ iscsiadm -m iface -I <name> -o update -n iface.hwaddress -v <hwaddr> # assing logical iface to hardware
                                                                      # address
-iscsiadm -m iface -I <name>                                          # show logical iface details
+$ iscsiadm -m iface -I <name>                                          # show logical iface details
+
+$ iscsiadm -m iface -P1 2>/dev/null
+Iface: tcp.52:54:00:08:0d:99.ipv4.0
+Iface: tcp.52:54:00:f5:43:51.ipv4.0
+Iface: virtio_net0
+        Target: iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.d3b127e7b7a9
+                Portal: 192.168.124.1:3260,1
+Iface: virtio_net1
+        Target: iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.d3b127e7b7a9
+                Portal: 192.168.123.1:3260,2
+Iface: default
+Iface: iser
+```
+
+And to link *iface* to *node*:
+
+``` shell
+$ ss -tnp dport = 3260
+State   Recv-Q   Send-Q            Local Address:Port         Peer Address:Port
+ESTAB   0        0          192.168.123.200%eth1:45414       192.168.123.1:3260    users:(("iscsid",pid=1680,fd=6))
+ESTAB   0        0          192.168.124.201%eth0:53768       192.168.124.1:3260    users:(("iscsid",pid=1680,fd=7))
+
+$ iscsiadm -m node -P1
+Target: iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.d3b127e7b7a9
+        Portal: 192.168.123.1:3260,2
+                Iface Name: virtio_net1
+        Portal: 192.168.124.1:3260,1
+                Iface Name: virtio_net0
+
+$ multipathd show paths format '%i %d %D %t %o %T %s %z %n %a'
+hcil    dev dev_t dm_st  dev_st  chk_st vend/prod/rev  serial                               target WWNN                                            host adapter
+7:0:0:0 sdb 8:16  active running ready  LIO-ORG,test01 00dd53b1-85f8-4dc5-b90c-01c24fb68b97 iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.d3b127e7b7a9 192.168.123.200
+6:0:0:0 sda 8:0   active running ready  LIO-ORG,test01 00dd53b1-85f8-4dc5-b90c-01c24fb68b97 iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.d3b127e7b7a9 192.168.124.201
 ```
 
 #### target
@@ -4176,7 +4209,7 @@ couple of things influence what an initiator can do/see:
   influences if TPG luns are automatically added into an ACL for an
   initiator
 
-###### demo mode
+##### demo mode
 
 > *Demo Mode*: Means disabling authentification for an iSCSI Endpoint,
 > i.e. its ACLs are diabled. Demo Mode grants read-only access to all
@@ -4311,6 +4344,33 @@ targetcli /backstores/fileio/mpio01 info
 > write_back: True
 > wwn: 501bb55a-79b6-499f-8c20-a3833fae05b0
 ```
+
+###### iscsi multipath with multiple tgps
+
+IIUC one session is able to use only one interface, but I could be
+mistaken. The point here is to use multiple iSCSI initiator ifaces,
+each connecting to a portal in separate TPG.
+
+``` shell
+$ targetcli /iscsi/iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.d3b127e7b7a9 ls
+o- iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.d3b127e7b7a9 .................................................. [TPGs: 2]
+  o- tpg1 ........................................................................................ [gen-acls, no-auth]
+  | o- acls ................................................................................................ [ACLs: 0]
+  | o- luns ................................................................................................ [LUNs: 1]
+  | | o- lun0 ................................................ [fileio/test01 (/suse/vms/test.raw) (default_tg_pt_gp)]
+  | o- portals .......................................................................................... [Portals: 1]
+  |   o- 192.168.124.1:3260 ..................................................................................... [OK]
+  o- tpg2 ........................................................................................ [gen-acls, no-auth]
+    o- acls ................................................................................................ [ACLs: 0]
+    o- luns ................................................................................................ [LUNs: 1]
+    | o- lun0 ................................................ [fileio/test01 (/suse/vms/test.raw) (default_tg_pt_gp)]
+    o- portals .......................................................................................... [Portals: 1]
+      o- 192.168.123.1:3260 ..................................................................................... [OK]
+```
+
+During simulation one could delete a port from a TPG and use `ss -K
+dst <dst_ip> dport = <dst_port>` to kill an existing TCP session
+(surprisinly after deleting the portal, the session still works).
 
 ### mdraid
 
