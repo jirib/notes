@@ -961,6 +961,59 @@ runtime.totem.pg.mrp.srp.members.1084783552.join_count (u32) = 1
 runtime.totem.pg.mrp.srp.members.1084783552.status (str) = left
 ```
 
+*corosync* can be also observed on network layer (although there's probably
+and [issue](https://bugzilla.suse.com/show_bug.cgi?id=1195394)):
+
+``` shell
+$ tshark -r corosync-totemsrp--noencypted--2nodes.pcap \
+  -O corosync_totemnet,corosync_totemsrp \
+  -Y 'corosync_totemsrp.message_header.type==3' | \
+    sed -n '/^Frame/,/^ *$/{/^ *$/q;p}'
+Frame 540: 200 bytes on wire (1600 bits), 200 bytes captured (1600 bits)
+Linux cooked capture v1
+Internet Protocol Version 4, Src: 192.168.0.101, Dst: 239.192.104.1
+User Datagram Protocol, Src Port: 5149, Dst Port: 5405
+Totem Single Ring Protocol implemented in Corosync Cluster Engine
+    Type: join message (3)
+    Encapsulated: not mcast message (0)
+    Endian detector: 0xff22
+    Node ID: 2
+    Membership join message (nprocs: 2 nfailed: 0)
+        Single Ring Protocol Address (node: 2)
+            Node IP address (interface: 0; node: 2)
+                Node ID: 2
+                Address family: AF_INET (2)
+                Address: 192.168.0.101
+                Address padding: 08000200c0a8006508000400
+            Node IP address (interface: 1; node: 0)
+                Node ID: 0
+                Address family: Unknown (0)
+                Address: 00000000000000000000000000000000
+        The number of processor list entries: 2
+            Single Ring Protocol Address (node: 2)
+                Node IP address (interface: 0; node: 2)
+                    Node ID: 2
+                    Address family: AF_INET (2)
+                    Address: 192.168.0.101
+                    Address padding: 08000200c0a8006508000400
+                Node IP address (interface: 1; node: 0)
+                    Node ID: 0
+                    Address family: Unknown (0)
+                    Address: 00000000000000000000000000000000
+            Single Ring Protocol Address (node: 1)
+                Node IP address (interface: 0; node: 1)
+                    Node ID: 1
+                    Address family: AF_INET (2)
+                    Address: 192.168.0.102
+                    Address padding: 08000200c0a8006608000400
+                Node IP address (interface: 1; node: 0)
+                    Node ID: 0
+                    Address family: Unknown (0)
+                    Address: 00000000000000000000000000000000
+        The number of failed list entries: 0
+        Ring sequence number: 56
+```
+
 ##### pacemaker
 
 important cluster settings
