@@ -4191,7 +4191,9 @@ FCP Target
 - *iface/host*, settings to connect to a target
 
 ``` shell
-lsmod | grep scsi_transport_iscsi # should be loaded by distro tools
+$ lsmod | grep scsi_transport_iscsi # should be loaded by distro tools
+$ cat /sys/module/iscsi_tcp/parameters/debug_iscsi_tcp # debugging
+0
 ```
 
 ##### discovery
