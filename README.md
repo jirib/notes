@@ -787,6 +787,180 @@ corosync-quorumtool -e <number> # change number of extected votes
 corosync-cfgtool -R # tell all nodes to reload corosync config
 ```
 
+###### corosync logs
+
+`corosync` logs after start:
+
+``` shell
+Feb 01 11:16:53 s153cl01 systemd[1]: Starting Corosync Cluster Engine...
+Feb 01 11:16:53 s153cl01 corosync[8725]:   [MAIN  ] Corosync Cluster Engine ('2.4.5'): started and ready to provide service.
+Feb 01 11:16:53 s153cl01 corosync[8725]:   [MAIN  ] Corosync built-in features: testagents systemd qdevices qnetd pie relro bindnow
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [TOTEM ] Initializing transport (UDP/IP Unicast).
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [TOTEM ] Initializing transmit/receive security (NSS) crypto: aes256 hash: sha1
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [TOTEM ] The network interface [192.168.123.189] is now up.
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [SERV  ] Service engine loaded: corosync configuration map access [0]
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [QB    ] server name: cmap
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [SERV  ] Service engine loaded: corosync configuration service [1]
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [QB    ] server name: cfg
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [SERV  ] Service engine loaded: corosync cluster closed process group service v1.01 [2]
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [QB    ] server name: cpg
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [SERV  ] Service engine loaded: corosync profile loading service [4]
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [QUORUM] Using quorum provider corosync_votequorum
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [VOTEQ ] Waiting for all cluster members. Current votes: 1 expected_votes: 2
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [SERV  ] Service engine loaded: corosync vote quorum service v1.0 [5]
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [QB    ] server name: votequorum
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [SERV  ] Service engine loaded: corosync cluster quorum service v0.1 [3]
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [QB    ] server name: quorum
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [TOTEM ] adding new UDPU member {192.168.123.189}
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [TOTEM ] adding new UDPU member {192.168.123.192}
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [TOTEM ] A new membership (192.168.123.189:76) was formed. Members joined: 1084783549
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [VOTEQ ] Waiting for all cluster members. Current votes: 1 expected_votes: 2
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [CPG   ] downlist left_list: 0 received
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [VOTEQ ] Waiting for all cluster members. Current votes: 1 expected_votes: 2
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [VOTEQ ] Waiting for all cluster members. Current votes: 1 expected_votes: 2
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [QUORUM] Members[1]: 1084783549
+Feb 01 11:16:53 s153cl01 corosync[8730]:   [MAIN  ] Completed service synchronization, ready to provide service.
+Feb 01 11:16:53 s153cl01 corosync[8715]: Starting Corosync Cluster Engine (corosync): [  OK  ]
+```
+
+`corosync` knows about two members but only *nodeid* *1084783549* joins for now.
+This corresponds to (see there's no quorum in this two node cluster!):
+
+``` shell
+$ corosync-cmapctl | grep member
+runtime.totem.pg.mrp.srp.members.1084783549.config_version (u64) = 0
+runtime.totem.pg.mrp.srp.members.1084783549.ip (str) = r(0) ip(192.168.123.189) 
+runtime.totem.pg.mrp.srp.members.1084783549.join_count (u32) = 1
+runtime.totem.pg.mrp.srp.members.1084783549.status (str) = joined
+
+$ corosync-cpgtool -e
+Group Name             PID         Node ID
+crmd
+                      9126      1084783549 (192.168.123.189)
+attrd
+                      9124      1084783549 (192.168.123.189)
+stonith-ng
+                      9122      1084783549 (192.168.123.189)
+cib
+                      9121      1084783549 (192.168.123.189)
+sbd:cluster
+                      9100      1084783549 (192.168.123.189)
+
+$ corosync-quorumtool -s
+Quorum information
+------------------
+Date:             Tue Feb  1 11:43:29 2022
+Quorum provider:  corosync_votequorum
+Nodes:            1
+Node ID:          1084783549
+Ring ID:          1084783549/112
+Quorate:          No
+
+Votequorum information
+----------------------
+Expected votes:   2
+Highest expected: 2
+Total votes:      1
+Quorum:           1 Activity blocked
+Flags:            2Node WaitForAll 
+
+Membership information
+----------------------
+    Nodeid      Votes Name
+1084783549          1 s153cl01.cl0.example.com (local)
+```
+
+When other corosync node joins the following is logged (see quorum was reached
+in this two node cluster!):
+
+```
+Feb 01 11:24:05 s153cl01 corosync[8730]:   [TOTEM ] A new membership (192.168.123.189:84) was formed. Members joined: 1084783552
+Feb 01 11:24:05 s153cl01 corosync[8730]:   [CPG   ] downlist left_list: 0 received
+Feb 01 11:24:05 s153cl01 corosync[8730]:   [CPG   ] downlist left_list: 0 received
+Feb 01 11:24:05 s153cl01 corosync[8730]:   [QUORUM] This node is within the primary component and will provide service.
+Feb 01 11:24:05 s153cl01 corosync[8730]:   [QUORUM] Members[2]: 1084783549 1084783552
+Feb 01 11:24:05 s153cl01 corosync[8730]:   [MAIN  ] Completed service synchronization, ready to provide service.
+```
+
+And `corosync-cmapctl` would show:
+
+``` shell
+$ corosync-cmapctl | grep member
+runtime.totem.pg.mrp.srp.members.1084783549.config_version (u64) = 0
+runtime.totem.pg.mrp.srp.members.1084783549.ip (str) = r(0) ip(192.168.123.189) 
+runtime.totem.pg.mrp.srp.members.1084783549.join_count (u32) = 1
+runtime.totem.pg.mrp.srp.members.1084783549.status (str) = joined
+runtime.totem.pg.mrp.srp.members.1084783552.config_version (u64) = 0
+runtime.totem.pg.mrp.srp.members.1084783552.ip (str) = r(0) ip(192.168.123.192) 
+runtime.totem.pg.mrp.srp.members.1084783552.join_count (u32) = 1
+runtime.totem.pg.mrp.srp.members.1084783552.status (str) = joined
+
+$ corosync-cpgtool -e
+Group Name             PID         Node ID
+crmd
+                      9126      1084783549 (192.168.123.189)
+                      4320      1084783552 (192.168.123.192)
+attrd
+                      9124      1084783549 (192.168.123.189)
+                      4318      1084783552 (192.168.123.192)
+stonith-ng
+                      9122      1084783549 (192.168.123.189)
+                      4316      1084783552 (192.168.123.192)
+cib
+                      9121      1084783549 (192.168.123.189)
+                      4315      1084783552 (192.168.123.192)
+sbd:cluster
+                      9100      1084783549 (192.168.123.189)
+                      4292      1084783552 (192.168.123.192)
+
+$ corosync-quorumtool -s
+Quorum information
+------------------
+Date:             Tue Feb  1 11:45:15 2022
+Quorum provider:  corosync_votequorum
+Nodes:            2
+Node ID:          1084783549
+Ring ID:          1084783549/116
+Quorate:          Yes
+
+Votequorum information
+----------------------
+Expected votes:   2
+Highest expected: 2
+Total votes:      2
+Quorum:           1  
+Flags:            2Node Quorate WaitForAll 
+
+Membership information
+----------------------
+    Nodeid      Votes Name
+1084783549          1 s153cl01.cl0.example.com (local)
+1084783552          1 s153cl02.cl0.example.com
+```
+
+When a node leaves...
+
+```
+Feb 01 11:35:06 s153cl01 corosync[9101]:   [TOTEM ] A new membership (192.168.123.189:100) was formed. Members left: 1084783552
+Feb 01 11:35:06 s153cl01 corosync[9101]:   [CPG   ] downlist left_list: 1 received
+Feb 01 11:35:06 s153cl01 corosync[9101]:   [QUORUM] Members[1]: 1084783549
+Feb 01 11:35:06 s153cl01 corosync[9101]:   [MAIN  ] Completed service synchronization, ready to provide service.
+```
+
+And `corosync-cmapctl` would show:
+
+``` shell
+$ corosync-cmapctl | grep member
+runtime.totem.pg.mrp.srp.members.1084783549.config_version (u64) = 0
+runtime.totem.pg.mrp.srp.members.1084783549.ip (str) = r(0) ip(192.168.123.189) 
+runtime.totem.pg.mrp.srp.members.1084783549.join_count (u32) = 1
+runtime.totem.pg.mrp.srp.members.1084783549.status (str) = joined
+runtime.totem.pg.mrp.srp.members.1084783552.config_version (u64) = 0
+runtime.totem.pg.mrp.srp.members.1084783552.ip (str) = r(0) ip(192.168.123.192) 
+runtime.totem.pg.mrp.srp.members.1084783552.join_count (u32) = 1
+runtime.totem.pg.mrp.srp.members.1084783552.status (str) = left
+```
+
 ##### pacemaker
 
 important cluster settings
