@@ -829,7 +829,7 @@ This corresponds to (see there's no quorum in this two node cluster!):
 ``` shell
 $ corosync-cmapctl | grep member
 runtime.totem.pg.mrp.srp.members.1084783549.config_version (u64) = 0
-runtime.totem.pg.mrp.srp.members.1084783549.ip (str) = r(0) ip(192.168.123.189) 
+runtime.totem.pg.mrp.srp.members.1084783549.ip (str) = r(0) ip(192.168.123.189)
 runtime.totem.pg.mrp.srp.members.1084783549.join_count (u32) = 1
 runtime.totem.pg.mrp.srp.members.1084783549.status (str) = joined
 
@@ -862,7 +862,7 @@ Expected votes:   2
 Highest expected: 2
 Total votes:      1
 Quorum:           1 Activity blocked
-Flags:            2Node WaitForAll 
+Flags:            2Node WaitForAll
 
 Membership information
 ----------------------
@@ -887,11 +887,11 @@ And `corosync-cmapctl` would show:
 ``` shell
 $ corosync-cmapctl | grep member
 runtime.totem.pg.mrp.srp.members.1084783549.config_version (u64) = 0
-runtime.totem.pg.mrp.srp.members.1084783549.ip (str) = r(0) ip(192.168.123.189) 
+runtime.totem.pg.mrp.srp.members.1084783549.ip (str) = r(0) ip(192.168.123.189)
 runtime.totem.pg.mrp.srp.members.1084783549.join_count (u32) = 1
 runtime.totem.pg.mrp.srp.members.1084783549.status (str) = joined
 runtime.totem.pg.mrp.srp.members.1084783552.config_version (u64) = 0
-runtime.totem.pg.mrp.srp.members.1084783552.ip (str) = r(0) ip(192.168.123.192) 
+runtime.totem.pg.mrp.srp.members.1084783552.ip (str) = r(0) ip(192.168.123.192)
 runtime.totem.pg.mrp.srp.members.1084783552.join_count (u32) = 1
 runtime.totem.pg.mrp.srp.members.1084783552.status (str) = joined
 
@@ -928,8 +928,8 @@ Votequorum information
 Expected votes:   2
 Highest expected: 2
 Total votes:      2
-Quorum:           1  
-Flags:            2Node Quorate WaitForAll 
+Quorum:           1
+Flags:            2Node Quorate WaitForAll
 
 Membership information
 ----------------------
@@ -952,11 +952,11 @@ And `corosync-cmapctl` would show:
 ``` shell
 $ corosync-cmapctl | grep member
 runtime.totem.pg.mrp.srp.members.1084783549.config_version (u64) = 0
-runtime.totem.pg.mrp.srp.members.1084783549.ip (str) = r(0) ip(192.168.123.189) 
+runtime.totem.pg.mrp.srp.members.1084783549.ip (str) = r(0) ip(192.168.123.189)
 runtime.totem.pg.mrp.srp.members.1084783549.join_count (u32) = 1
 runtime.totem.pg.mrp.srp.members.1084783549.status (str) = joined
 runtime.totem.pg.mrp.srp.members.1084783552.config_version (u64) = 0
-runtime.totem.pg.mrp.srp.members.1084783552.ip (str) = r(0) ip(192.168.123.192) 
+runtime.totem.pg.mrp.srp.members.1084783552.ip (str) = r(0) ip(192.168.123.192)
 runtime.totem.pg.mrp.srp.members.1084783552.join_count (u32) = 1
 runtime.totem.pg.mrp.srp.members.1084783552.status (str) = left
 ```
@@ -6824,6 +6824,23 @@ change it per whole VM or per initiator, see [QEMU block drivers reference
 ``` shell
 qemu-nbd --connect=/dev/nbd0 <qemu_image> # connect eg. a qcow2 image
 qemu-nbd -d /dev/nbd0
+```
+
+#### snapshots
+
+``` shell
+$ virsh snapshot-create-as s125admem01 test01 # create internal snapshot
+Domain snapshot test01 created
+
+$ qemu-img snapshot -l s125admem01.qcow2
+Snapshot list:
+ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
+1         test01                0 B 2022-02-08 19:09:44 00:00:00.000          0
+
+$ virsh snapshot-delete s125admem01 test01
+Domain snapshot test01 deleted
+
+$ qemu-img snapshot -l s125admem01.qcow2
 ```
 
 ### libguestfs
