@@ -6109,6 +6109,8 @@ journalctl --since <start_time> --until <end_time> # xxxx-xx-xx yy:yy:yy
 journalctl _SYSTEMD_UNIT=sshd + _UID=1000
 
 journalctl -o verbose -u sshd # details about message
+
+journalctl --rotate --vacuum-time=0.1s # clean journal
 ```
 
 ## distributions
