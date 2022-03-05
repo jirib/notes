@@ -407,6 +407,20 @@ nslcd: [7b23c6] failed to bind to LDAP server ldaps://<ldap_server>: Can't conta
 nslcd: [7b23c6] DEBUG: ldap_unbind()
 ```
 
+### nscd
+
+Do not use `nscd` with *sssd* or *winbind*. See [7.8. USING NSCD WITH SSSD](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/system-level_authentication_guide/usingnscd-sssd).
+
+``` shell
+enable-cache hosts yes
+enable-cache passwd no
+enable-cache group no
+enable-cache netgroup no
+enable-cache services no
+```
+
+Sometimes is also needed to increase `max-db-size` for some databases.
+
 ### sssd
 
 *sssd* validates CN in TLS cert!
@@ -423,6 +437,8 @@ Jun 10 15:50:56 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS
 - `sss_cache -E` invalidate all cached entries, with the exception of sudo rules
 - `sss_cache -u <username>`, invalidate a specific user entries
 - `systemctl stop sssd; rm -rf /var/lib/sss/db/*; systemctl restart sssd`
+
+Note that *sssd* caches, so do not run `nscd` caching `passwd` and `group` DBs.
 
 ## backup
 
@@ -1342,6 +1358,13 @@ stonith_admin -L
 
 *SBD* - storage based death aka STONITH block device
 
+What is purpose of SBD?
+
+- fence agent/device (STONITH)
+- self-fence if SBD device can't be read for some time (Shoot myself in the head, SMITH) ??
+  https://www.suse.com/support/kb/doc/?id=000017950
+- 
+
 *SBD_STARTMODE=clean* in `/etc/sysconfig/sdb` (SUSE) to prevent
 starting cluster if non-clean state exists on SBD
 
@@ -1997,6 +2020,8 @@ Samba operational modes:
 For logging, see [Configuring Logging on a Samba
 Server](https://wiki.samba.org/index.php/Configuring_Logging_on_a_Samba_Server).
 
+Note difference in domain and realm concepts. The correct user name formats are
+`DOMAIN\user` or `user@REALM`.
 ##### ad member
 
 ``` shell
@@ -2147,9 +2172,13 @@ There could be various issues with users in AD member mode.
   - deployments which depends on a fallback from 'DOMAIN\user' to just 'user',
     this fallback was removed as it is dangerous. See
     [CVE-2020-25717.html](https://www.samba.org/samba/security/CVE-2020-25717.html)
+    or see [Samba issues after CVE-2020-25717
+    fixes](https://www.suse.com/support/kb/doc/?id=000020533)
 
-
-
+Note that `*` in `idmap config *` does not mean a general wildcard which could
+be used with whatever idmap backend; this is a *default domain* which can be
+used *only* with `tdb` or `autorid` backends, see [3.4.2. THE * DEFAULT
+DOMAIN](https://access.redhat.com/documentation/zh-cn/red_hat_enterprise_linux/8/html/deploying_different_types_of_servers/con_the-asterisk-default-domain_assembly_understanding-and-configuring-samba-id-mapping).
 
 ##### issues
 
@@ -2199,6 +2228,15 @@ attack into a system.
 > the specified users or groups.
 >
 > -- [IPC$ share and null session behavior in > Windows](https://support.microsoft.com/en-us/kb/3034016)
+
+
+#### TDB files
+
+Samba project maintains [TDB
+Locations](https://wiki.samba.org/index.php/TDB_Locations) page which tries to
+explain meaning of `tdb` files. There's also another
+[page](https://web.archive.org/web/20200220135846/http://pig.made-it.com/samba-tdb.html)
+which describes if such files are temporary or permanent.
 
 #### troubleshooting
 
@@ -2303,6 +2341,358 @@ $ smbclient //<server>/<share> password -W domain -U username \
                                                   string                   : ''
   ```
 
+Or...
+
+``` shell
+$ net ads kerberos pac dump --option='realm = EXAMPLE.NET' \
+  --option='kerberos method = system keytab' \
+  -s /dev/null local_service=host/s125admem01.example.net@EXAMPLE.NET \
+  -U testovic%Linux123! | grep sid
+                                        domain_sid               : *
+                                            domain_sid               : S-1-5-21-186059982-468505587-3623024618
+                                    sidcount                 : 0x00000001 (1)
+                                    sids                     : *
+                                        sids: ARRAY(1)
+                                            sids: struct netr_SidAttr
+                                                sid                      : *
+                                                    sid                      : S-1-18-1
+                                    domain_sid               : NULL
+                        sam_name_and_sid: struct PAC_UPN_DNS_INFO_SAM_NAME_AND_SID
+                            objectsid_size           : 0x001c (28)
+                            objectsid                : *
+                                objectsid                : S-1-5-21-186059982-468505587-3623024618-1104
+```
+
+``` shell
+$ net ads kerberos pac save filename=/tmp/out.pac \
+  --option='realm = EXAMPLE.NET' \
+  --option='kerberos method = system keytab' \
+  -s /dev/null local_service=host/s125admem01.example.net@EXAMPLE.NET \
+  -U testovic%Linux123!
+```
+
+`ndrdump` is part of `samba-test` package.
+
+``` shell
+$ ndrdump  --debug-stdout -d 10 krb5pac PAC_DATA struct /tmp/out.pac
+INFO: Current debug levels:
+  all: 10
+  tdb: 10
+  printdrivers: 10
+  lanman: 10
+  smb: 10
+  rpc_parse: 10
+  rpc_srv: 10
+  rpc_cli: 10
+  passdb: 10
+  sam: 10
+  auth: 10
+  winbind: 10
+  vfs: 10
+  idmap: 10
+  quota: 10
+  acls: 10
+  locking: 10
+  msdfs: 10
+  dmapi: 10
+  registry: 10
+  scavenger: 10
+  dns: 10
+  ldb: 10
+  tevent: 10
+  auth_audit: 10
+  auth_json_audit: 10
+  kerberos: 10
+  drs_repl: 10
+  smb2: 10
+  smb2_credits: 10
+  dsdb_audit: 10
+  dsdb_json_audit: 10
+  dsdb_password_audit: 10
+  dsdb_password_json_audit: 10
+  dsdb_transaction_audit: 10
+  dsdb_transaction_json_audit: 10
+  dsdb_group_audit: 10
+  dsdb_group_json_audit: 10
+lpcfg_load: refreshing parameters from /etc/samba/smb.conf
+Processing section "[global]"
+Processing section "[ipc$]"
+WARNING: No path in service ipc$ - making it unavailable!
+NOTE: Service ipc$ is flagged unavailable.
+Processing section "[pub]"
+Processing section "[homes]"
+pm_process() returned Yes
+pull returned Success
+    PAC_DATA: struct PAC_DATA
+        num_buffers              : 0x00000006 (6)
+        version                  : 0x00000000 (0)
+        buffers: ARRAY(6)
+            buffers: struct PAC_BUFFER
+                type                     : PAC_TYPE_LOGON_INFO (1)
+                _ndr_size                : 0x000001d8 (472)
+                info                     : *
+                    info                     : union PAC_INFO(case 1)
+                    logon_info: struct PAC_LOGON_INFO_CTR
+                        info                     : *
+                            info: struct PAC_LOGON_INFO
+                                info3: struct netr_SamInfo3
+                                    base: struct netr_SamBaseInfo
+                                        logon_time               : Fri Mar  4 10:53:15 AM 2022 CET
+                                        logoff_time              : Thu Sep 14 04:48:05 AM 30828 CEST
+                                        kickoff_time             : Thu Sep 14 04:48:05 AM 30828 CEST
+                                        last_password_change     : Thu Mar  3 01:52:24 PM 2022 CET
+                                        allow_password_change    : Fri Mar  4 01:52:24 PM 2022 CET
+                                        force_password_change    : Thu Sep 14 04:48:05 AM 30828 CEST
+                                        account_name: struct lsa_String
+                                            length                   : 0x0010 (16)
+                                            size                     : 0x0010 (16)
+                                            string                   : *
+                                                string                   : 'testovic'
+                                        full_name: struct lsa_String
+                                            length                   : 0x0010 (16)
+                                            size                     : 0x0010 (16)
+                                            string                   : *
+                                                string                   : 'testovic'
+                                        logon_script: struct lsa_String
+                                            length                   : 0x0000 (0)
+                                            size                     : 0x0000 (0)
+                                            string                   : *
+                                                string                   : ''
+                                        profile_path: struct lsa_String
+                                            length                   : 0x0000 (0)
+                                            size                     : 0x0000 (0)
+                                            string                   : *
+                                                string                   : ''
+                                        home_directory: struct lsa_String
+                                            length                   : 0x0000 (0)
+                                            size                     : 0x0000 (0)
+                                            string                   : *
+                                                string                   : ''
+                                        home_drive: struct lsa_String
+                                            length                   : 0x0000 (0)
+                                            size                     : 0x0000 (0)
+                                            string                   : *
+                                                string                   : ''
+                                        logon_count              : 0x0026 (38)
+                                        bad_password_count       : 0x0000 (0)
+                                        rid                      : 0x00000450 (1104)
+                                        primary_gid              : 0x00000201 (513)
+                                        groups: struct samr_RidWithAttributeArray
+                                            count                    : 0x00000002 (2)
+                                            rids                     : *
+                                                rids: ARRAY(2)
+                                                    rids: struct samr_RidWithAttribute
+                                                        rid                      : 0x00000201 (513)
+                                                        attributes               : 0x00000007 (7)
+                                                               1: SE_GROUP_MANDATORY       
+                                                               1: SE_GROUP_ENABLED_BY_DEFAULT
+                                                               1: SE_GROUP_ENABLED         
+                                                               0: SE_GROUP_OWNER           
+                                                               0: SE_GROUP_USE_FOR_DENY_ONLY
+                                                               0: SE_GROUP_INTEGRITY       
+                                                               0: SE_GROUP_INTEGRITY_ENABLED
+                                                               0: SE_GROUP_RESOURCE        
+                                                            0x00: SE_GROUP_LOGON_ID         (0)
+                                                    rids: struct samr_RidWithAttribute
+                                                        rid                      : 0x00000461 (1121)
+                                                        attributes               : 0x00000007 (7)
+                                                               1: SE_GROUP_MANDATORY       
+                                                               1: SE_GROUP_ENABLED_BY_DEFAULT
+                                                               1: SE_GROUP_ENABLED         
+                                                               0: SE_GROUP_OWNER           
+                                                               0: SE_GROUP_USE_FOR_DENY_ONLY
+                                                               0: SE_GROUP_INTEGRITY       
+                                                               0: SE_GROUP_INTEGRITY_ENABLED
+                                                               0: SE_GROUP_RESOURCE        
+                                                            0x00: SE_GROUP_LOGON_ID         (0)
+                                        user_flags               : 0x00000020 (32)
+                                               0: NETLOGON_GUEST           
+                                               0: NETLOGON_NOENCRYPTION    
+                                               0: NETLOGON_CACHED_ACCOUNT  
+                                               0: NETLOGON_USED_LM_PASSWORD
+                                               1: NETLOGON_EXTRA_SIDS      
+                                               0: NETLOGON_SUBAUTH_SESSION_KEY
+                                               0: NETLOGON_SERVER_TRUST_ACCOUNT
+                                               0: NETLOGON_NTLMV2_ENABLED  
+                                               0: NETLOGON_RESOURCE_GROUPS 
+                                               0: NETLOGON_PROFILE_PATH_RETURNED
+                                               0: NETLOGON_GRACE_LOGON     
+                                        key: struct netr_UserSessionKey
+                                            key: ARRAY(16): <REDACTED SECRET VALUES>
+                                        logon_server: struct lsa_StringLarge
+                                            length                   : 0x000a (10)
+                                            size                     : 0x000c (12)
+                                            string                   : *
+                                                string                   : 'W2K19'
+                                        logon_domain: struct lsa_StringLarge
+                                            length                   : 0x0014 (20)
+                                            size                     : 0x0016 (22)
+                                            string                   : *
+                                                string                   : 'EXAMPLENET'
+                                        domain_sid               : *
+                                            domain_sid               : S-1-5-21-186059982-468505587-3623024618
+                                        LMSessKey: struct netr_LMSessionKey
+                                            key: ARRAY(8): <REDACTED SECRET VALUES>
+                                        acct_flags               : 0x00000210 (528)
+                                               0: ACB_DISABLED             
+                                               0: ACB_HOMDIRREQ            
+                                               0: ACB_PWNOTREQ             
+                                               0: ACB_TEMPDUP              
+                                               1: ACB_NORMAL               
+                                               0: ACB_MNS                  
+                                               0: ACB_DOMTRUST             
+                                               0: ACB_WSTRUST              
+                                               0: ACB_SVRTRUST             
+                                               1: ACB_PWNOEXP              
+                                               0: ACB_AUTOLOCK             
+                                               0: ACB_ENC_TXT_PWD_ALLOWED  
+                                               0: ACB_SMARTCARD_REQUIRED   
+                                               0: ACB_TRUSTED_FOR_DELEGATION
+                                               0: ACB_NOT_DELEGATED        
+                                               0: ACB_USE_DES_KEY_ONLY     
+                                               0: ACB_DONT_REQUIRE_PREAUTH 
+                                               0: ACB_PW_EXPIRED           
+                                               0: ACB_TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION
+                                               0: ACB_NO_AUTH_DATA_REQD    
+                                               0: ACB_PARTIAL_SECRETS_ACCOUNT
+                                               0: ACB_USE_AES_KEYS         
+                                        sub_auth_status          : 0x00000000 (0)
+                                        last_successful_logon    : NTTIME(0)
+                                        last_failed_logon        : NTTIME(0)
+                                        failed_logon_count       : 0x00000000 (0)
+                                        reserved                 : 0x00000000 (0)
+                                    sidcount                 : 0x00000001 (1)
+                                    sids                     : *
+                                        sids: ARRAY(1)
+                                            sids: struct netr_SidAttr
+                                                sid                      : *
+                                                    sid                      : S-1-18-1
+                                                attributes               : 0x00000007 (7)
+                                                       1: SE_GROUP_MANDATORY       
+                                                       1: SE_GROUP_ENABLED_BY_DEFAULT
+                                                       1: SE_GROUP_ENABLED         
+                                                       0: SE_GROUP_OWNER           
+                                                       0: SE_GROUP_USE_FOR_DENY_ONLY
+                                                       0: SE_GROUP_INTEGRITY       
+                                                       0: SE_GROUP_INTEGRITY_ENABLED
+                                                       0: SE_GROUP_RESOURCE        
+                                                    0x00: SE_GROUP_LOGON_ID         (0)
+                                resource_groups: struct PAC_DOMAIN_GROUP_MEMBERSHIP
+                                    domain_sid               : NULL
+                                    groups: struct samr_RidWithAttributeArray
+                                        count                    : 0x00000000 (0)
+                                        rids                     : NULL
+                _pad                     : 0x00000000 (0)
+            buffers: struct PAC_BUFFER
+                type                     : PAC_TYPE_LOGON_NAME (10)
+                _ndr_size                : 0x0000001a (26)
+                info                     : *
+                    info                     : union PAC_INFO(case 10)
+                    logon_name: struct PAC_LOGON_NAME
+                        logon_time               : Fri Mar  4 10:53:14 AM 2022 CET
+                        size                     : 0x0010 (16)
+                        account_name             : 'testovic'
+                _pad                     : 0x00000000 (0)
+            buffers: struct PAC_BUFFER
+                type                     : PAC_TYPE_UPN_DNS_INFO (12)
+                _ndr_size                : 0x00000088 (136)
+                info                     : *
+                    info                     : union PAC_INFO(case 12)
+                    upn_dns_info: struct PAC_UPN_DNS_INFO
+                        upn_name_size            : 0x0028 (40)
+                        upn_name                 : *
+                            upn_name                 : 'testovic@example.net'
+                        dns_domain_name_size     : 0x0016 (22)
+                        dns_domain_name          : *
+                            dns_domain_name          : 'EXAMPLE.NET'
+                        flags                    : 0x00000002 (2)
+                               0: PAC_UPN_DNS_FLAG_CONSTRUCTED
+                               1: PAC_UPN_DNS_FLAG_HAS_SAM_NAME_AND_SID
+                        ex                       : union PAC_UPN_DNS_INFO_EX(case 2)
+                        sam_name_and_sid: struct PAC_UPN_DNS_INFO_SAM_NAME_AND_SID
+                            samaccountname_size      : 0x0010 (16)
+                            samaccountname           : *
+                                samaccountname           : 'testovic'
+                            objectsid_size           : 0x001c (28)
+                            objectsid                : *
+                                objectsid                : S-1-5-21-186059982-468505587-3623024618-1104
+                _pad                     : 0x00000000 (0)
+            buffers: struct PAC_BUFFER
+                type                     : PAC_TYPE_SRV_CHECKSUM (6)
+                _ndr_size                : 0x00000010 (16)
+                info                     : *
+                    info                     : union PAC_INFO(case 6)
+                    srv_cksum: struct PAC_SIGNATURE_DATA
+                        type                     : 0x00000010 (16)
+                        signature                : DATA_BLOB length=12
+[0000] FC CE 05 91 FE 01 5D AC   89 84 C7 B1               ......]. ....
+                _pad                     : 0x00000000 (0)
+            buffers: struct PAC_BUFFER
+                type                     : PAC_TYPE_KDC_CHECKSUM (7)
+                _ndr_size                : 0x00000010 (16)
+                info                     : *
+                    info                     : union PAC_INFO(case 7)
+                    kdc_cksum: struct PAC_SIGNATURE_DATA
+                        type                     : 0x00000010 (16)
+                        signature                : DATA_BLOB length=12
+[0000] 13 C5 60 EE E7 2B 7B 89   8E AC 2D 7E               ..`..+{. ..-~
+                _pad                     : 0x00000000 (0)
+            buffers: struct PAC_BUFFER
+                type                     : PAC_TYPE_TICKET_CHECKSUM (16)
+                _ndr_size                : 0x00000010 (16)
+                info                     : *
+                    info                     : union PAC_INFO(case 16)
+                    ticket_checksum: struct PAC_SIGNATURE_DATA
+                        type                     : 0x00000010 (16)
+                        signature                : DATA_BLOB length=12
+[0000] 2C 63 A0 2C 44 FC 9A E8   4E 6B 3A 69               ,c.,D... Nk:i
+                _pad                     : 0x00000000 (0)
+dump OK
+```
+
+XXX: This seems to show additonal AD groups
+
+The SID is the Windows security identifier, every AD user and group has one. It
+has two parts, the domain SID and the RID. For example:
+
+```
+S-1-5-21-1231230493-411072730-1844936127-513
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ - is the domain part                    
+                                         ^^^ - 513 is the RID
+```
+
+``` shell
+$ ndrdump  --debug-stdout -d 10 krb5pac PAC_DATA struct /tmp/out.pac | \
+  grep -m 1 -A 27 -P '^\s+groups: struct samr_RidWithAttributeArray$'
+                                        groups: struct samr_RidWithAttributeArray
+                                            count                    : 0x00000002 (2)
+                                            rids                     : *
+                                                rids: ARRAY(2)
+                                                    rids: struct samr_RidWithAttribute
+                                                        rid                      : 0x00000201 (513)
+                                                        attributes               : 0x00000007 (7)
+                                                               1: SE_GROUP_MANDATORY       
+                                                               1: SE_GROUP_ENABLED_BY_DEFAULT
+                                                               1: SE_GROUP_ENABLED         
+                                                               0: SE_GROUP_OWNER           
+                                                               0: SE_GROUP_USE_FOR_DENY_ONLY
+                                                               0: SE_GROUP_INTEGRITY       
+                                                               0: SE_GROUP_INTEGRITY_ENABLED
+                                                               0: SE_GROUP_RESOURCE        
+                                                            0x00: SE_GROUP_LOGON_ID         (0)
+                                                    rids: struct samr_RidWithAttribute
+                                                        rid                      : 0x00000461 (1121)
+                                                        attributes               : 0x00000007 (7)
+                                                               1: SE_GROUP_MANDATORY       
+                                                               1: SE_GROUP_ENABLED_BY_DEFAULT
+                                                               1: SE_GROUP_ENABLED         
+                                                               0: SE_GROUP_OWNER           
+                                                               0: SE_GROUP_USE_FOR_DENY_ONLY
+                                                               0: SE_GROUP_INTEGRITY       
+                                                               0: SE_GROUP_INTEGRITY_ENABLED
+                                                               0: SE_GROUP_RESOURCE        
+                                                            0x00: SE_GROUP_LOGON_ID         (0)
+```
 
 ### nfs
 
@@ -6654,6 +7044,18 @@ tri
 ctyri
 pet
 ```
+
+### tricks
+
+Prepending each line with a timestamp can be done nicely with moreutils's `ts`.
+
+``` shell
+$ echo -e "foo\nbar\nbaz" | ts '[%Y-%m-%d %H:%M:%S]'
+[2011-12-13 22:07:03] foo
+[2011-12-13 22:07:03] bar
+[2011-12-13 22:07:03] baz
+```
+
 
 ### tmux
 
