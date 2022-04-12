@@ -977,6 +977,30 @@ runtime.totem.pg.mrp.srp.members.1084783552.join_count (u32) = 1
 runtime.totem.pg.mrp.srp.members.1084783552.status (str) = left
 ```
 
+And when a node or nodes disappear...
+
+``` shell
+2022-04-04T19:51:10.069944+01:00 T3PRPDB011 corosync[28003]:   [TOTEM ] A processor failed, forming new configuration.
+2022-04-04T19:51:16.081236+01:00 T3PRPDB011 corosync[28003]:   [TOTEM ] A new membership (10.121.239.29:2016) was formed. Members left: 1 2
+2022-04-04T19:51:16.081489+01:00 T3PRPDB011 corosync[28003]:   [TOTEM ] Failed to receive the leave message. failed: 1 2
+2022-04-04T19:51:16.081685+01:00 T3PRPDB011 corosync[28003]:   [QUORUM] This node is within the non-primary component and will NOT provide any services.
+2022-04-04T19:51:16.081846+01:00 T3PRPDB011 corosync[28003]:   [QUORUM] Members[1]: 3
+2022-04-04T19:51:35.842885+01:00 T3PRPDB011 corosync[28003]:   [TOTEM ] A new membership (10.121.239.29:2020) was formed. Members
+2022-04-04T19:51:35.843290+01:00 T3PRPDB011 corosync[28003]:   [QUORUM] Members[1]: 3
+2022-04-04T19:51:42.061348+01:00 T3PRPDB011 corosync[28003]:   [TOTEM ] A new membership (10.121.239.29:2024) was formed. Members
+2022-04-04T19:51:42.061638+01:00 T3PRPDB011 corosync[28003]:   [QUORUM] Members[1]: 3
+2022-04-04T19:51:52.384522+01:00 T3PRPDB011 corosync[28003]:   [TOTEM ] A new membership (10.121.239.29:2028) was formed. Members
+2022-04-04T19:51:52.385047+01:00 T3PRPDB011 corosync[28003]:   [QUORUM] Members[1]: 3
+2022-04-04T19:51:59.892504+01:00 T3PRPDB011 corosync[28003]:   [TOTEM ] A new membership (10.121.239.29:2032) was formed. Members
+2022-04-04T19:51:59.892889+01:00 T3PRPDB011 corosync[28003]:   [QUORUM] Members[1]: 3
+2022-04-04T19:52:06.783170+01:00 T3PRPDB011 corosync[28003]:   [TOTEM ] A new membership (10.121.239.29:2036) was formed. Members
+2022-04-04T19:52:06.783665+01:00 T3PRPDB011 corosync[28003]:   [QUORUM] Members[1]: 3
+2022-04-04T19:52:18.403755+01:00 T3PRPDB011 corosync[28003]:   [TOTEM ] A new membership (10.121.239.29:2040) was formed. Members
+2022-04-04T19:52:18.404132+01:00 T3PRPDB011 corosync[28003]:   [QUORUM] Members[1]: 3
+2022-04-04T19:52:24.515971+01:00 T3PRPDB011 corosync[28003]:   [TOTEM ] A new membership (10.121.239.29:2044) was formed. Members
+2022-04-04T19:52:24.516287+01:00 T3PRPDB011 corosync[28003]:   [QUORUM] Members[1]: 3
+```
+
 *corosync* can be also observed on network layer (although there's probably
 and [issue](https://bugzilla.suse.com/show_bug.cgi?id=1195394)):
 
