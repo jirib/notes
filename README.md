@@ -6873,6 +6873,27 @@ Debug sudo /var/log/sudo_debug.log all@debug
 Debug sudoers.so /var/log/sudo_debug.log all@debug
 ```
 
+and here we can see syntax error (double backslash) found:
+
+```
+Oct  5 10:43:06 sudo[77046] sudo_get_grlist: user foobar@int.example.com is a member of group domain users@int.example.com
+Oct  5 10:43:06 sudo[77046] sudo_get_grlist: user foobar@int.example.com is a member of group nict-linuxserversadmins@int.example.com
+Oct  5 10:43:06 sudo[77046] sudo_get_grlist: user foobar@int.example.com is a member of group nict-rdptemporaryusers@int.example.com
+...
+Oct  5 10:43:06 sudo[77046] sudo_getgrgid: gid 292601238 [] -> group nict-linuxserversadmins@int.example.com [] (cached)
+Oct  5 10:43:06 sudo[77046] sudo_get_grlist: user foobar@int.example.com is a member of group nict-linuxserversadmins@int.example.com
+Oct  5 10:43:06 sudo[77046] user_in_group: user foobar@int.example.com NOT in group EXAMPLE\\nict-linuxserversadmins
+Oct  5 10:43:06 sudo[77046] user foobar@int.example.com matches group EXAMPLE\\nict-linuxserversadmins: false @ usergr_matches() ./match.c:1071
+Oct  5 10:44:11 sudo[77056] sudo_getgrgid: gid 292601238 [] -> group nict-linuxserversadmins@int.example.com [] (cached)
+Oct  5 10:44:11 sudo[77056] sudo_get_grlist: user foobar@int.example.com is a member of group nict-linuxserversadmins@int.example.com
+Oct  5 10:44:11 sudo[77056] user_in_group: user foobar@int.example.com NOT in group EXAMPLE\\nict-linuxserversadmins
+Oct  5 10:44:11 sudo[77056] user foobar@int.example.com matches group EXAMPLE\\nict-linuxserversadmins: false @ usergr_matches() ./match.c:1071
+Oct  5 10:44:20 sudo[77056] user_in_group: user foobar@int.example.com NOT in group EXAMPLE\\nict-linuxserversadmins
+Oct  5 10:44:20 sudo[77056] user foobar@int.example.com matches group EXAMPLE\\nict-linuxserversadmins: false @ usergr_matches() ./match.c:1071
+Oct  5 10:46:32 sudo[77150] user_in_group: user foobar NOT in group EXAMPLE\\nict-linuxserversadmins
+Oct  5 10:46:32 sudo[77150] user foobar matches group EXAMPLE\\nict-linuxserversadmins: false @ usergr_matches() ./match.c:1071
+```
+
 ### tls / ssl
 
 #### openssl
