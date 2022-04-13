@@ -5141,6 +5141,9 @@ explanation for above lines:
 
 https://www.learnitguide.net/2016/06/understand-multipath-command-output.html
 
+*NOTE* that if using a keyword in `blacklist` section then the same keyword has
+to be used in `blacklist_exceptions` section to whitelist devices.
+
 `multipathd` also allows an interactive shell, some examples
 
 ``` shell
