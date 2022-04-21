@@ -724,17 +724,22 @@ And copy `pxelinux.0` to your TFTP directory.
 
 #### architecture
 
-- *corosync* - messaging and membership layer (can replicate data across cluster?)
-- *pacemaker* - cluster resource manager, CRM, part of resource allocation layer, `crmd` is main process
-- *CIB* - cluster information base, configuration, current status,
+- *corosync* - messaging and membership layer (can replicate data across
+  cluster?)
+- *CRM* - `crmd`/`pacemaker-controld`, cluster resource manager, CRM, part of
+  resource allocation layer, `crmd` is main process
+- *CIB* - `cib`/`pacemaker-based`, cluster information base, configuration,
+  current status,
   pacemaker, part of resource allocation layer; shared copy of state, versioned
-- *DC* - designated coordinator, member managing the master copy of
-  the *CIB*, so-called master node, communicate changes of the CIB
-  copy to other nodes via CRM
-- *PE* - policy engine, running on DC, the brain of the cluster,
+- *DC* - designated coordinator, in-memory state, member managing the master
+  copy of the *CIB*, so-called master node, communicate changes of the CIB copy
+  to other nodes via CRM
+- *PE* - `pegnine`/`pacemaker-schedulerd`, policy engine, running on DC, the
+  brain of the cluster,
   monitors CIB and calculates changes required to align with desired
   state, informs CRM
-- *LRM* - local resource manager, instructed from CRM what to do
+- *LRM* - `lrm`/`pacemaker-exec`, local resource manager, instructed from CRM
+  what to do
 - *RA* - resource agent, logic to start/stop/monitor a resource,
   called from LRM and return values are passed to the CRM, ideally
   OCF, LSB, systemd service units or STONITH
@@ -1066,6 +1071,29 @@ corosync-cpgtool          # see if pacemaker is known to corosync,
                           # see `ls -l /usr/lib/pacemaker/'
 ```
 
+There was a rename of pacemaker components but there are still old names
+visible:
+
+``` shell
+ls -l /usr/lib/pacemaker/
+total 832
+lrwxrwxrwx 1 root root     15 Oct 14  2021 attrd -> pacemaker-attrd
+lrwxrwxrwx 1 root root     15 Oct 14  2021 cib -> pacemaker-based
+-rwxr-xr-x 1 root root  14936 Oct 14  2021 cibmon
+lrwxrwxrwx 1 root root     18 Oct 14  2021 crmd -> pacemaker-controld
+-rwxr-xr-x 1 root root  24296 Oct 14  2021 cts-exec-helper
+-rwxr-xr-x 1 root root  31552 Oct 14  2021 cts-fence-helper
+lrwxrwxrwx 1 root root     15 Oct 14  2021 lrmd -> pacemaker-execd
+-rwxr-xr-x 1 root root  56560 Oct 14  2021 pacemaker-attrd
+-rwxr-xr-x 1 root root 107600 Oct 14  2021 pacemaker-based
+-rwxr-xr-x 1 root root 370360 Oct 14  2021 pacemaker-controld
+-rwxr-xr-x 1 root root  48464 Oct 14  2021 pacemaker-execd
+-rwxr-xr-x 1 root root 143224 Oct 14  2021 pacemaker-fenced
+-rwxr-xr-x 1 root root  19464 Oct 14  2021 pacemaker-schedulerd
+lrwxrwxrwx 1 root root     20 Oct 14  2021 pengine -> pacemaker-schedulerd
+lrwxrwxrwx 1 root root     16 Oct 14  2021 stonithd -> pacemaker-fenced
+```
+
 ###### pacemaker cli
 
 ``` shell
@@ -1075,7 +1103,9 @@ member node: s153cl01 (1084783549)
 
 $ crmadmin -D # show designated coordinator (DC)
 Designated Controller is: s153cl01
+```
 
+``` shell
 $ crm_mon -1 # show cluster status
 Cluster Summary:
   * Stack: corosync
@@ -1095,7 +1125,15 @@ Active Resources:
   * Resource Group: g-Group1 (unmanaged):
     * p-vIP     (ocf::heartbeat:IPaddr2):        Started s153cl01 (unmanaged)
     * p-Dummy   (ocf::heartbeat:Dummy):  Started s153cl01 (unmanaged)
+```
 
+`crm_mon` Node List values:
+- *offline* does not necessary mean the node is down, it **inherits** this value
+  from *corosync*, which means the ring/communication is broken
+- *UNCLEAN* means one node does not know what is going on on other node (???)
+
+
+``` shell
 $ cibadmin -Q -o nodes # list nodes in pacemaker
 <nodes>
   <node id="1084783552" uname="s153cl02"/>
@@ -1279,22 +1317,16 @@ simulating a cluster network failure via iptables:
 https://www.suse.com/support/kb/doc/?id=000018699
 
 ``` shell
-# pacemaker 1.x
-time=2021-09-05T20:
-pattern='(SAPHana|sap|'
-grep -P \
-  "^${time}.* \w+ ${pattern:=(}corosync|attrd|crmd|cib|lrmd|pengine|stonith|controld|systemd)" \
-  messages
+# pacemaker 2.x
+
+# filter cluter related events and search for 'pe-input' string which shows
+# what pengine/scheduler decided how transition configuration should look like
+$ grep -P \
+  '(SAPHana|sap|corosync|pacemaker-(attrd|based|controld|execd|schedulerd|fenced)|stonith|systemd)\[\d+\]' \
+  /var/log/pacemaker/pacemaker.log | less
 ```
 
-``` shell
-# pacemaker 2.x
-time=2021-09-05T20:
-pattern='(SAPHana|sap|'
-grep -P \
-  "^${time}.* \w+ ${pattern:=(}corosync|pacemaker-(attrd|based|controld|execd|schedulerd|fenced)|stonith|systemd)" \
-  messages # grep log file for cluster messages
-```
+
 
 ##### backup and restore
 
@@ -1486,6 +1518,115 @@ ms ms-drbd_<resource> \
 
 …but that is, of course, just the basic of whole cluster setup.
 
+### troubleshooting
+
+#### unexpected reboot I.
+
+*oldhana2* was rebooted, cca around 13:20.
+
+``` shell
+$ grep 'Linux version' oldhanad2/messages
+2022-04-21T13:23:03.881400+02:00 oldhanad2 kernel: [    0.000000] Linux version 5.3.18-150300.59.60-default (geeko@buildhost) (gcc version 7.5.0 (SUSE Linux)) #1 SMP Fri Mar 18 18:37:08 UTC 2022 (79e1683)
+```
+Let's see if it was fenced...
+
+``` shell
+$ sed -n '1,/^2022-04-21T13:23:03/p' ha-log.txt | \
+  grep -P \
+  '(SAPHana|sap|corosync|pacemaker-(attrd|based|controld|execd|schedulerd|fenced)|stonith|systemd)\[\d+\]' \
+  | grep -ni reboot
+354307:2022-04-21T13:21:38.866101+02:00 oldhanad1 pacemaker-schedulerd[26189]:  notice:  * Fence (reboot) oldhanad2 'peer is no longer part of the cluster'
+354312:2022-04-21T13:21:38.867641+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Requesting fencing (reboot) of node oldhanad2 
+354315:2022-04-21T13:21:38.868521+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Client pacemaker-controld.26190.b64beaf2 wants to fence (reboot) 'oldhanad2' with device '(any)'
+354316:2022-04-21T13:21:38.868607+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Requesting peer fencing (reboot) targeting oldhanad2 
+354321:2022-04-21T13:21:38.989800+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Requesting that oldhanad1 perform 'reboot' action targeting oldhanad2 
+354322:2022-04-21T13:21:38.990116+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: killer is eligible to fence (reboot) oldhanad2: dynamic-list
+354421:2022-04-21T13:21:51.257505+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Operation 'reboot' [1951] (call 2 from pacemaker-controld.26190) for host 'oldhanad2' with device 'killer' returned: 0 (OK)
+354422:2022-04-21T13:21:51.257803+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Operation 'reboot' targeting oldhanad2 on oldhanad1 for pacemaker-controld.26190@oldhanad1.a127b270: OK
+354424:2022-04-21T13:21:51.259400+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Peer oldhanad2 was terminated (reboot) by oldhanad1 on behalf of pacemaker-controld.26190: OK
+```
+Let's see what was corosync ring before the fence/reboot happened...
+
+``` shell
+$ sed -n '1,/^2022-04-21T13:23:03/p' ha-log.txt | \
+  grep -P 'corosync.*(TOTEM|QUORUM|CPG)' | \
+  grep -Pv '(ignoring|Invalid packet data|Digest does not match)'
+2022-04-21T13:21:31.828859+02:00 oldhanad1 corosync[26152]:   [TOTEM ] A processor failed, forming new configuration.
+2022-04-21T13:21:37.830133+02:00 oldhanad1 corosync[26152]:   [TOTEM ] A new membership (10.162.193.133:116) was formed. Members left: 178438534
+2022-04-21T13:21:37.830212+02:00 oldhanad1 corosync[26152]:   [TOTEM ] Failed to receive the leave message. failed: 178438534
+2022-04-21T13:21:37.830267+02:00 oldhanad1 corosync[26152]:   [CPG   ] downlist left_list: 1 received
+2022-04-21T13:21:37.831069+02:00 oldhanad1 corosync[26152]:   [QUORUM] Members[1]: 178438533
+2022-04-21T13:21:38.743694+02:00 oldhanad1 corosync[26152]:   [TOTEM ] Automatically recovered ring 0
+```
+
+The above shows ungraceful disappearance of the node from corosync ring. In this
+case `kill -9` was used but the same could be if whole network communication
+would stop working between nodes.
+
+``` shell
+$ sed -n '1,/^2022-04-21T13:23:03/p' ha-log.txt | \
+  grep -P '(pacemaker-(attrd|based|controld|execd|schedulerd|fenced)|stonith)\[\d+\]'
+2022-04-21T13:21:37.831919+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Our peer on the DC (oldhanad2) is dead
+2022-04-21T13:21:37.832181+02:00 oldhanad1 pacemaker-based[26185]:  notice: Node oldhanad2 state is now lost 
+2022-04-21T13:21:37.832419+02:00 oldhanad1 pacemaker-attrd[26188]:  notice: Lost attribute writer oldhanad2
+2022-04-21T13:21:37.832478+02:00 oldhanad1 pacemaker-controld[26190]:  notice: State transition S_NOT_DC -> S_ELECTION 
+2022-04-21T13:21:37.832525+02:00 oldhanad1 pacemaker-based[26185]:  notice: Purged 1 peer with id=178438534 and/or uname=oldhanad2 from the membership cache
+2022-04-21T13:21:37.832567+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Node oldhanad2 state is now lost 
+2022-04-21T13:21:37.832621+02:00 oldhanad1 pacemaker-attrd[26188]:  notice: Node oldhanad2 state is now lost 
+2022-04-21T13:21:37.832667+02:00 oldhanad1 pacemaker-attrd[26188]:  notice: Removing all oldhanad2 attributes for peer loss
+2022-04-21T13:21:37.832707+02:00 oldhanad1 pacemaker-attrd[26188]:  notice: Purged 1 peer with id=178438534 and/or uname=oldhanad2 from the membership cache
+2022-04-21T13:21:37.832746+02:00 oldhanad1 pacemaker-attrd[26188]:  notice: Recorded local node as attribute writer (was unset)
+2022-04-21T13:21:37.832786+02:00 oldhanad1 pacemaker-controld[26190]:  notice: State transition S_ELECTION -> S_INTEGRATION 
+2022-04-21T13:21:37.833037+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Node oldhanad2 state is now lost 
+2022-04-21T13:21:37.833125+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Purged 1 peer with id=178438534 and/or uname=oldhanad2 from the membership cache
+2022-04-21T13:21:37.859192+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Updating quorum status to true (call=128)
+2022-04-21T13:21:38.865044+02:00 oldhanad1 pacemaker-schedulerd[26189]:  warning: Cluster node oldhanad2 will be fenced: peer is no longer part of the cluster
+2022-04-21T13:21:38.865201+02:00 oldhanad1 pacemaker-schedulerd[26189]:  warning: Node oldhanad2 is unclean
+2022-04-21T13:21:38.865701+02:00 oldhanad1 pacemaker-schedulerd[26189]:  warning: killer_stop_0 on oldhanad2 is unrunnable (node is offline)
+2022-04-21T13:21:38.865825+02:00 oldhanad1 pacemaker-schedulerd[26189]:  warning: p-IP1_stop_0 on oldhanad2 is unrunnable (node is offline)
+2022-04-21T13:21:38.865907+02:00 oldhanad1 pacemaker-schedulerd[26189]:  warning: Scheduling Node oldhanad2 for STONITH
+2022-04-21T13:21:38.866101+02:00 oldhanad1 pacemaker-schedulerd[26189]:  notice:  * Fence (reboot) oldhanad2 'peer is no longer part of the cluster'
+2022-04-21T13:21:38.866214+02:00 oldhanad1 pacemaker-schedulerd[26189]:  notice:  * Move       killer     ( oldhanad2 -> oldhanad1 )  
+2022-04-21T13:21:38.866304+02:00 oldhanad1 pacemaker-schedulerd[26189]:  notice:  * Move       p-IP1      ( oldhanad2 -> oldhanad1 )  
+2022-04-21T13:21:38.867223+02:00 oldhanad1 pacemaker-schedulerd[26189]:  warning: Calculated transition 0 (with warnings), saving inputs in /var/lib/pacemaker/pengine/pe-warn-6.bz2
+2022-04-21T13:21:38.867566+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Processing graph 0 (ref=pe_calc-dc-1650540098-21) derived from /var/lib/pacemaker/pengine/pe-warn-6.bz2
+2022-04-21T13:21:38.867641+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Requesting fencing (reboot) of node oldhanad2 
+2022-04-21T13:21:38.867755+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Initiating start operation killer_start_0 locally on oldhanad1 
+2022-04-21T13:21:38.867855+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Requesting local execution of start operation for killer on oldhanad1 
+2022-04-21T13:21:38.868521+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Client pacemaker-controld.26190.b64beaf2 wants to fence (reboot) 'oldhanad2' with device '(any)'
+2022-04-21T13:21:38.868607+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Requesting peer fencing (reboot) targeting oldhanad2 
+2022-04-21T13:21:38.868833+02:00 oldhanad1 pacemaker-execd[26187]:  notice: executing - rsc:killer action:start call_id:70
+2022-04-21T13:21:38.989800+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Requesting that oldhanad1 perform 'reboot' action targeting oldhanad2 
+2022-04-21T13:21:38.990116+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: killer is eligible to fence (reboot) oldhanad2: dynamic-list
+2022-04-21T13:21:40.078030+02:00 oldhanad1 pacemaker-execd[26187]:  notice: killer start (call 70) exited with status 0 (execution time 1208ms, queue time 0ms)
+2022-04-21T13:21:40.078369+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Result of start operation for killer on oldhanad1: ok 
+2022-04-21T13:21:51.257505+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Operation 'reboot' [1951] (call 2 from pacemaker-controld.26190) for host 'oldhanad2' with device 'killer' returned: 0 (OK)
+2022-04-21T13:21:51.257803+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Operation 'reboot' targeting oldhanad2 on oldhanad1 for pacemaker-controld.26190@oldhanad1.a127b270: OK
+2022-04-21T13:21:51.259260+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Stonith operation 2/1:0:0:455cd14f-a928-4de5-a0df-2e579a28b160: OK (0)
+2022-04-21T13:21:51.259400+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Peer oldhanad2 was terminated (reboot) by oldhanad1 on behalf of pacemaker-controld.26190: OK 
+2022-04-21T13:21:51.259532+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Initiating start operation p-IP1_start_0 locally on oldhanad1 
+2022-04-21T13:21:51.259653+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Requesting local execution of start operation for p-IP1 on oldhanad1 
+2022-04-21T13:21:51.260111+02:00 oldhanad1 pacemaker-execd[26187]:  notice: executing - rsc:p-IP1 action:start call_id:71
+2022-04-21T13:21:51.752904+02:00 oldhanad1 pacemaker-execd[26187]:  notice: p-IP1 start (call 71, PID 1998) exited with status 0 (execution time 493ms, queue time 0ms)
+2022-04-21T13:21:51.753448+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Result of start operation for p-IP1 on oldhanad1: ok 
+2022-04-21T13:21:51.754685+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Transition 0 (Complete=5, Pending=0, Fired=0, Skipped=0, Incomplete=0, Source=/var/lib/pacemaker/pengine/pe-warn-6.bz2): Complete
+2022-04-21T13:21:51.754792+02:00 oldhanad1 pacemaker-controld[26190]:  notice: State transition S_TRANSITION_ENGINE -> S_IDLE
+```
+
+What happened? `controld` (*cluster resource manager*) is informed node is dead,
+finally `schedulerd` (*policy engine*) decided to fence the node because it is
+*unclean* (it does not have an idea what is going on with this node), `fenced`
+is asked to prepare fencing the node, `execd` (*local resource manager*) in
+practice runs fence agent to STONITH the node.
+
+Summary:
+
+- an unexpected node left
+  `corosync[26152]:   [TOTEM ] Failed to receive the leave message. failed: 178438534`
+- because of unclean status the node is going to be fenced
+  `pacemaker-schedulerd[26189]:  notice:  * Fence (reboot) oldhanad2 'peer is no longer part of the cluster'`
+- fence actually happends
+  
 ## containers
 
 ### docker
