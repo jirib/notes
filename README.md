@@ -793,8 +793,9 @@ How corosync communication work:
 1. communication is oneway to establish stable communication ring via "protocol"
    [*corosync_totemnet*](https://www.wireshark.org/docs/dfref/c/corosync_totemnet.html)
 
-   a node sends token_retransmits_before_loss_consts value instances of token to
-   next node and expects return from the last node in *token* timeout value
+   a node sends instances of token based on
+   *token_retransmits_before_loss_consts* value to next node and expects return
+   from the last node in *token* timeout value
 
    a three node scenario:
 
@@ -805,12 +806,12 @@ How corosync communication work:
      last node - the node which sent the original token can send messages to all
      other nodes in the already established stable token ring
      
-   - if ring is broken, eg. node1 -> node2 communication error, node1 is the first
-     one who detects split brain (token value timeout)
+   - if ring is broken, eg. node1 -> node2 communication error, node1 is the
+     first one who detects split brain (*timeout* value)
 
 2. once communiation ring is stable - token passed from the source back to it,
-   a node with token can sends messages (messages value which should fit to UDP
-   message) to communicate directly to all nodes in the stable token ring
+   a node with token can send messages (messages value which should fit to UDP
+   datagram) to communicate directly to all nodes in the stable token ring
 
 
 ``` shell
