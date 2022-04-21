@@ -977,7 +977,7 @@ Membership information
 1084783552          1 s153cl02.cl0.example.com
 ```
 
-When a node leaves...
+When a node leaves... (note "leaves", ie. not disappears!)
 
 ```
 Feb 01 11:35:06 s153cl01 corosync[9101]:   [TOTEM ] A new membership (192.168.123.189:100) was formed. Members left: 1084783552
