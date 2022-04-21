@@ -1299,7 +1299,8 @@ crm resource constraints <resource> # show resource constraints
 
 #### maintenances
 
-**WARNINGS:**
+WARNINGS:
+
 - maintenance/standby does not make corosync ring detection
   *ineffective*! That is, node can be fenced even if it is in maintenance!
 - OS shutdown/reboot can cause a resource to be killed if it runs in *user
@@ -1319,7 +1320,7 @@ crm resource constraints <resource> # show resource constraints
 - *standby* node mode - a node cannot run resources but still
   participates in quorum decisions
 
-**Best practice:**
+Best practice:
 
 1. standby
 2. stop cluster services (this includes *corosync*)
@@ -1638,9 +1639,9 @@ ms ms-drbd_<resource> \
 
 …but that is, of course, just the basic of whole cluster setup.
 
-### troubleshooting
+#### troubleshooting
 
-#### unexpected reboot I.
+##### unexpected reboot I.
 
 *oldhana2* was rebooted, cca around 13:20.
 
