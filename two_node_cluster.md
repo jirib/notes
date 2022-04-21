@@ -234,3 +234,11 @@ Jun 09 13:47:12 sle15sp2-ha-01 corosync[1990]:   [QUORUM] Members[1]: 1
 2021-06-09T14:09:06.488741+02:00 sle15sp2-ha-01 pacemaker-schedulerd[2007]:  notice:  * Move       p-Dummy         ( sle15sp2-ha-01 -> sle15sp2-ha-02 )
 2021-06-09T14:09:06.488793+02:00 sle15sp2-ha-01 pacemaker-schedulerd[2007]:  notice: Calculated transition 4, saving inputs in /var/lib/pacemaker/pengine/pe-input-58.bz2
 ```
+
+Most likely because of resource stickiness, use below. See
+https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-sr-guide-PerfOpt-15/.
+
+```
+rsc_defaults rsc-options: \
+    resource-stickiness=1000
+```
