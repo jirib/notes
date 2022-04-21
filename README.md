@@ -765,7 +765,7 @@ See a [two_node_cluster_example scenarios](two_node_cluster.md#scenarios).
   passwordless root or via a user configured with `crm options user
   <user>` (then it requires passwordless `sudoers` rule)
 
-##### corosync
+#### corosync
 
 - *multicast*, when used check that switch is configured correctly
   (see [IGMP snooping](https://en.wikipedia.org/wiki/IGMP_snooping) -
@@ -780,11 +780,17 @@ See a [two_node_cluster_example scenarios](two_node_cluster.md#scenarios).
   ```
 - *unicast*, usually better
 
-corosync ports note, see also a general ports as defined in [RH
-docs](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/high_availability_add-on_reference/s1-firewalls-haar#tb-portenable-HAAR)
-
-``` shell
-man corosync.conf | col -b | sed -n '/^ *mcastport/,/^ *$/{/^ *$/q; p}' | fmt -w72
+**NOTE:**
+- corosync time values is in miliseconds!
+- `token`: 5000 (ms) = 5s timeout
+- `token_retransmits_before_loss_consts`: 10 - means how many instances of token
+  to send in token timeout interval
+- corosync ports note, see also a general ports as defined in [RH
+  docs](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/high_availability_add-on_reference/s1-firewalls-haar#tb-portenable-HAAR)
+  or see *firewalld* [`high-availability.xml`](https://github.com/firewalld/firewalld/blob/master/config/services/high-availability.xml)
+  (note mostly RH specific!)
+  ``` shell
+  $ man corosync.conf | col -b | sed -n '/^ *mcastport/,/^ *$/{/^ *$/q; p}' | fmt -w72
        mcastport
               This specifies the UDP port number.  It is possible to
               use the same multicast address on a network with the
@@ -794,7 +800,32 @@ man corosync.conf | col -b | sed -n '/^ *mcastport/,/^ *$/{/^ *$/q; p}' | fmt -w
               If you have multiple clusters on the same network using
               the same mcastaddr please configure the mcastports with
               a gap.
-```
+  ```
+
+How corosync communication work:
+
+1. communication is oneway to establish stable communication ring via "protocol"
+   [*corosync_totemnet*](https://www.wireshark.org/docs/dfref/c/corosync_totemnet.html)
+
+   a node sends token_retransmits_before_loss_consts value instances of token to
+   next node and expects return from the last node in *token* timeout value
+
+   a three node scenario:
+
+   - node1 sends instances of token to node2 and expects at least one token from
+     node3 to return
+
+   - once communication is stable - token passed from the source back to it via
+     last node - the node which sent the original token can send messages to all
+     other nodes in the already established stable token ring
+     
+   - if ring is broken, eg. node1 -> node2 communication error, node1 is the first
+     one who detects split brain (token value timeout)
+
+2. once communiation ring is stable - token passed from the source back to it,
+   a node with token can sends messages (messages value which should fit to UDP
+   message) to communicate directly to all nodes in the stable token ring
+
 
 ``` shell
 corosync-cmapctl nodelist.node                    # list corosync nodes
@@ -808,7 +839,7 @@ corosync-quorumtool -e <number> # change number of extected votes
 corosync-cfgtool -R # tell all nodes to reload corosync config
 ```
 
-###### corosync logs
+##### corosync logs
 
 `corosync` logs after start:
 
@@ -1059,13 +1090,13 @@ Totem Single Ring Protocol implemented in Corosync Cluster Engine
         Ring sequence number: 56
 ```
 
-##### pacemaker
+#### pacemaker
 
-important cluster settings
+*pacemaker* is an advanced, scalable High-Availability cluster resource manager.
 
--
+
 ``` shell
-systemctl start pacemaker # on all nodes
+systemctl start pacemaker # on all nodes (or use 'crm cluster start' instead)
 corosync-cpgtool          # see if pacemaker is known to corosync,
                           # these are symlinks to pacemaker daemons,
                           # see `ls -l /usr/lib/pacemaker/'
@@ -1075,7 +1106,7 @@ There was a rename of pacemaker components but there are still old names
 visible:
 
 ``` shell
-ls -l /usr/lib/pacemaker/
+$ ls -l /usr/lib/pacemaker/
 total 832
 lrwxrwxrwx 1 root root     15 Oct 14  2021 attrd -> pacemaker-attrd
 lrwxrwxrwx 1 root root     15 Oct 14  2021 cib -> pacemaker-based
@@ -1094,44 +1125,84 @@ lrwxrwxrwx 1 root root     20 Oct 14  2021 pengine -> pacemaker-schedulerd
 lrwxrwxrwx 1 root root     16 Oct 14  2021 stonithd -> pacemaker-fenced
 ```
 
-###### pacemaker cli
+cluster configuration:
+
+- in-memory representation
+- `/var/lib/pacemaker/cib`
+
+```
+/var/lib/pacemaker
+├── cib
+│   ├── cib-X.raw       # cluster configuration history
+│   ├── cib-X.raw.sig
+│   └── cib.xml         # latest cluster configuration saved to the disk
+└── pengine             # snapshot of a moment of the cluster life
+    ├── pe-input-0.bz2  # cluster state of a moment
+    └── pe-warn-0.bz2   # something went wrong (fence, reboot), state of what
+                        # cluster wants to do about it
+```
+
+**WARNING:** this directory is not intended for editing when the cluster is
+online!
+
+```
+  2022-04-19T13:56:34.055004+02:00 oldhanaa1 pacemaker-based[20832]: error: Digest comparison failed: expected 4010ded1087db5173bd9912cda6e302d, calculated abecc1d59c0b2293b57158cf745280d5
+  2022-04-19T13:56:34.055299+02:00 oldhanaa1 pacemaker-based[20832]: error: /var/lib/pacemaker/cib/cib.xml was manually modified while the cluster was active!
+```
+
+##### pacemaker cli
 
 ``` shell
 $ crmadmin -N # show member nodes
-member node: s153cl02 (1084783552)
-member node: s153cl01 (1084783549)
+member node: oldhanad2 (178438534)
+member node: oldhanad1 (178438533)
+
 
 $ crmadmin -D # show designated coordinator (DC)
 Designated Controller is: s153cl01
 ```
 
 ``` shell
-$ crm_mon -1 # show cluster status
+$ crm_mon -r -1 # show cluster status
 Cluster Summary:
   * Stack: corosync
-  * Current DC: s153cl01 (version 2.0.5+20201202.ba59be712-4.13.1-2.0.5+20201202.ba59be712) - partition with quorum
-  * Last updated: Tue Dec 21 17:08:34 2021
-  * Last change:  Tue Dec 21 16:59:17 2021 by root via cibadmin on s153cl01
+  * Current DC: consap02 (version 2.0.4+20200616.2deceaa3a-3.9.1-2.0.4+20200616.2deceaa3a) - partition with quorum
+  * Last updated: Wed Apr 20 14:30:59 2022
+  * Last change:  Wed Apr 20 12:12:57 2022 by root via cibadmin on consap01
   * 2 nodes configured
-  * 3 resource instances configured
+  * 9 resource instances configured (8 DISABLED)
 
               *** Resource management is DISABLED ***
   The cluster will not attempt to start, stop or recover services
 
 Node List:
-  * Online: [ s153cl01 s153cl02 ]
+  * Online: [ consap01 consap02 ]
 
-Active Resources:
-  * Resource Group: g-Group1 (unmanaged):
-    * p-vIP     (ocf::heartbeat:IPaddr2):        Started s153cl01 (unmanaged)
-    * p-Dummy   (ocf::heartbeat:Dummy):  Started s153cl01 (unmanaged)
+Full List of Resources:
+  * stonith-sbd (stonith:external/sbd):  Stopped (unmanaged)
+  * Clone Set: cln_SAPHanaTopology_SLE_HDB00 [rsc_SAPHanaTopology_SLE_HDB00] (unmanaged):
+    * Stopped (disabled): [ consap01 consap02 ]
+  * Clone Set: msl_SAPHana_SLE_HDB00 [rsc_SAPHana_SLE_HDB00] (promotable) (unmanaged):
+    * rsc_SAPHana_SLE_HDB00     (ocf::suse:SAPHana):     FAILED consap02 (disabled, unmanaged)
+    * rsc_SAPHana_SLE_HDB00     (ocf::suse:SAPHana):     Slave consap01 (disabled, unmanaged)
+  * rsc_ip_SLE_HDB00    (ocf::heartbeat:IPaddr2):        Stopped (disabled, unmanaged)
+  * rsc_mail    (ocf::heartbeat:MailTo):         Stopped (disabled, unmanaged)
+  * Clone Set: cln_diskfull_threshold [sysinfo] (unmanaged):
+    * Stopped (disabled): [ consap01 consap02 ]
+
+Failed Resource Actions:
+  * rsc_SAPHana_SLE_HDB00_monitor_0 on consap02 'error' (1): call=43, status='complete', exitreason='', last-rc-change='2022-04-20 14:28:02 +01:00', queued=0ms, exec=2476ms
 ```
 
-`crm_mon` Node List values:
+*disabled* above means resources were *stopped* before the cluster was put into
+maintenance.
+
+Some `crm_mon` details...
+
 - *offline* does not necessary mean the node is down, it **inherits** this value
   from *corosync*, which means the ring/communication is broken
-- *UNCLEAN* means one node does not know what is going on on other node (???)
-
+- *UNCLEAN* means one node does not know what is going on on other node
+  
 
 ``` shell
 $ cibadmin -Q -o nodes # list nodes in pacemaker
@@ -1158,7 +1229,9 @@ $ cibadmin -Q --xpath '//*/primitive[@type="external/sbd"]' # query with xpath
     <nvpair name="pcmk_delay_max" value="30" id="stonith-sbd-instance_attributes-pcmk_delay_max"/>
   </instance_attributes>
 </primitive>
+```
 
+``` shell
 $ crm_verify -LV            # check configuration used by cluster, verbose
                           # can show important info
 ```
@@ -1173,12 +1246,57 @@ $ cibadmin [-Q | --query]                                 # expert xml administr
 $ crm_attribute --type <scope> --name <attribute> --query # another query solution
 ```
 
-###### crm (crmsh)
+##### pacemaker resources
+
+Resources failures and what would happen:
+
+- *monitor* failure -> stop -> start (*"did you try to stop and start it again?*")
+- *start* failure -> blocked to start locally via *fail-count*
+  `<nvpair id="status-2-fail-count-PlanetX.start_0" name="fail-count-PlanetX#start_0" value="INFINITY"/>`
+- *stop* failure -> fence (we cannot be sure what a resource won't mess with
+  data thus STONITH)
+
+#### crm (crmsh)
 
 ``` shell
 crm
 crm help <topic>    # generic syntax for help
 crm status          # similar to *crm_mon*, part of crmsh
+```
+
+##### crm collocating resources
+
+Reads from right to left, if last right resource runs somewhere, do action
+defined with next-to-last and all previous resources.
+
+```
+colocation <id> <score>: <resource> <resource>
+
+# an example
+colocation c1 inf: p-goodservice p-badservice
+```
+
+The above reads: if `p-badservice` runs somehwere always run `p-goodservice`
+together.
+
+##### crm grouping resources
+
+Reads from left to right, order is respected, this influence state of the
+resources, that is states is respected in order, that is if a resource on the
+left in the list is stopped, then resources on the right side are stopped too.
+
+```
+group <name> <res> <res>...
+
+# an example
+group g-grp1 p-goodservice p-badservice
+```
+
+The above reads: start `p-goodservice` and then `p-badservice`.
+
+##### crm resource
+
+``` shell
 crm resource status # show status of resources
 
 crm resource # interactive shell for resources
@@ -1189,6 +1307,14 @@ crm resource constraints <resource> # show resource constraints
 ```
 
 #### maintenances
+
+**WARNINGS:**
+- maintenance/standby does not make corosync ring detection
+  *ineffective*! That is, node can be fenced even if it is in maintenance!
+- OS shutdown/reboot can cause a resource to be killed if it runs in *user
+  slice* (eg. SAP or old Oracle DB)!
+- *maintenances* do NOT run monitor operation thus `crm_mon` output does not
+  need to show reality!
 
 - *maintenance mode* - global cluster property, no resource
   monitoring, no action on resource state change
@@ -1202,16 +1328,19 @@ crm resource constraints <resource> # show resource constraints
 - *standby* node mode - a node cannot run resources but still
   participates in quorum decisions
 
+**Best practice:**
+
+1. standby
+2. stop cluster services (this includes *corosync*)
+
 ``` shell
 crm configure property maintenance-mode=<true|false> # global maintenance
 
 crm node maintenance <node> # node maintenance start
 crm node ready <node>       # node maintenance stop
 
-crm resource meta <resource> set maintenace true  # resource maintenance start
-crm resource meta <resource> set maintenace false # resource maintenance stop
-
 crm resource maintenance <on|off> # (un)sets meta maintenance attribute
+
 crm resource <manage|unmanage> <resource> # set/unsets is-managed mode, ie. *unmanaged*
 
 crm node standby <node> # put node into standby mode (moving away resources)
