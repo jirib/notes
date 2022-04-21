@@ -750,20 +750,6 @@ And copy `pxelinux.0` to your TFTP directory.
 - *CLVM* - cluster logical volume manager, `lvmlockd`, protects LVM
   metadata on shared storage
 
-#### setup
-
-See a [two node cluster example](two_node_cluster.md).
-
-#### scenarios
-
-See a [two_node_cluster_example scenarios](two_node_cluster.md#scenarios).
-
-#### management
-
-- by default *root* and *haclient* group members can manage cluster
-- some `crm` actions require SSH working between nodes, either
-  passwordless root or via a user configured with `crm options user
-  <user>` (then it requires passwordless `sudoers` rule)
 
 #### corosync
 
@@ -1257,6 +1243,11 @@ Resources failures and what would happen:
   data thus STONITH)
 
 #### crm (crmsh)
+
+- by default *root* and *haclient* group members can manage cluster
+- some `crm` actions require SSH working between nodes, either
+  passwordless root or via a user configured with `crm options user
+  <user>` (then it requires passwordless `sudoers` rule)
 
 ``` shell
 crm
