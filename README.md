@@ -2184,6 +2184,42 @@ echo 0 > /proc/fs/cifs/cifsFYI
 echo 'file fs/cifs/*.c -p' > /sys/kernel/debug/dynamic_debug/control
 echo 'module cifs -p' > /sys/kernel/debug/dynamic_debug/control
 ```
+
+Or an example of whole debugging attempt:
+
+``` shell
+$ dmesg --clear
+
+# load cifs.ko module
+$ modprobe cifs
+
+# make the kernel as verbose as possible
+$ echo 'module cifs +p' > /sys/kernel/debug/dynamic_debug/control
+$ echo 'file fs/cifs/* +p' > /sys/kernel/debug/dynamic_debug/control
+$ echo 1 > /proc/fs/cifs/cifsFYI
+$ echo 1 > /sys/module/dns_resolver/parameters/debug
+
+# get kernel output + network trace
+$ tcpdump -s 0 -w /tmp/trace.pcap & pid=$!
+$ sleep 3
+$ mount.cifs <share> <local_mountpoint> -o <mount_options>
+$ ls <local_mountpoint>
+$ sleep 3
+$ kill $pid
+$ dmesg > /tmp/trace.log
+$ cat /proc/fs/cifs/dfscache >> /tmp/trace.log
+
+# disable verbose
+$ echo 'module cifs -p' > /sys/kernel/debug/dynamic_debug/control
+$ echo 'file fs/cifs/* -p' > /sys/kernel/debug/dynamic_debug/control
+$ echo 0 > /proc/fs/cifs/cifsFYI
+$ echo 0 > /sys/module/dns_resolver/parameters/debug
+
+# get data to provide for an analysis
+$ tar cvzf /tmp/cifs-troubleshooting.tgz /tmp/trace.pcap /tmp/trace.log
+```
+
+
 #### samba
 
 A text from `samba(7)`:
