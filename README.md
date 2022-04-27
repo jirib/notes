@@ -5333,7 +5333,7 @@ mdadm --zero-superblock <physical_device> # remove metadata
 
 ``` shell
 # creating a mirror with only one disk (eg. for a migration)
-mdadm --create /dev/mv/<name> --level=mirror --raid-devices=2 <realdev> missing # name will be symlink
+mdadm --create /dev/md/<name> --level=mirror --raid-devices=2 <realdev> missing # name will be symlink
 echo 'CREATE names=yes' > /etc/mdadm.conf # careful!
 madadm --detail --scan >> /etc/mdadm.conf
 
