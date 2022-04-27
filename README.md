@@ -805,7 +805,7 @@ How corosync communication work:
    - once communication is stable - token passed from the source back to it via
      last node - the node which sent the original token can send messages to all
      other nodes in the already established stable token ring
-     
+
    - if ring is broken, eg. node1 -> node2 communication error, node1 is the
      first one who detects split brain (*timeout* value)
 
@@ -1189,7 +1189,7 @@ Some `crm_mon` details...
 - *offline* does not necessary mean the node is down, it **inherits** this value
   from *corosync*, which means the ring/communication is broken
 - *UNCLEAN* means one node does not know what is going on on other node
-  
+
 
 ``` shell
 $ cibadmin -Q -o nodes # list nodes in pacemaker
@@ -1541,7 +1541,7 @@ What is purpose of SBD?
 - fence agent/device (STONITH)
 - self-fence if SBD device can't be read for some time (Shoot myself in the head, SMITH) ??
   https://www.suse.com/support/kb/doc/?id=000017950
-- 
+-
 
 *SBD_STARTMODE=clean* in `/etc/sysconfig/sdb` (SUSE) to prevent
 starting cluster if non-clean state exists on SBD
@@ -1658,10 +1658,10 @@ $ sed -n '1,/^2022-04-21T13:23:03/p' ha-log.txt | \
   '(SAPHana|sap|corosync|pacemaker-(attrd|based|controld|execd|schedulerd|fenced)|stonith|systemd)\[\d+\]' \
   | grep -ni reboot
 354307:2022-04-21T13:21:38.866101+02:00 oldhanad1 pacemaker-schedulerd[26189]:  notice:  * Fence (reboot) oldhanad2 'peer is no longer part of the cluster'
-354312:2022-04-21T13:21:38.867641+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Requesting fencing (reboot) of node oldhanad2 
+354312:2022-04-21T13:21:38.867641+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Requesting fencing (reboot) of node oldhanad2
 354315:2022-04-21T13:21:38.868521+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Client pacemaker-controld.26190.b64beaf2 wants to fence (reboot) 'oldhanad2' with device '(any)'
-354316:2022-04-21T13:21:38.868607+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Requesting peer fencing (reboot) targeting oldhanad2 
-354321:2022-04-21T13:21:38.989800+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Requesting that oldhanad1 perform 'reboot' action targeting oldhanad2 
+354316:2022-04-21T13:21:38.868607+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Requesting peer fencing (reboot) targeting oldhanad2
+354321:2022-04-21T13:21:38.989800+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Requesting that oldhanad1 perform 'reboot' action targeting oldhanad2
 354322:2022-04-21T13:21:38.990116+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: killer is eligible to fence (reboot) oldhanad2: dynamic-list
 354421:2022-04-21T13:21:51.257505+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Operation 'reboot' [1951] (call 2 from pacemaker-controld.26190) for host 'oldhanad2' with device 'killer' returned: 0 (OK)
 354422:2022-04-21T13:21:51.257803+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Operation 'reboot' targeting oldhanad2 on oldhanad1 for pacemaker-controld.26190@oldhanad1.a127b270: OK
@@ -1689,17 +1689,17 @@ would stop working between nodes.
 $ sed -n '1,/^2022-04-21T13:23:03/p' ha-log.txt | \
   grep -P '(pacemaker-(attrd|based|controld|execd|schedulerd|fenced)|stonith)\[\d+\]'
 2022-04-21T13:21:37.831919+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Our peer on the DC (oldhanad2) is dead
-2022-04-21T13:21:37.832181+02:00 oldhanad1 pacemaker-based[26185]:  notice: Node oldhanad2 state is now lost 
+2022-04-21T13:21:37.832181+02:00 oldhanad1 pacemaker-based[26185]:  notice: Node oldhanad2 state is now lost
 2022-04-21T13:21:37.832419+02:00 oldhanad1 pacemaker-attrd[26188]:  notice: Lost attribute writer oldhanad2
-2022-04-21T13:21:37.832478+02:00 oldhanad1 pacemaker-controld[26190]:  notice: State transition S_NOT_DC -> S_ELECTION 
+2022-04-21T13:21:37.832478+02:00 oldhanad1 pacemaker-controld[26190]:  notice: State transition S_NOT_DC -> S_ELECTION
 2022-04-21T13:21:37.832525+02:00 oldhanad1 pacemaker-based[26185]:  notice: Purged 1 peer with id=178438534 and/or uname=oldhanad2 from the membership cache
-2022-04-21T13:21:37.832567+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Node oldhanad2 state is now lost 
-2022-04-21T13:21:37.832621+02:00 oldhanad1 pacemaker-attrd[26188]:  notice: Node oldhanad2 state is now lost 
+2022-04-21T13:21:37.832567+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Node oldhanad2 state is now lost
+2022-04-21T13:21:37.832621+02:00 oldhanad1 pacemaker-attrd[26188]:  notice: Node oldhanad2 state is now lost
 2022-04-21T13:21:37.832667+02:00 oldhanad1 pacemaker-attrd[26188]:  notice: Removing all oldhanad2 attributes for peer loss
 2022-04-21T13:21:37.832707+02:00 oldhanad1 pacemaker-attrd[26188]:  notice: Purged 1 peer with id=178438534 and/or uname=oldhanad2 from the membership cache
 2022-04-21T13:21:37.832746+02:00 oldhanad1 pacemaker-attrd[26188]:  notice: Recorded local node as attribute writer (was unset)
-2022-04-21T13:21:37.832786+02:00 oldhanad1 pacemaker-controld[26190]:  notice: State transition S_ELECTION -> S_INTEGRATION 
-2022-04-21T13:21:37.833037+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Node oldhanad2 state is now lost 
+2022-04-21T13:21:37.832786+02:00 oldhanad1 pacemaker-controld[26190]:  notice: State transition S_ELECTION -> S_INTEGRATION
+2022-04-21T13:21:37.833037+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Node oldhanad2 state is now lost
 2022-04-21T13:21:37.833125+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Purged 1 peer with id=178438534 and/or uname=oldhanad2 from the membership cache
 2022-04-21T13:21:37.859192+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Updating quorum status to true (call=128)
 2022-04-21T13:21:38.865044+02:00 oldhanad1 pacemaker-schedulerd[26189]:  warning: Cluster node oldhanad2 will be fenced: peer is no longer part of the cluster
@@ -1708,29 +1708,29 @@ $ sed -n '1,/^2022-04-21T13:23:03/p' ha-log.txt | \
 2022-04-21T13:21:38.865825+02:00 oldhanad1 pacemaker-schedulerd[26189]:  warning: p-IP1_stop_0 on oldhanad2 is unrunnable (node is offline)
 2022-04-21T13:21:38.865907+02:00 oldhanad1 pacemaker-schedulerd[26189]:  warning: Scheduling Node oldhanad2 for STONITH
 2022-04-21T13:21:38.866101+02:00 oldhanad1 pacemaker-schedulerd[26189]:  notice:  * Fence (reboot) oldhanad2 'peer is no longer part of the cluster'
-2022-04-21T13:21:38.866214+02:00 oldhanad1 pacemaker-schedulerd[26189]:  notice:  * Move       killer     ( oldhanad2 -> oldhanad1 )  
-2022-04-21T13:21:38.866304+02:00 oldhanad1 pacemaker-schedulerd[26189]:  notice:  * Move       p-IP1      ( oldhanad2 -> oldhanad1 )  
+2022-04-21T13:21:38.866214+02:00 oldhanad1 pacemaker-schedulerd[26189]:  notice:  * Move       killer     ( oldhanad2 -> oldhanad1 )
+2022-04-21T13:21:38.866304+02:00 oldhanad1 pacemaker-schedulerd[26189]:  notice:  * Move       p-IP1      ( oldhanad2 -> oldhanad1 )
 2022-04-21T13:21:38.867223+02:00 oldhanad1 pacemaker-schedulerd[26189]:  warning: Calculated transition 0 (with warnings), saving inputs in /var/lib/pacemaker/pengine/pe-warn-6.bz2
 2022-04-21T13:21:38.867566+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Processing graph 0 (ref=pe_calc-dc-1650540098-21) derived from /var/lib/pacemaker/pengine/pe-warn-6.bz2
-2022-04-21T13:21:38.867641+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Requesting fencing (reboot) of node oldhanad2 
-2022-04-21T13:21:38.867755+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Initiating start operation killer_start_0 locally on oldhanad1 
-2022-04-21T13:21:38.867855+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Requesting local execution of start operation for killer on oldhanad1 
+2022-04-21T13:21:38.867641+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Requesting fencing (reboot) of node oldhanad2
+2022-04-21T13:21:38.867755+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Initiating start operation killer_start_0 locally on oldhanad1
+2022-04-21T13:21:38.867855+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Requesting local execution of start operation for killer on oldhanad1
 2022-04-21T13:21:38.868521+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Client pacemaker-controld.26190.b64beaf2 wants to fence (reboot) 'oldhanad2' with device '(any)'
-2022-04-21T13:21:38.868607+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Requesting peer fencing (reboot) targeting oldhanad2 
+2022-04-21T13:21:38.868607+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Requesting peer fencing (reboot) targeting oldhanad2
 2022-04-21T13:21:38.868833+02:00 oldhanad1 pacemaker-execd[26187]:  notice: executing - rsc:killer action:start call_id:70
-2022-04-21T13:21:38.989800+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Requesting that oldhanad1 perform 'reboot' action targeting oldhanad2 
+2022-04-21T13:21:38.989800+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Requesting that oldhanad1 perform 'reboot' action targeting oldhanad2
 2022-04-21T13:21:38.990116+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: killer is eligible to fence (reboot) oldhanad2: dynamic-list
 2022-04-21T13:21:40.078030+02:00 oldhanad1 pacemaker-execd[26187]:  notice: killer start (call 70) exited with status 0 (execution time 1208ms, queue time 0ms)
-2022-04-21T13:21:40.078369+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Result of start operation for killer on oldhanad1: ok 
+2022-04-21T13:21:40.078369+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Result of start operation for killer on oldhanad1: ok
 2022-04-21T13:21:51.257505+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Operation 'reboot' [1951] (call 2 from pacemaker-controld.26190) for host 'oldhanad2' with device 'killer' returned: 0 (OK)
 2022-04-21T13:21:51.257803+02:00 oldhanad1 pacemaker-fenced[26186]:  notice: Operation 'reboot' targeting oldhanad2 on oldhanad1 for pacemaker-controld.26190@oldhanad1.a127b270: OK
 2022-04-21T13:21:51.259260+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Stonith operation 2/1:0:0:455cd14f-a928-4de5-a0df-2e579a28b160: OK (0)
-2022-04-21T13:21:51.259400+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Peer oldhanad2 was terminated (reboot) by oldhanad1 on behalf of pacemaker-controld.26190: OK 
-2022-04-21T13:21:51.259532+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Initiating start operation p-IP1_start_0 locally on oldhanad1 
-2022-04-21T13:21:51.259653+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Requesting local execution of start operation for p-IP1 on oldhanad1 
+2022-04-21T13:21:51.259400+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Peer oldhanad2 was terminated (reboot) by oldhanad1 on behalf of pacemaker-controld.26190: OK
+2022-04-21T13:21:51.259532+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Initiating start operation p-IP1_start_0 locally on oldhanad1
+2022-04-21T13:21:51.259653+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Requesting local execution of start operation for p-IP1 on oldhanad1
 2022-04-21T13:21:51.260111+02:00 oldhanad1 pacemaker-execd[26187]:  notice: executing - rsc:p-IP1 action:start call_id:71
 2022-04-21T13:21:51.752904+02:00 oldhanad1 pacemaker-execd[26187]:  notice: p-IP1 start (call 71, PID 1998) exited with status 0 (execution time 493ms, queue time 0ms)
-2022-04-21T13:21:51.753448+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Result of start operation for p-IP1 on oldhanad1: ok 
+2022-04-21T13:21:51.753448+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Result of start operation for p-IP1 on oldhanad1: ok
 2022-04-21T13:21:51.754685+02:00 oldhanad1 pacemaker-controld[26190]:  notice: Transition 0 (Complete=5, Pending=0, Fired=0, Skipped=0, Incomplete=0, Source=/var/lib/pacemaker/pengine/pe-warn-6.bz2): Complete
 2022-04-21T13:21:51.754792+02:00 oldhanad1 pacemaker-controld[26190]:  notice: State transition S_TRANSITION_ENGINE -> S_IDLE
 ```
@@ -1748,7 +1748,7 @@ Summary:
 - because of unclean status the node is going to be fenced
   `pacemaker-schedulerd[26189]:  notice:  * Fence (reboot) oldhanad2 'peer is no longer part of the cluster'`
 - fence actually happends
-  
+
 ## containers
 
 ### docker
@@ -2807,39 +2807,39 @@ pull returned Success
                                                     rids: struct samr_RidWithAttribute
                                                         rid                      : 0x00000201 (513)
                                                         attributes               : 0x00000007 (7)
-                                                               1: SE_GROUP_MANDATORY       
+                                                               1: SE_GROUP_MANDATORY
                                                                1: SE_GROUP_ENABLED_BY_DEFAULT
-                                                               1: SE_GROUP_ENABLED         
-                                                               0: SE_GROUP_OWNER           
+                                                               1: SE_GROUP_ENABLED
+                                                               0: SE_GROUP_OWNER
                                                                0: SE_GROUP_USE_FOR_DENY_ONLY
-                                                               0: SE_GROUP_INTEGRITY       
+                                                               0: SE_GROUP_INTEGRITY
                                                                0: SE_GROUP_INTEGRITY_ENABLED
-                                                               0: SE_GROUP_RESOURCE        
+                                                               0: SE_GROUP_RESOURCE
                                                             0x00: SE_GROUP_LOGON_ID         (0)
                                                     rids: struct samr_RidWithAttribute
                                                         rid                      : 0x00000461 (1121)
                                                         attributes               : 0x00000007 (7)
-                                                               1: SE_GROUP_MANDATORY       
+                                                               1: SE_GROUP_MANDATORY
                                                                1: SE_GROUP_ENABLED_BY_DEFAULT
-                                                               1: SE_GROUP_ENABLED         
-                                                               0: SE_GROUP_OWNER           
+                                                               1: SE_GROUP_ENABLED
+                                                               0: SE_GROUP_OWNER
                                                                0: SE_GROUP_USE_FOR_DENY_ONLY
-                                                               0: SE_GROUP_INTEGRITY       
+                                                               0: SE_GROUP_INTEGRITY
                                                                0: SE_GROUP_INTEGRITY_ENABLED
-                                                               0: SE_GROUP_RESOURCE        
+                                                               0: SE_GROUP_RESOURCE
                                                             0x00: SE_GROUP_LOGON_ID         (0)
                                         user_flags               : 0x00000020 (32)
-                                               0: NETLOGON_GUEST           
-                                               0: NETLOGON_NOENCRYPTION    
-                                               0: NETLOGON_CACHED_ACCOUNT  
+                                               0: NETLOGON_GUEST
+                                               0: NETLOGON_NOENCRYPTION
+                                               0: NETLOGON_CACHED_ACCOUNT
                                                0: NETLOGON_USED_LM_PASSWORD
-                                               1: NETLOGON_EXTRA_SIDS      
+                                               1: NETLOGON_EXTRA_SIDS
                                                0: NETLOGON_SUBAUTH_SESSION_KEY
                                                0: NETLOGON_SERVER_TRUST_ACCOUNT
-                                               0: NETLOGON_NTLMV2_ENABLED  
-                                               0: NETLOGON_RESOURCE_GROUPS 
+                                               0: NETLOGON_NTLMV2_ENABLED
+                                               0: NETLOGON_RESOURCE_GROUPS
                                                0: NETLOGON_PROFILE_PATH_RETURNED
-                                               0: NETLOGON_GRACE_LOGON     
+                                               0: NETLOGON_GRACE_LOGON
                                         key: struct netr_UserSessionKey
                                             key: ARRAY(16): <REDACTED SECRET VALUES>
                                         logon_server: struct lsa_StringLarge
@@ -2857,28 +2857,28 @@ pull returned Success
                                         LMSessKey: struct netr_LMSessionKey
                                             key: ARRAY(8): <REDACTED SECRET VALUES>
                                         acct_flags               : 0x00000210 (528)
-                                               0: ACB_DISABLED             
-                                               0: ACB_HOMDIRREQ            
-                                               0: ACB_PWNOTREQ             
-                                               0: ACB_TEMPDUP              
-                                               1: ACB_NORMAL               
-                                               0: ACB_MNS                  
-                                               0: ACB_DOMTRUST             
-                                               0: ACB_WSTRUST              
-                                               0: ACB_SVRTRUST             
-                                               1: ACB_PWNOEXP              
-                                               0: ACB_AUTOLOCK             
-                                               0: ACB_ENC_TXT_PWD_ALLOWED  
-                                               0: ACB_SMARTCARD_REQUIRED   
+                                               0: ACB_DISABLED
+                                               0: ACB_HOMDIRREQ
+                                               0: ACB_PWNOTREQ
+                                               0: ACB_TEMPDUP
+                                               1: ACB_NORMAL
+                                               0: ACB_MNS
+                                               0: ACB_DOMTRUST
+                                               0: ACB_WSTRUST
+                                               0: ACB_SVRTRUST
+                                               1: ACB_PWNOEXP
+                                               0: ACB_AUTOLOCK
+                                               0: ACB_ENC_TXT_PWD_ALLOWED
+                                               0: ACB_SMARTCARD_REQUIRED
                                                0: ACB_TRUSTED_FOR_DELEGATION
-                                               0: ACB_NOT_DELEGATED        
-                                               0: ACB_USE_DES_KEY_ONLY     
-                                               0: ACB_DONT_REQUIRE_PREAUTH 
-                                               0: ACB_PW_EXPIRED           
+                                               0: ACB_NOT_DELEGATED
+                                               0: ACB_USE_DES_KEY_ONLY
+                                               0: ACB_DONT_REQUIRE_PREAUTH
+                                               0: ACB_PW_EXPIRED
                                                0: ACB_TRUSTED_TO_AUTHENTICATE_FOR_DELEGATION
-                                               0: ACB_NO_AUTH_DATA_REQD    
+                                               0: ACB_NO_AUTH_DATA_REQD
                                                0: ACB_PARTIAL_SECRETS_ACCOUNT
-                                               0: ACB_USE_AES_KEYS         
+                                               0: ACB_USE_AES_KEYS
                                         sub_auth_status          : 0x00000000 (0)
                                         last_successful_logon    : NTTIME(0)
                                         last_failed_logon        : NTTIME(0)
@@ -2891,14 +2891,14 @@ pull returned Success
                                                 sid                      : *
                                                     sid                      : S-1-18-1
                                                 attributes               : 0x00000007 (7)
-                                                       1: SE_GROUP_MANDATORY       
+                                                       1: SE_GROUP_MANDATORY
                                                        1: SE_GROUP_ENABLED_BY_DEFAULT
-                                                       1: SE_GROUP_ENABLED         
-                                                       0: SE_GROUP_OWNER           
+                                                       1: SE_GROUP_ENABLED
+                                                       0: SE_GROUP_OWNER
                                                        0: SE_GROUP_USE_FOR_DENY_ONLY
-                                                       0: SE_GROUP_INTEGRITY       
+                                                       0: SE_GROUP_INTEGRITY
                                                        0: SE_GROUP_INTEGRITY_ENABLED
-                                                       0: SE_GROUP_RESOURCE        
+                                                       0: SE_GROUP_RESOURCE
                                                     0x00: SE_GROUP_LOGON_ID         (0)
                                 resource_groups: struct PAC_DOMAIN_GROUP_MEMBERSHIP
                                     domain_sid               : NULL
@@ -2980,7 +2980,7 @@ has two parts, the domain SID and the RID. For example:
 
 ```
 S-1-5-21-1231230493-411072730-1844936127-513
-^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ - is the domain part                    
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ - is the domain part
                                          ^^^ - 513 is the RID
 ```
 
@@ -2994,26 +2994,26 @@ $ ndrdump  --debug-stdout -d 10 krb5pac PAC_DATA struct /tmp/out.pac | \
                                                     rids: struct samr_RidWithAttribute
                                                         rid                      : 0x00000201 (513)
                                                         attributes               : 0x00000007 (7)
-                                                               1: SE_GROUP_MANDATORY       
+                                                               1: SE_GROUP_MANDATORY
                                                                1: SE_GROUP_ENABLED_BY_DEFAULT
-                                                               1: SE_GROUP_ENABLED         
-                                                               0: SE_GROUP_OWNER           
+                                                               1: SE_GROUP_ENABLED
+                                                               0: SE_GROUP_OWNER
                                                                0: SE_GROUP_USE_FOR_DENY_ONLY
-                                                               0: SE_GROUP_INTEGRITY       
+                                                               0: SE_GROUP_INTEGRITY
                                                                0: SE_GROUP_INTEGRITY_ENABLED
-                                                               0: SE_GROUP_RESOURCE        
+                                                               0: SE_GROUP_RESOURCE
                                                             0x00: SE_GROUP_LOGON_ID         (0)
                                                     rids: struct samr_RidWithAttribute
                                                         rid                      : 0x00000461 (1121)
                                                         attributes               : 0x00000007 (7)
-                                                               1: SE_GROUP_MANDATORY       
+                                                               1: SE_GROUP_MANDATORY
                                                                1: SE_GROUP_ENABLED_BY_DEFAULT
-                                                               1: SE_GROUP_ENABLED         
-                                                               0: SE_GROUP_OWNER           
+                                                               1: SE_GROUP_ENABLED
+                                                               0: SE_GROUP_OWNER
                                                                0: SE_GROUP_USE_FOR_DENY_ONLY
-                                                               0: SE_GROUP_INTEGRITY       
+                                                               0: SE_GROUP_INTEGRITY
                                                                0: SE_GROUP_INTEGRITY_ENABLED
-                                                               0: SE_GROUP_RESOURCE        
+                                                               0: SE_GROUP_RESOURCE
                                                             0x00: SE_GROUP_LOGON_ID         (0)
 ```
 
@@ -5392,12 +5392,12 @@ unused devices: <none>
 #### troubleshooting
 
 ``` shell
-$ cat /proc/mdstat 
-Personalities : [raid1] 
+$ cat /proc/mdstat
+Personalities : [raid1]
 md127 : active raid1 loop11[2] loop10[1] loop7[0]
       1046528 blocks super 1.2 [3/3] [UUU]
       [===>.................]  resync = 18.7% (196416/1046528) finish=0.3min speed=39283K/sec
-      
+
 unused devices: <none>
 ```
 
@@ -5405,7 +5405,7 @@ What is that `loopX[Y]`? `[Y]` corresponds to indexed number of the device when
 the array is created, see below:
 
 ``` shell
-mdadm --create /dev/md/loopraid --level=mirror --raid-devices=3 /dev/loop7 /dev/loop10 /dev/loop11
+$mdadm --create /dev/md/loopraid --level=mirror --raid-devices=3 /dev/loop7 /dev/loop10 /dev/loop11
 mdadm: Note: this array has metadata at the start and
     may not be suitable as a boot device.  If you plan to
     store '/boot' on this device please ensure that
@@ -5424,6 +5424,8 @@ E: ID_FS_TYPE=linux_raid_member
 ls -l /dev/disk/by-id/*md*
 lrwxrwxrwx 1 root root 11 Apr 27 18:37 /dev/disk/by-id/md-name-t14s:loopraid -> ../../md127
 lrwxrwxrwx 1 root root 11 Apr 27 18:37 /dev/disk/by-id/md-uuid-8328504d:27bc6d5d:0cd6079c:7430b724 -> ../../md127
+```
+
 
 ### multipath
 
@@ -7394,7 +7396,7 @@ echo "${VAR}"
 - looping over an array with spaces in element value
   ``` shell
   for ((i = 0; i < ${#udevblk[@]}; i++)); do
-    echo ${udevblk[$i]}  
+    echo ${udevblk[$i]}
   done
   ```
 - bash associative array aka hash
