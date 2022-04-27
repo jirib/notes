@@ -5389,6 +5389,42 @@ md127 : active raid1 sdb2[0]
 unused devices: <none>
 ```
 
+#### troubleshooting
+
+``` shell
+$ cat /proc/mdstat 
+Personalities : [raid1] 
+md127 : active raid1 loop11[2] loop10[1] loop7[0]
+      1046528 blocks super 1.2 [3/3] [UUU]
+      [===>.................]  resync = 18.7% (196416/1046528) finish=0.3min speed=39283K/sec
+      
+unused devices: <none>
+```
+
+What is that `loopX[Y]`? `[Y]` corresponds to indexed number of the device when
+the array is created, see below:
+
+``` shell
+mdadm --create /dev/md/loopraid --level=mirror --raid-devices=3 /dev/loop7 /dev/loop10 /dev/loop11
+mdadm: Note: this array has metadata at the start and
+    may not be suitable as a boot device.  If you plan to
+    store '/boot' on this device please ensure that
+    your boot-loader understands md/v1.x metadata, or use
+    --metadata=0.90
+Continue creating array? YES
+mdadm: Defaulting to version 1.2 metadata
+mdadm: array /dev/md/loopraid started.
+```
+
+``` shell
+$ udevadm info -q all -n /dev/loop7 | grep -P '^E: ID_FS_(TYPE|LABEL)='
+E: ID_FS_LABEL=t14s:loopraid
+E: ID_FS_TYPE=linux_raid_member
+
+ls -l /dev/disk/by-id/*md*
+lrwxrwxrwx 1 root root 11 Apr 27 18:37 /dev/disk/by-id/md-name-t14s:loopraid -> ../../md127
+lrwxrwxrwx 1 root root 11 Apr 27 18:37 /dev/disk/by-id/md-uuid-8328504d:27bc6d5d:0cd6079c:7430b724 -> ../../md127
+
 ### multipath
 
 if multipath support is required during boot (ie. booting from multipath SAN)
