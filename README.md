@@ -5405,7 +5405,7 @@ What is that `loopX[Y]`? `[Y]` corresponds to indexed number of the device when
 the array is created, see below:
 
 ``` shell
-$mdadm --create /dev/md/loopraid --level=mirror --raid-devices=3 /dev/loop7 /dev/loop10 /dev/loop11
+$ mdadm --create /dev/md/loopraid --level=mirror --raid-devices=3 /dev/loop7 /dev/loop10 /dev/loop11
 mdadm: Note: this array has metadata at the start and
     may not be suitable as a boot device.  If you plan to
     store '/boot' on this device please ensure that
