@@ -7351,6 +7351,21 @@ echo "${VAR}"
               each shell option in the list will be enabled before reading
               any startup files.  This variable is read-only.
   ```
+- creating array from stdout
+  ``` shell
+  mapfile -t fstab < <(cat /etc/fstab)
+  ```
+- looping over an array with spaces in element value
+  ``` shell
+  for ((i = 0; i < ${#udevblk[@]}; i++)); do
+    echo ${udevblk[$i]}  
+  done
+  ```
+- bash associative array aka hash
+  ``` shell
+  declare -A myhash
+  ```
+  Cf. [Bash Associative Array Cheat Sheet](https://lzone.de/cheat-sheet/Bash%20Associative%20Array)
 
 ### sed
 
