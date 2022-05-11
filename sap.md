@@ -92,6 +92,7 @@ $ ./hdblcm # installer
 > ..
 > ..
 > y (continue)
+```
 
 ##### Post-installation steps
 
