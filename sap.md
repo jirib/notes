@@ -33,7 +33,7 @@ Some SAP basic vocabulary/info:
                                                                                          ^^ instance number of SPS sid
   ps1adm   28702  4.2 11.3 7355672 4542208 ?     Sl   May05 296:08 hdbindexserver -port 30003
                                                                                          ^^ instance number of PS1 sid
-- `/usr/sap/sapservices`, this file is NOT sources as usual shell script but
+- `/usr/sap/sapservices`, this file is NOT included/ran as usual shell script but
   it contains info about local SIDs/instances
   ``` shell
   lm:ps1adm> cat /usr/sap/sapservices
