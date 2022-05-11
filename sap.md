@@ -619,8 +619,8 @@ Node Attributes:
     * hana_bsd_remoteHost               : oldhanae2
     * hana_bsd_roles                    : 4:P:master1:master:worker:master
                                             ^ primary
-    * hana_bsd_site                     : Jubail
-                                          ^ not really important on Scale-Up mode
+    * hana_bsd_site                     : world
+                                          ^^ primary site name; not really important on Scale-Up mode
     * hana_bsd_srmode                   : sync
     * hana_bsd_sync_state               : PRIM
     * hana_bsd_vhost                    : oldhanae1
@@ -634,7 +634,8 @@ Node Attributes:
     * hana_bsd_roles                    : 4:S:master1:master:worker:master
                                           ^^ 4:S = secondary
                                           ^^ 1:S = secondary but not synced
-    * hana_bsd_site                     : Dammam
+    * hana_bsd_site                     : world2
+                                          ^^ secondary site name
     * hana_bsd_srmode                   : sync
     * hana_bsd_sync_state               : SOK
                                           ^^^ equivalent to HDBSettings.sh systemReplication.py
