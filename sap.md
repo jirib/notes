@@ -512,38 +512,44 @@ Scenario](https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-sr-gu
 
 The below configuration is taken from the above SUSE docs:
 
-```
-primitive rsc_SAPHanaTopology_BSD_HDB00 ocf:suse:SAPHanaTopology \
+``` shell
+# jinja template
+cat > /tmp/sap_cluster.j2 <<EOF
+{% set sid=os.environ["_SID"].strip() %}
+{% set inst=os.environ["_INSTID"].strip() %}
+{% set ip=os.environ["_IP"].strip() %}
+
+primitive rsc_SAPHanaTopology_{{ sid }}_HDB{{ inst }} ocf:suse:SAPHanaTopology \
     op monitor interval=10 timeout=300 \
     op start interval=0 timeout=300 \
     op stop interval=0 timeout=300 \
-    params SID=BSD InstanceNumber=10
+    params SID={{ sid }} InstanceNumber=10
 
-primitive rsc_SAPHana_BSD_HDB00 ocf:suse:SAPHana \
+primitive rsc_SAPHana_{{ sid }}_HDB{{ inst }} ocf:suse:SAPHana \
     op monitor interval=61 role=Slave timeout=700 \
     op start interval=0 timeout=3600 \
     op stop interval=0 timeout=3600 \
     op promote interval=0 timeout=3600 \
     op monitor interval=60 role=Master timeout=700 \
-    params SID=BSD InstanceNumber=10 PREFER_SITE_TAKEOVER=true \
+    params SID={{ sid }} InstanceNumber=10 PREFER_SITE_TAKEOVER=true \
            DUPLICATE_PRIMARY_TIMEOUT=7200 AUTOMATED_REGISTER=false \
     meta priority=100
 
-primitive rsc_ip_BSD_HDB00 ocf:heartbeat:IPaddr2 \
+primitive rsc_ip_{{ sid }}_HDB{{ inst }} ocf:heartbeat:IPaddr2 \
     op monitor interval=10 timeout=20 \
-    params ip="192.168.67.149"
+    params ip="{{ ip }}"
 
 primitive stonith-sbd stonith:external/sbd \
     params pcmk_delay_max=15
 
-ms msl_SAPHana_BSD_HDB00 rsc_SAPHana_BSD_HDB00 \
+ms msl_SAPHana_{{ sid }}_HDB{{ inst }} rsc_SAPHana_{{ sid }}_HDB{{ inst }} \
     meta clone-max=2 clone-node-max=1 interleave=true
-clone cln_SAPHanaTopology_BSD_HDB00 rsc_SAPHanaTopology_BSD_HDB00 \
+clone cln_SAPHanaTopology_{{ sid }}_HDB{{ inst }} rsc_SAPHanaTopology_{{ sid }}_HDB{{ inst }} \
     meta clone-node-max=1 interleave=true
-colocation col_saphana_ip_BSD_HDB00 2000: \
-    rsc_ip_BSD_HDB00:Started msl_SAPHana_BSD_HDB00:Master
-order ord_SAPHana_BSD_HDB00 2000: \
-    cln_SAPHanaTopology_BSD_HDB00 msl_SAPHana_BSD_HDB00
+colocation col_saphana_ip_{{ sid }}_HDB{{ inst }} 2000: \
+    rsc_ip_{{ sid }}_HDB{{ inst }}:Started msl_SAPHana_{{ sid }}_HDB{{ inst }}:Master
+order ord_SAPHana_{{ sid }}_HDB{{ inst }} 2000: \
+    cln_SAPHanaTopology_{{ sid }}_HDB{{ inst }} msl_SAPHana_{{ sid }}_HDB{{ inst }}
 
 property cib-bootstrap-options: \
     cluster-infrastructure=corosync \
@@ -559,6 +565,23 @@ rsc_defaults rsc-options: \
 op_defaults op-options \
     timeout=600 \
     record-pending=true
+EOF
+```
+
+``` shell
+pip3 install --user jinja2 # install jinja template system
+
+export _SID=BSD           # export the SID
+export _INSTID=00         # export the instance number
+export _IP=192.168.67.149 # export the virtual IP
+
+# generate config and print to stdout
+python3 -c 'import os; \
+  import sys; \
+  from jinja2 import Template; \
+  data=sys.stdin.read(); \
+  t = Template(data); \
+  print(t.render(os=os))' < /tmp/sap_cluster.j2 | tee /tmp/sap_cluster.txt
 ```
 
 Loading the SAP HANA cluster configuration into the cluster:
