@@ -493,7 +493,7 @@ site name: world
 Some SR command:
 
 ``` shell
-hdbnsutil | grep -P -- '^\s*-sr_(enable|disable|register|unregister|takeover|state|fullsync)'
+bsdadm> hdbnsutil | grep -P -- '^\s*-sr_(enable|disable|register|unregister|takeover|state|fullsync)'
   -sr_enable [--name=<site alias>]                                       - enables a site for serving as system replication source site
   -sr_disable                                                            - disables system replication capabilities on source site
   -sr_register --remoteHost=<primary master host>                        - registers a site to a source site
