@@ -413,6 +413,7 @@ operation_mode = logreplay
 
 System replication checks:
 
+``` shell
 bsdadm> alias | grep cdpy
 cdpy='cd $DIR_INSTANCE/exe/python_support'
 
