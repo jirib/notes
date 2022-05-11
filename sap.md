@@ -12,14 +12,15 @@
       run only when both nodes are up)
     - ENSA2 (replication designed as client/server mode; ERS cluster resource
       agents run on both nodes)
+- SAP HANA
+  * the SAP app including memory-based built-in database, runs only on Linux
+  * flavors:
+    - HANA1 (many online tutorials refer to this because it was novelty and not
+      easy to setup)
+    - HANA2
+
 
 ### SAP Hana
-
-* the SAP app including memory-based built-in database, runs only on Linux
-* flavors:
-  - HANA1 (many online tutorials refer to this because it was novelty and not
-    easy to setup)
-  - HANA2
 
 Some SAP basic vocabulary/info:
 
