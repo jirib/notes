@@ -516,9 +516,9 @@ The below configuration is taken from the above SUSE docs:
 ``` shell
 # jinja template
 cat > /tmp/sap_cluster.j2 <<EOF
-{% set sid=os.environ["_SID"].strip() %}
-{% set inst=os.environ["_INSTID"].strip() %}
-{% set ip=os.environ["_IP"].strip() %}
+{%- set sid=os.environ["_SID"].strip() -%}
+{%- set inst=os.environ["_INSTID"].strip() -%}
+{%- set ip=os.environ["_IP"].strip() -%}
 
 primitive rsc_SAPHanaTopology_{{ sid }}_HDB{{ inst }} ocf:suse:SAPHanaTopology \
     op monitor interval=10 timeout=300 \
