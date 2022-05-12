@@ -524,7 +524,7 @@ primitive rsc_SAPHanaTopology_{{ sid }}_HDB{{ inst }} ocf:suse:SAPHanaTopology \
     op monitor interval=10 timeout=300 \
     op start interval=0 timeout=300 \
     op stop interval=0 timeout=300 \
-    params SID={{ sid }} InstanceNumber=10
+    params SID={{ sid }} InstanceNumber={{ inst }}
 
 primitive rsc_SAPHana_{{ sid }}_HDB{{ inst }} ocf:suse:SAPHana \
     op monitor interval=61 role=Slave timeout=700 \
@@ -532,7 +532,7 @@ primitive rsc_SAPHana_{{ sid }}_HDB{{ inst }} ocf:suse:SAPHana \
     op stop interval=0 timeout=3600 \
     op promote interval=0 timeout=3600 \
     op monitor interval=60 role=Master timeout=700 \
-    params SID={{ sid }} InstanceNumber=10 PREFER_SITE_TAKEOVER=true \
+    params SID={{ sid }} InstanceNumber={{ inst }} PREFER_SITE_TAKEOVER=true \
            DUPLICATE_PRIMARY_TIMEOUT=7200 AUTOMATED_REGISTER=false \
     meta priority=100
 
