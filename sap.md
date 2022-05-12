@@ -616,7 +616,7 @@ Node Attributes:
     * hana_bsd_clone_state              : PROMOTED
            ^                              ^
            |                              |
-           +-- SID                       +-- primary
+           +-- SID                        +-- primary
                                               other could be:
                                               - WAITING4PRIMARY
                                               - DEMOTED
