@@ -614,43 +614,155 @@ could be not very readable.
 Node Attributes:
   * Node: oldhanae1:
     * hana_bsd_clone_state              : PROMOTED
-           ^^^ SAP SID
+           ^                              ^
+           |                              |
+           +-- SID                       +-- primary
+                                              other could be:
+                                              - WAITING4PRIMARY
+                                              - DEMOTED
+                                              - UNDEFINED
     * hana_bsd_op_mode                  : logreplay
     * hana_bsd_remoteHost               : oldhanae2
     * hana_bsd_roles                    : 4:P:master1:master:worker:master
-                                            ^ primary
+                                          ^ ^
+                                          | |
+                                          | +-- role (primary or secondary)
+                                          +-- 1   = off, but not synced
+                                              2/3 = transitioning
+                                              4    = all ok
     * hana_bsd_site                     : world
-                                          ^^ primary site name; not really important on Scale-Up mode
+                                          ^
+                                          |
+                                          +-- site name
     * hana_bsd_srmode                   : sync
     * hana_bsd_sync_state               : PRIM
+                                          ^
+                                          |
+                                          +-- as HDBSettings.sh systemReplication.py RC '15'
+                                              - SFAIL = sync failure, secondary won't be promoted!
+                                              - SOK   = OK
     * hana_bsd_vhost                    : oldhanae1
     * lpa_bsd_lpt                       : 1652270919
-                                          ^^ timpstamp only on primary
+                                          ^
+                                          |
+                                          +-- epoch time only on primary
+                                              on secondary it is a "status"
+                                              - 10 = KO
+                                              - 20 = doing something
+                                              - 30 = OK
     * master-rsc_SAPHana_BSD_HDB00      : 150
   * Node: oldhanae2:
     * hana_bsd_clone_state              : DEMOTED
     * hana_bsd_op_mode                  : logreplay
     * hana_bsd_remoteHost               : oldhanae1
     * hana_bsd_roles                    : 4:S:master1:master:worker:master
-                                          ^^ 4:S = secondary
-                                          ^^ 1:S = secondary but not synced
     * hana_bsd_site                     : world2
-                                          ^^ secondary site name
     * hana_bsd_srmode                   : sync
     * hana_bsd_sync_state               : SOK
-                                          ^^^ equivalent to HDBSettings.sh systemReplication.py
-                                              return code '15'
-                                          ^^^ SFAIL = sync failure, secondary won't be promoted!
+
     * hana_bsd_vhost                    : oldhanae2
     * lpa_bsd_lpt                       : 30
-                                          ^^ 10 - ko
-                                             20 - doing something
-                                             30 - ok
     * master-rsc_SAPHana_BSD_HDB00      : 100
 ```
 
 If both nodes think there are primary, see global.ini; the suppposed econdary
 should be re-registered.
+
+SRHook:
+
+SRHook - a connection between cluster and SAP environment
+
+1. `crm configure property maintenance-mode=true`
+2. stop HANA (eg. via `HDB stop` or `sapcontrol`)
+3. add/configure SRHook
+4. start HANA
+5. `crm configure property maintenance-mode=false`
+
+Cluster does monitor (pulls data at every monitor internal) but SRHook
+can make HANA push updates to the cluster.
+
+SRHooks uses `sudo`:
+
+``` shell
+$ cat > /etc/sudoers.d/sap_cluster.conf <<EOF
+<sid>adm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_<sid>_site_srHook_\*
+EOF
+```
+
+SRHook setup:
+
+``` shell
+$ su - bsdadm
+bsdadm> cdcoc
+```
+
+Add
+[SRHook](https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-sr-guide-costopt-15/#id-1.10.9.4)
+part into `global.ini`:
+
+```
+[ha_dr_provider_saphanasr]
+provider = SAPHanaSR
+path = /usr/share/SAPHanaSR/
+execution_order = 1
+
+[trace]
+ha_dr_saphanasr = info
+```
+
+Check `global.ini` after adding SRHook part:
+
+``` shell
+bsdadm> cat global.ini
+# global.ini last modified 2022-05-11 12:30:20.759224 by hdbnameserver
+[multidb]
+mode = multidb
+database_isolation = low
+singletenant = yes
+
+[persistence]
+basepath_datavolumes = /hana/data/BSD
+basepath_logvolumes = /hana/log/BSD
+
+[system_information]
+usage = test
+
+[system_replication]
+mode = primary
+actual_mode = primary
+site_id = 1
+site_name = world
+
+[ha_dr_provider_saphanasr]
+provider = SAPHanaSR
+path = /usr/share/SAPHanaSR/
+execution_order = 1
+
+[trace]
+ha_dr_saphanasr = info
+```
+
+See the cluster got the SRHook:
+
+``` shell
+$ crm configure show | grep -A 1 SR:
+property SAPHanaSR: \
+        hana_bsd_site_srHook_world2=SOK
+```
+
+Validation:
+
+``` shell
+bsdadm> cdtrace
+bsdadm> grep -m1 srHo nameserver_*
+nameserver_oldhanae1.30001.000.trc:[15186]{-1}[-1/-1] 2022-05-12 13:48:47.477185 i ha_dr_SAPHanaSR  SAPHanaSR.py(00116) : SAPHanaSR CALLING CRM: <sudo /usr/sbin/crm_attribute -n hana_bsd_site_srHook_world2 -v SFAIL -t crm_config -s SAPHanaSR> rc=0
+```
+
+``` shell
+$ grep -m 1 -P 'srHook.*SOK' /var/log/pacemaker/pacemaker.log
+May 03 12:48:33 oldhanae1 pacemaker-based     [1575] (cib_perform_op)   info: +  /cib/configuration/crm_config/cluster_property_set[@id='SAPHanaSR']/nvpair[@id='SAPHanaSR-hana_yh0_site_srHook_whitewine']:  @value=SOK
+```
+
 
 #### Support tools from OS like SLES
 
