@@ -1588,6 +1588,42 @@ sbd -d /dev/<shared_lun>  message <node> test      # node's sbd would log the te
 sbd -d <block_dev> message <node> clear # clear sbd state for a node, restart pacemaker!
 ```
 
+*sbd* watches both *corosync* and *pacemaker*:
+
+``` shell
+$ systemd-cgls -u sbd.service
+Unit sbd.service (/system.slice/sbd.service):
+├─2703 sbd: inquisitor
+├─2704 sbd: watcher: /dev/disk/by-id/scsi-36001405714d7f9602b045ee82274b815 - slot: 5 - uuid: 41e0e03c-5618-459e-b3ea-73ddb98d442a
+├─2705 sbd: watcher: Pacemaker
+└─2706 sbd: watcher: Cluster
+```
+
+- `inquisitor`, a kind of dead-men switch
+- `watcher: /dev/disk/by-id/scsi-36001405714d7f9602b045ee82274b815 - slot: 5 - uuid: 41e0e03c-5618-459e-b3ea-73ddb98d442a`,
+  monitors shared disk device
+- `watcher: Pacemaker`, monitors if the cluster partition the node is in is still quorate according to Pacemaker CIB,
+  and the node itself is still considered online and healthy by Pacemaker
+- `watcher: Cluster`, monitors if the cluster is still quorate according to Corosync's node count
+
+As for corosync watcher, it seems it is "registred" into corosync:
+
+```
+$ corosync-cpgtool | grep -A1 sbd
+sbd:cluster\x00
+                      2706       178438533 (10.162.193.133)
+$ ps auxww | grep '[2]706'
+root      2706  0.0  0.0 135268 39364 ?        SL   Apr21   3:59 sbd: watcher: Cluster
+```
+
+As for pacemaker watcher, it seems it uses libs to query the Pacemaker:
+
+``` shell
+$ ldd `which sbd` | grep -Po ' \K(/lib[^ ]+)(?=.*)' | while read f; do
+      rpm --qf '%{NAME}\n' -qf $f | grep pacemaker
+  done | sort -u
+libpacemaker3
+```
 
 
 ### csync2
@@ -3762,7 +3798,31 @@ notmuch tag +example.com path:/example.com/
 notmuch tag +example.org path:/example.org/
 ```
 
+### postfix
 
+- null client, submission and forwards somewhere else, NO local delivery
+
+
+#### multiple instances
+
+Let's simulate three systems:
+
+1. egress/internet facing inbound mail system which also supports local mail
+   submission for applications (eg. cron)
+
+2. egress/sending to other internet mail systems outgoing mails which also
+   supports local mail submnission for applications (eg. cron)
+
+3. ingress/internal system
+1.
+
+   accepts local mail and relays the mail to somewhere else
+
+   ```
+   ...
+   ```
+
+2.
 ## networking
 
 ### bonding
@@ -4647,6 +4707,280 @@ Data (32 bytes)
 1 packet captured
 ```
 
+### SR-IOV
+
+``` shell
+$ grep -P 'iommu' /etc/default/grub
+GRUB_CMDLINE_LINUX_DEFAULT="console=ttyS2,115200 resume=/dev/system/swap rd.shell=0 crashkernel=196M,high crashkernel=72M,low mitigations=auto intel_iommu=on iommu=pt"
+
+$ grub2-mkconfig -o /boot/grub2/grub.cfg # and reboot
+```
+
+After reboot:
+
+``` shell
+$ grep -iP '(DMAR|IOMMU)' /var/log/boot.msg
+<6>[    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-5.3.18-150300.59.49-default root=/dev/mapper/system-root console=ttyS2,115200 resume=/dev/system/swap rd.shell=0 crashkernel=196M,high crashkernel=72M,low mitigations=auto intel_iommu=on iommu=pt
+<6>[    0.031190] ACPI: DMAR 0x00000000BF7B00F0 000090 (v01 AMI    OEMDMAR  00000001 MSFT 00000097)
+<5>[    0.380718] Kernel command line: BOOT_IMAGE=/boot/vmlinuz-5.3.18-150300.59.49-default root=/dev/mapper/system-root console=ttyS2,115200 resume=/dev/system/swap rd.shell=0 crashkernel=196M,high crashkernel=72M,low mitigations=auto intel_iommu=on iommu=pt
+<6>[    0.380963] DMAR: IOMMU enabled
+<6>[    1.225392] DMAR: Host address width 36
+<6>[    1.229236] DMAR: DRHD base: 0x000000fed90000 flags: 0x1
+<6>[    1.234564] DMAR: dmar0: reg_base_addr fed90000 ver 1:0 cap c90780106f0462 ecap f020e3
+<6>[    1.242476] DMAR: RMRR base: 0x000000000ed000 end: 0x000000000effff
+<6>[    1.248744] DMAR: RMRR base: 0x000000bf7ed000 end: 0x000000bf7fffff
+<6>[    3.167095] iommu: Default domain type: Passthrough (set via kernel command line)
+<6>[    6.337209] DMAR: No ATSR found
+<6>[    6.340429] DMAR: dmar0: Using Queued invalidation
+<6>[    6.345333] pci 0000:00:00.0: Adding to iommu group 0
+<6>[    6.350412] pci 0000:00:03.0: Adding to iommu group 1
+<6>[    6.355485] pci 0000:00:05.0: Adding to iommu group 2
+<6>[    6.360556] pci 0000:00:08.0: Adding to iommu group 3
+<6>[    6.365625] pci 0000:00:08.1: Adding to iommu group 4
+<6>[    6.370696] pci 0000:00:08.2: Adding to iommu group 5
+<6>[    6.375776] pci 0000:00:08.3: Adding to iommu group 6
+<6>[    6.380861] pci 0000:00:10.0: Adding to iommu group 7
+<6>[    6.385932] pci 0000:00:10.1: Adding to iommu group 7
+<6>[    6.391002] pci 0000:00:1a.0: Adding to iommu group 8
+<6>[    6.396071] pci 0000:00:1c.0: Adding to iommu group 9
+<6>[    6.401142] pci 0000:00:1c.4: Adding to iommu group 10
+<6>[    6.406301] pci 0000:00:1c.5: Adding to iommu group 11
+<6>[    6.411458] pci 0000:00:1d.0: Adding to iommu group 12
+<6>[    6.416613] pci 0000:00:1e.0: Adding to iommu group 13
+<6>[    6.421792] pci 0000:00:1f.0: Adding to iommu group 14
+<6>[    6.426950] pci 0000:00:1f.2: Adding to iommu group 14
+<6>[    6.432110] pci 0000:00:1f.3: Adding to iommu group 14
+<6>[    6.437268] pci 0000:02:00.0: Adding to iommu group 15
+<6>[    6.442426] pci 0000:02:00.1: Adding to iommu group 16
+<6>[    6.447579] pci 0000:03:00.0: Adding to iommu group 17
+<6>[    6.452737] pci 0000:03:00.1: Adding to iommu group 18
+<6>[    6.457892] pci 0000:04:00.0: Adding to iommu group 19
+<6>[    6.463049] pci 0000:05:00.0: Adding to iommu group 20
+<6>[    6.468195] pci 0000:06:03.0: Adding to iommu group 13
+<6>[    6.473364] pci 0000:ff:00.0: Adding to iommu group 21
+<6>[    6.478525] pci 0000:ff:00.1: Adding to iommu group 21
+<6>[    6.483693] pci 0000:ff:02.0: Adding to iommu group 22
+<6>[    6.488855] pci 0000:ff:02.1: Adding to iommu group 22
+<6>[    6.494041] pci 0000:ff:03.0: Adding to iommu group 23
+<6>[    6.499204] pci 0000:ff:03.1: Adding to iommu group 23
+<6>[    6.504359] pci 0000:ff:03.2: Adding to iommu group 23
+<6>[    6.509517] pci 0000:ff:03.4: Adding to iommu group 23
+<6>[    6.514704] pci 0000:ff:04.0: Adding to iommu group 24
+<6>[    6.519866] pci 0000:ff:04.1: Adding to iommu group 24
+<6>[    6.525022] pci 0000:ff:04.2: Adding to iommu group 24
+<6>[    6.530178] pci 0000:ff:04.3: Adding to iommu group 24
+<6>[    6.535367] pci 0000:ff:05.0: Adding to iommu group 25
+<6>[    6.540531] pci 0000:ff:05.1: Adding to iommu group 25
+<6>[    6.545695] pci 0000:ff:05.2: Adding to iommu group 25
+<6>[    6.550858] pci 0000:ff:05.3: Adding to iommu group 25
+<6>[    6.556040] DMAR: Intel(R) Virtualization Technology for Directed I/O
+```
+
+Define number of VFs:
+
+``` shell
+$ grep -RH '' $(readlink -f /sys/class/net/{hor,dol}[01]/../../sriov_totalvfs)
+/sys/devices/pci0000:00/0000:00:05.0/0000:02:00.1/sriov_totalvfs:7
+/sys/devices/pci0000:00/0000:00:05.0/0000:02:00.0/sriov_totalvfs:7
+/sys/devices/pci0000:00/0000:00:1c.0/0000:03:00.1/sriov_totalvfs:7
+/sys/devices/pci0000:00/0000:00:1c.0/0000:03:00.0/sriov_totalvfs:7
+
+# or via
+
+$ lspci -vv -s 03:00.1 | grep VFs
+                Initial VFs: 8, Total VFs: 8, Number of VFs: 7, Function Dependency Link: 01
+```
+
+Try to set `sriov_numvfs`:
+
+``` shell
+$ readlink -f /sys/class/net/{hor,dol}[01] | while read s; do echo 7 > ${s%%/net*}/sriov_numvfs ; done
+-bash: P�: write error: Cannot allocate memory
+-bash: ���U: write error: Cannot allocate memory
+```
+
+Oh, but this is a known issue for some HW, see
+https://bugzilla.redhat.com/show_bug.cgi?id=1223376 and
+https://www.kernel.org/doc/html/v5.3/admin-guide/kernel-parameters.html. Thus
+try to add `pci=realloc` or `pci=assign-busses` (the latter worked for
+me!) as another kernel boot parameter:
+
+So final attemp to set VFs:
+
+``` shell
+$ cat /proc/cmdline
+BOOT_IMAGE=/boot/vmlinuz-5.3.18-150300.59.49-default root=/dev/mapper/system-root console=ttyS2,115200 console=tty0 resume=/dev/system/swap rd.shell=0 crashkernel=196M,high crashkernel=72M,low mitigations=auto intel_iommu=on iommu=pt pci=assign-busses
+
+$ cat /etc/modules-load.d/99-vfio.conf
+vfio_iommu_type1
+vfio-pci
+
+$ cat /etc/modprobe.d/99-local.conf
+options vfio_iommu_type1 allow_unsafe_interrupts=1
+softdep igb pre: vfio-pci
+```
+
+Rebuilt initramds and after boot:
+
+``` shell
+$ readlink -f /sys/class/net/{hor,dol}[01] | while read s; do echo 7 > ${s%%/net*}/sriov_numvfs ; done
+
+$ readlink -f /sys/class/net/{{hor,dol}[01],eth!(0|1)} | sort -t / -k 6 | wc -l
+32
+```
+
+From 2 dual-port network cards - 82576 Gigabit Network Connection
+(Gigabit ET Dual Port Server Adapter) - I got 32 interfaces.
+
+Since I'm going to use the VFs inside libvirt VMs, let's automate this
+`sriov_numvfs` increase action - note I'm doing that only for network
+interfaces with names *hor0*, *hor1*, *dol0*, *dol1*.
+
+``` shell
+$ systemctl --no-pager cat sriov_numvfs.service
+# /etc/systemd/system/sriov_numvfs.service
+[Unit]
+Before=libvirtd.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=true
+ExecStart=/bin/bash -c ' \
+    /usr/bin/readlink -f /sys/class/net/{hor,dol}[01] | \
+    while read i; do \
+        echo 7 > $${i%%/net*}/sriov_numvfs ; \
+    done'
+
+[Install]
+WantedBy=multi-user.target
+```
+
+SRIOV in libvirt VM for LACP bonding:
+
+- VF on host has to have 'spoofchk off'
+- VF on host has to have 'trust on'
+- PF has to be set 'up'
+
+```
+$ for i in 0 1 ; do ip link show hor${i} | head -n3 ; done
+5: hor0: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
+    link/ether 90:e2:ba:04:28:c1 brd ff:ff:ff:ff:ff:ff
+    vf 0     link/ether 52:54:00:ae:0b:79 brd ff:ff:ff:ff:ff:ff, spoof checking off, link-state auto, trust on
+4: hor1: <BROADCAST,MULTICAST,UP,LOWER_UP> mtu 1500 qdisc mq state UP mode DEFAULT group default qlen 1000
+    link/ether 90:e2:ba:04:28:c0 brd ff:ff:ff:ff:ff:ff
+    vf 0     link/ether 52:54:00:ae:0b:79 brd ff:ff:ff:ff:ff:ff, spoof checking off, link-state auto, trust on
+
+$ virsh dumpxml <domain> | xmllint --xpath '//*/interface[@type="hostdev"]' -
+<interface type="hostdev" managed="yes">
+      <mac address="52:54:00:ae:0b:79"/>
+      <driver name="vfio"/>
+      <source>
+        <address type="pci" domain="0x0000" bus="0x02" slot="0x10" function="0x1"/>
+      </source>
+      <model type="virtio"/>
+      <teaming type="persistent"/>
+      <alias name="ua-backup0"/>
+      <address type="pci" domain="0x0000" bus="0x07" slot="0x00" function="0x0"/>
+    </interface><interface type="hostdev" managed="yes">
+      <mac address="52:54:00:39:7f:ef"/>
+      <driver name="vfio"/>
+      <source>
+        <address type="pci" domain="0x0000" bus="0x02" slot="0x10" function="0x0"/>
+      </source>
+      <model type="virtio"/>
+      <teaming type="transient" persistent="ua-backup0"/>
+      <alias name="hostdev0"/>
+      <address type="pci" domain="0x0000" bus="0x08" slot="0x00" function="0x0"/>
+    </interface>
+```
+
+On libvirt domain:
+
+``` shell
+$ lshw -c network -businfo | grep eth[12]
+pci@0000:07:00.0  eth1       network        82576 Virtual Function
+pci@0000:08:00.0  eth2       network        82576 Virtual Function
+
+$ cat /proc/net/bonding/bond0
+Ethernet Channel Bonding Driver: v3.7.1 (April 27, 2011)
+
+Bonding Mode: IEEE 802.3ad Dynamic link aggregation
+Transmit Hash Policy: layer2 (0)
+MII Status: up
+MII Polling Interval (ms): 100
+Up Delay (ms): 0
+Down Delay (ms): 0
+Peer Notification Delay (ms): 0
+
+802.3ad info
+LACP rate: slow
+Min links: 0
+Aggregator selection policy (ad_select): stable
+System priority: 65535
+System MAC address: 52:54:00:ae:0b:79
+Active Aggregator Info:
+	Aggregator ID: 1
+	Number of ports: 2
+	Actor Key: 9
+	Partner Key: 1000
+	Partner Mac Address: 64:d8:14:5e:57:f9
+
+Slave Interface: eth1
+MII Status: up
+Speed: 1000 Mbps
+Duplex: full
+Link Failure Count: 0
+Permanent HW addr: 52:54:00:ae:0b:79
+Slave queue ID: 0
+Aggregator ID: 1
+Actor Churn State: none
+Partner Churn State: none
+Actor Churned Count: 0
+Partner Churned Count: 0
+details actor lacp pdu:
+    system priority: 65535
+    system mac address: 52:54:00:ae:0b:79
+    port key: 9
+    port priority: 255
+    port number: 1
+    port state: 61
+details partner lacp pdu:
+    system priority: 1
+    system mac address: 64:d8:14:5e:57:f9
+    oper key: 1000
+    port priority: 1
+    port number: 61
+    port state: 61
+
+Slave Interface: eth2
+MII Status: up
+Speed: 1000 Mbps
+Duplex: full
+Link Failure Count: 0
+Permanent HW addr: 52:54:00:39:7f:ef
+Slave queue ID: 0
+Aggregator ID: 1
+Actor Churn State: none
+Partner Churn State: none
+ctor Churned Count: 0
+Partner Churned Count: 0
+details actor lacp pdu:
+    system priority: 65535
+    system mac address: 52:54:00:ae:0b:79
+    port key: 9
+    port priority: 255
+    port number: 2
+    port state: 61
+details partner lacp pdu:
+    system priority: 1
+    system mac address: 64:d8:14:5e:57:f9
+    oper key: 1000
+    port priority: 1
+    port number: 62
+    port state: 61
+```
+
+
 ## package management
 
 ## rpm
@@ -5287,7 +5621,7 @@ targetcli /backstores/fileio/mpio01 info
 > wwn: 501bb55a-79b6-499f-8c20-a3833fae05b0
 ```
 
-###### iscsi multipath with multiple tgps
+###### multipath with multiple tgps
 
 IIUC one session is able to use only one interface, but I could be
 mistaken. The point here is to use multiple iSCSI initiator ifaces,
@@ -5313,6 +5647,38 @@ o- iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.d3b127e7b7a9 ......................
 During simulation one could delete a port from a TPG and use `ss -K
 dst <dst_ip> dport = <dst_port>` to kill an existing TCP session
 (surprisinly after deleting the portal, the session still works).
+
+
+###### resizing luns
+
+``` shell
+$ targetcli /iscsi/iqn.2021-12.com.example:cl0/tpg1/luns/lun2 info
+alias: 8ae1d462e7
+alua_tg_pt_gp_name: default_tg_pt_gp
+index: 2
+storage_object: /backstores/fileio/testresize
+
+$ targetcli /backstores/fileio/testresize info
+aio: False
+dev: /suse/vms/testresize.raw
+name: testresize
+plugin: fileio
+size: 4194304
+write_back: True
+wwn: 4e06ac05-b742-4f7f-b391-368fba4ba080
+
+$  cat /sys/kernel/config/target/core/fileio_*/testresize/info
+Status: ACTIVATED  Max Queue Depth: 0  SectorSize: 512  HwMaxSectors: 16384
+        TCM FILEIO ID: 0        File: /suse/vms/testresize.raw  Size: 4194304  Mode: Buffered-WCE Async: 0
+```
+
+``` shell
+$  lsscsi -is 0:0:0:2
+[0:0:0:2]    disk    LIO-ORG  testresize       4.0   /dev/sdb   360014054e06ac05b7424f7fb391368fb  4.19MB
+```
+
+``` shell
+$ truncate -s +6M testresize.raw
 
 ### mdraid
 
@@ -6641,7 +7007,7 @@ samba-4.13.13+git.539.fdbc44a8598.x86_64.rpm
 
 ``` shell
 # generic
-rm /etc/machine-id # machine-id in /var/lib/dbus is symlink
+: > /etc/machine-id # machine-id in /var/lib/dbus is symlink
 rm /etc/ssh/{ssh_host*,moduli}
 rm /etc/udev/rules.d/*-persistent-*.rules
 
@@ -6654,6 +7020,8 @@ rm /var/lib/wicked/{duid,iaid,lease-eth0-dhcp-ipv4}.xml
 
 <editor> /etc/default/grub_installdevice # path to block device
 <editor> /etc/sysconfig/network/if{cfg,route}-eth0
+
+# TIP: enable serial console so `virsh console <domain>' works
 ```
 
 #### support

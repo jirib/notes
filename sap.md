@@ -53,13 +53,18 @@ SUSE SAP documentation:
 SAP HANA needs only little space in `/usr/` (`/usr/sap`), it creates a lot of
 symlinks to real HANA directory (eg. `/hana`).
 
+OS tunning:
+
+saptune v1, sapconf (old but also for plain SLES), new saptune written
+in Go and uses tuned (only SLES4SAP)
+
 An installation media should be available:
 
 ``` shell
 $ mount -t nfs <nfsserver>:/srv/nfs/sap /mnt # install media
 $ cd /mnt
 $ cd /HANA2
-$ cd SAPS05rev57 # version/revision of SAP HANA
+$ cd SPS05rev57 # version/revision of SAP HANA
 $ cd x86_64
 $ cat CDLABEL.ASC
 $ cd DATA_UNITS
