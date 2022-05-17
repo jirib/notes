@@ -5089,7 +5089,7 @@ linux distros using udev use udev rules to probe and register bcache devices, ie
 ID_FS_TYPE=bcache
 ```
 
-### fc / fibre channel
+### fc / fcoe / fibre channel
 
 - *WWPN*, *World Wide Port Name*, assignement to a port in a Fibre Channel
   fabric (network), a kind of like a MAC address in Ethernet.
@@ -5218,6 +5218,52 @@ FCP Target
 /sys/class/fc_remote_ports/rport-1:0-2/scsi_target_id:0
 /sys/class/fc_remote_ports/rport-1:0-2/supported_classes:Class 3
 ```
+
+For FCoE there could be no `supported_speeds` value,
+eg. [`lpfc`](https://github.com/torvalds/linux/blob/master/drivers/scsi/lpfc/lpfc_init.c#L4870)
+driver.
+
+``` shell
+$ lspci -b | grep 06:00.2
+06:00.2 Fibre Channel: Emulex Corporation OneConnect FCoE Initiator (Skyhawk) (rev 10)
+
+$ /usr/bin/systool -vc fc_host
+Class = "fc_host"
+
+  Class Device = "host6"
+  Class Device path = "/sys/devices/pci0000:00/0000:00:02.0/0000:06:00.2/host6/fc_host/host6"
+    active_fc4s         = "0x00 0x00 0x01 0x00 0x00 0x00 0x00 0x01 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 "
+    dev_loss_tmo        = "30"
+    fabric_name         = "0x1000c4f57c0a1000"
+    issue_lip           = <store method only>
+    max_npiv_vports     = "255"
+    maxframe_size       = "2048 bytes"
+    node_name           = "0x1000de4b253003d1"
+    npiv_vports_inuse   = "0"
+    port_id             = "0x21a3c2"
+    port_name           = "0x1000de4b253003d0"
+    port_state          = "Online"
+    port_type           = "NPort (fabric via point-to-point)"
+    speed               = "20 Gbit"
+    supported_classes   = "Class 3"
+    supported_fc4s      = "0x00 0x00 0x01 0x00 0x00 0x00 0x00 0x01 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 0x00 "
+    supported_speeds    = "unknown"
+    symbolic_name       = "Emulex 650FLB FV12.0.1345.0 DV14.2.0.1 HN:ihs-pruebas OS:Linux"
+    tgtid_bind_type     = "wwpn (World Wide Port Name)"
+    uevent              =
+    vport_create        = <store method only>
+    vport_delete        = <store method only>
+
+    Device = "host6"
+    Device path = "/sys/devices/pci0000:00/0000:00:02.0/0000:06:00.2/host6"
+      uevent              = "DEVTYPE=scsi_host"
+...
+```
+
+See, as regards above example,
+`/sys/devices/pci0000:00/0000:00:02.0/0000:06:00.2/host6/scsi_host/host6/procol`
+which would show *fcoe*.
+
 
 ### iscsi
 
@@ -7974,6 +8020,51 @@ Some *blockdev* types are supported via external libraries
 qemu-block-curl-6.0.0-29.1.x86_64
 qemu-block-iscsi-6.0.0-29.1.x86_64
 qemu-block-rbd-6.0.0-29.1.x86_64
+```
+
+Changing path of backing file:
+
+``` shell
+$ qemu-img info s125admem01.qcow2
+image: s125admem01.qcow2
+file format: qcow2
+virtual size: 21 GiB (22548578304 bytes)
+disk size: 8.64 GiB
+cluster_size: 65536
+backing file: /var/lib/libvirt/images/sles12sp5-template.qcow2
+backing file format: qcow2
+Snapshot list:                                                                                                                                                                                                                                 ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
+1         test01                0 B 2022-02-15 16:22:47 00:00:00.000          0
+Format specific information:
+    compat: 1.1
+    compression type: zlib
+    lazy refcounts: true
+    refcount bits: 16
+    corrupt: false
+    extended l2: false
+
+# sles12sp5-template.qcow2 was renamed to _s125.qcow2
+
+$ qemu-img rebase -f qcow2 -u -b _s125.qcow2 -F qcow2 s125admem01.qcow2
+
+$ qemu-img info s125admem01.qcow2
+image: s125admem01.qcow2
+file format: qcow2
+virtual size: 21 GiB (22548578304 bytes)
+disk size: 8.64 GiB
+cluster_size: 65536
+backing file: _s125.qcow2
+backing file format: qcow2
+Snapshot list:
+ID        TAG               VM SIZE                DATE     VM CLOCK     ICOUNT
+1         test01                0 B 2022-02-15 16:22:47 00:00:00.000          0
+Format specific information:
+    compat: 1.1
+    compression type: zlib
+    lazy refcounts: true
+    refcount bits: 16
+    corrupt: false
+    extended l2: false
 ```
 
 ##### iscsi
