@@ -5753,6 +5753,41 @@ mdadm /dev/md/<name> --add <real_dev> # add disk to array
 watch -n 1 cat /proc/mdstat # watch recovery
 ```
 
+Decreasing number of raid devices (legs) in an array:
+
+``` shell
+$ cat /proc/mdstat
+Personalities : [raid1]
+md127 : active raid1 loop11[2] loop10[1] loop2[0]
+      1046528 blocks super 1.2 [3/3] [UUU]
+
+unused devices: <none>
+
+# setting as faulty
+$ mdadm --manage /dev/md127 -f /dev/loop11
+mdadm: set /dev/loop11 faulty in /dev/md127
+
+# removal
+$ mdadm --manage /dev/md127 -r /dev/loop11
+mdadm: hot removed /dev/loop11 from /dev/md127
+
+# decreasing
+$ mdadm --grow /dev/md127 -n 2
+raid_disks for /dev/md127 set to 2
+
+# an equivalent
+$ echo 2 > /sys/class/block/md127/md/raid_disks
+
+$ cat /proc/mdstat
+Personalities : [raid1]
+md127 : active raid1 loop10[1] loop2[0]
+      1046528 blocks super 1.2 [2/2] [UU]
+
+unused devices: <none>
+```
+
+Monitoring for mdraid via email.
+
 ``` shell
 mdadm --monitor -d 1800 -m root@localhost --scan -c /etc/mdadm.conf # manually starting monitor
 ```
@@ -5814,7 +5849,109 @@ unused devices: <none>
 ```
 
 What is that `loopX[Y]`? `[Y]` corresponds to indexed number of the device when
-the array is created, see below:
+the array is created and subsequently modified, see below:
+
+``` shell
+$ cat /proc/mdstat
+Personalities : [raid1]
+md127 : active raid1 loop11[2] loop10[1]
+      1046528 blocks super 1.2 [2/2] [UU]
+
+unused devices: <none>
+
+# see there's no '0', it was already removed
+```
+
+And the list of disks is in backward order, from most recently added
+to first failed! The order of disks line DOES NOT correspond to order
+of line with 'bits' (eg. `U` or `_`).
+
+``` shell
+# comments inline
+$ for i in loop11 loop10 ; do
+  echo /dev/$i; dd if=/dev/$i bs=4K count=63 skip=1 2>/dev/null | xxd -s 0xa0 -l 0x20
+  echo
+done
+/dev/loop11
+000000a0: 0200 0000 0000 0000 9b77 fb5d e85b c9ad  .........w.].[..
+          ^                   ^--+-- starts UUID_SUB
+          +--+-- correspons to loop11[2] ?
+000000b0: c26d e5ed 2dc4 9c5c 0000 0800 1000 0000  .m..-..\........
+
+/dev/loop10
+000000a0: 0100 0000 0000 0000 f662 655b 15c3 3fcb  .........be[..?.
+          ^                   ^--+-- starts UUID_SUB
+          +--+-- corresponds to loop10[1] ??
+000000b0: 9d78 c04c 4d7a 8aa6 0000 0800 1000 0000  .x.LMz..........
+
+$ for i in loop11 loop10 ; do
+  echo /dev/$i; udevadm info -q property -n /dev/$i | grep ID_FS_UUID_SUB=
+  echo
+done
+/dev/loop11
+ID_FS_UUID_SUB=9b77fb5d-e85b-c9ad-c26d-e5ed2dc49c5c
+
+/dev/loop10
+ID_FS_UUID_SUB=f662655b-15c3-3fcb-9d78-c04c4d7a8aa6
+```
+
+Hot-spare:
+
+Hot-spare disk is a disk, which when a failed drive would cause enter
+into degraded mode, it would be introduced into the array, replacing
+the failed drive.
+
+``` shell
+# adding hot-spare disk
+$ mdadm /dev/md127 --add /dev/loop2
+mdadm: added /dev/loop2
+
+$ cat /proc/mdstat
+Personalities : [raid1]
+md127 : active raid1 loop2[3](S) loop11[2] loop10[1]
+      1046528 blocks super 1.2 [2/2] [UU]
+
+unused devices: <none>
+
+$ mdadm -D /dev/md127
+/dev/md127:
+           Version : 1.2
+     Creation Time : Wed Apr 27 18:37:07 2022
+        Raid Level : raid1
+        Array Size : 1046528 (1022.00 MiB 1071.64 MB)
+     Used Dev Size : 1046528 (1022.00 MiB 1071.64 MB)
+      Raid Devices : 2
+     Total Devices : 3
+       Persistence : Superblock is persistent
+
+       Update Time : Wed May 18 19:58:30 2022
+             State : clean
+    Active Devices : 2
+   Working Devices : 3
+    Failed Devices : 0
+     Spare Devices : 1
+
+Consistency Policy : resync
+
+              Name : t14s:loopraid  (local to host t14s)
+              UUID : 8328504d:27bc6d5d:0cd6079c:7430b724
+            Events : 188
+
+    Number   Major   Minor   RaidDevice State
+       2       7       11        0      active sync   /dev/loop11
+       1       7       10        1      active sync   /dev/loop10
+
+       3       7        2        -      spare   /dev/loop2
+
+$ grep -H '' /sys/class/block/md127/md/{raid_disks,dev*/{slot,state}}
+/sys/class/block/md127/md/raid_disks:2
+/sys/class/block/md127/md/dev-loop10/slot:1
+/sys/class/block/md127/md/dev-loop11/slot:0
+/sys/class/block/md127/md/dev-loop2/slot:none
+/sys/class/block/md127/md/dev-loop10/state:in_sync
+/sys/class/block/md127/md/dev-loop11/state:in_sync
+/sys/class/block/md127/md/dev-loop2/state:spare
+```
 
 ``` shell
 $ mdadm --create /dev/md/loopraid --level=mirror --raid-devices=3 /dev/loop7 /dev/loop10 /dev/loop11
@@ -5841,11 +5978,12 @@ lrwxrwxrwx 1 root root 11 Apr 27 18:37 /dev/disk/by-id/md-uuid-8328504d:27bc6d5d
 
 ### multipath
 
-if multipath support is required during boot (ie. booting from multipath SAN)
-it is in SLES present as *dracut* module (*multipath*) which puts into initramfs
-multipath-tools binaries, libs, configuration and udev/systemd files. See
-[Troubleshooting boot issues (multipath with lvm)](
-  https://www.suse.com/support/kb/doc/?id=000019115).
+if multipath support is required during boot (ie. booting from
+multipath SAN) it is in SLES present as *dracut* module (*multipath*)
+which puts into initramfs multipath-tools binaries, libs,
+configuration and udev/systemd files. See [Troubleshooting boot issues
+(multipath with lvm)](
+https://www.suse.com/support/kb/doc/?id=000019115).
 
 - *priority group*, paths (transport interconnects) are grouped into
   an **ordered** list of Priority Groups. Inside a priority group paths
