@@ -8915,29 +8915,33 @@ virsh define /tmp/esxi
 
 ### Xen
 
+#### Xen on KVM
+
+``` shell
+# check your baremetal host supports nested virtualization
+
+$ cat > /etc/modprobe.d/kvm.conf <<EOF
+options kvm ignore_msrs=1 report_ignored_msrs=0
+options kvm_amd nested=1
+EOF
+
+$ modprobe kvm
+```
+
 ``` shell
 # libvirt domain tunning
+
 $ virsh dumpxml s153qu01 | xmllint --xpath '//*/cpu' -
 <cpu mode="host-passthrough" check="none" migratable="on"/>
 ```
 
 ``` shell
 # Xen virthost
+
 $ cat /proc/cmdline
 root=UUID=751fee4a-0c5a-4aef-9ab5-8324a767503b noresume splash=none mitigations=auto console=xvc0,115200,8n1 console=hvc0 earlyprintk=xen  noresume splash=none mitigations=auto
 
-$ grep -Pv '^ *(#|$)' /etc/default/grub
-GRUB_DISABLE_OS_PROBER="true"
-GRUB_TERMINAL="serial console"
-GRUB_TIMEOUT="8"
-GRUB_ENABLE_CRYPTODISK="n"
-GRUB_GFXMODE="auto"
-GRUB_DISABLE_RECOVERY="true"
-GRUB_DISTRIBUTOR=
-GRUB_DEFAULT="saved"
-SUSE_BTRFS_SNAPSHOT_BOOTING="true"
-GRUB_USE_LINUXEFI="true"
-GRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --parity=no"
+$ grep -P 'CMDLINE' /etc/default/grub
 GRUB_CMDLINE_LINUX="console=ttyS0,115200n console=tty0"
 GRUB_CMDLINE_LINUX_DEFAULT="noresume splash=none mitigations=auto"
 GRUB_CMDLINE_LINUX_XEN_REPLACE="noresume splash=none mitigations=auto console=xvc0,115200,8n1 console=hvc0 earlyprintk=xen"
