@@ -1600,11 +1600,14 @@ Unit sbd.service (/system.slice/sbd.service):
 ```
 
 - `inquisitor`, a kind of dead-men switch
-- `watcher: /dev/disk/by-id/scsi-36001405714d7f9602b045ee82274b815 - slot: 5 - uuid: 41e0e03c-5618-459e-b3ea-73ddb98d442a`,
-  monitors shared disk device
-- `watcher: Pacemaker`, monitors if the cluster partition the node is in is still quorate according to Pacemaker CIB,
-  and the node itself is still considered online and healthy by Pacemaker
-- `watcher: Cluster`, monitors if the cluster is still quorate according to Corosync's node count
+- `watcher: /dev/disk/by-id/scsi-36001405714d7f9602b045ee82274b815 -
+  slot: 5 - uuid: 41e0e03c-5618-459e-b3ea-73ddb98d442a`, monitors
+  shared disk device
+- `watcher: Pacemaker`, monitors if the cluster partition the node is
+  in is still quorate according to Pacemaker CIB, and the node itself
+  is still considered online and healthy by Pacemaker
+- `watcher: Cluster`, monitors if the cluster is still quorate
+  according to Corosync's node count
 
 As for corosync watcher, it seems it is "registred" into corosync:
 
@@ -1624,6 +1627,33 @@ $ ldd `which sbd` | grep -Po ' \K(/lib[^ ]+)(?=.*)' | while read f; do
   done | sort -u
 libpacemaker3
 ```
+
+Two disks SBD:
+
+TODO: ...
+
+```
+int quorum_read(int good_servants)
+{
+	if (disk_count > 2)
+		return (good_servants > disk_count/2);
+	else
+		return (good_servants > 0);
+}
+```
+Cf. https://github.com/ClusterLabs/sbd/blob/92ff8d811c68c0fcf8a406cf4f333fff37da30f9/src/sbd-inquisitor.c#L475.
+
+Diskless SBD:
+
+Usually three nodes, a kind of self-fence feature.
+
+- inquisitor
+- watcher: Pacemaker
+- watcher: Cluster
+
+It's not visible on `crm configure show` as resource, only property
+`cib-bootstrap-options` stonith options need to be set. It will
+self-fence if cannot see other nodes.
 
 
 ### csync2
@@ -1971,6 +2001,69 @@ See https://www.perl.com/pub/2004/08/09/commandline.html/.
 
 ## dns
 
+### bind / named
+
+``` shell
+# IPv4 only
+$ grep -Pv '^ *($|#)' /etc/sysconfig/named
+NAMED_INITIALIZE_SCRIPTS=""
+NAMED_ARGS="-4"
+RNDC_KEYSIZE=512
+```
+
+``` shell
+# for libvirt network only
+grep -Pv '^\s*($|#)' /etc/named.conf
+options {
+        stale-answer-enable no;
+        directory "/var/lib/named";
+        managed-keys-directory "/var/lib/named/dyn/";
+        dump-file "/var/log/named_dump.db";
+        statistics-file "/var/log/named.stats";
+        listen-on port 53 { 192.168.122.1; };
+        notify no;
+    disable-empty-zone "1.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.IP6.ARPA";
+    geoip-directory none;
+};
+zone "." in {
+        type hint;
+        file "root.hint";
+};
+zone "localhost" in {
+        type master;
+        file "localhost.zone";
+};
+zone "0.0.127.in-addr.arpa" in {
+        type master;
+        file "127.0.0.zone";
+};
+zone "0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.0.ip6.arpa" IN {
+    type master;
+    file "127.0.0.zone";
+};
+zone "example.com" IN {
+     type master;
+     file "example.com.zone";
+};
+```
+
+``` shell
+$ grep -Pv '^\s*(#|$)' /var/lib/named/example.com.zone
+$TTL 1h
+@               IN SOA          localhost.   root.localhost. (
+                                2               ; serial (d. adams)
+                                2D              ; refresh
+                                4H              ; retry
+                                6W              ; expiry
+                                1W )            ; minimum
+                IN NS           ns.example.com.
+ns              IN A            192.168.122.1
+
+$ named-checkzone example.com /var/lib/named/example.com.zone
+zone example.com/IN: loaded serial 2
+OK
+```
+
 ### dnsmasq
 
 #### dnsmasq as authoritative dns server
@@ -2073,6 +2166,17 @@ zone "<reverse_zone>" IN {
 ``` shell
 mount | column -t # more readable mount output
 ```
+
+### autofs
+
+TODO: ...
+
+Configuration consists of three columns:
+
+1. mountpoint
+2. map
+3. options
+
 
 ### btrfs
 
@@ -3062,17 +3166,35 @@ What NFS protocol version are support?
 -2 +3 +4 +4.1 +4.2
 ```
 
+#### /etc/exports
+
+- long lines can be wrapped with a backslash `\`
+- an exported filesystem should be separated from hosts and hosts
+  declaration from one another with *a space* character
+- *NO space* between the host identifier and first parenthesis of
+  options!
+
+Options:
+
+- `anonuid/anonguid`, maps "nobody" to a special UID/GID
+
 #### nfsv4
 
-- *NFSv4* does NOT require `rpcbind`, no longer requirement of separate
-  TCP callback connection (ie. server does not need to contact the
-  client directly by itself); mounting and locking protocols are part
-  of NFSv4
-- in-kernel *nfsd* listening on 2049/{tcp,udp}
-- **BUT** although nfsv4 does not require `rpcbind`, it requires
-  internally communicating with `rpc.mountd`, see [How to run
-  NFS4-only Server without rpcbind on SLES 12 or
-  15](https://www.suse.com/support/kb/doc/?id=000019530) for details!.
+*NFSv4* does NOT require `rpcbind`, no longer requirement of separate
+TCP callback connection (ie. server does not need to contact the
+client directly by itself); mounting and locking protocols are part of
+NFSv4. **BUT** although NFSv4 does not require `rpcbind`, it requires
+internally communicating with `rpc.mountd`, see [How to run NFS4-only
+Server without rpcbind on SLES 12 or
+15](https://www.suse.com/support/kb/doc/?id=000019530) for details,
+but it is not involved in any over-the-wire operations.
+
+- in-kernel *nfsd* listening on 2049/TCP
+- `rpc.idmapd`, provides NFSv4 client and NFSv4 server upcalls, which
+  map between on-the-wire NFSv4 names (strings in the form of
+  `user@domain`) and local UIDs and GIDs. `/etc/idmapd.conf` must be
+  configured and `Domain` must be agreed to make ID mapping to
+  function properly
 
 for every >= 4.0 nfs client `nfsd` keeps a record in `/proc/fs/nfsd/clients`
 
@@ -3088,11 +3210,27 @@ grep -RH '' /proc/fs/nfsd/clients/11 2>/dev/null | grep clients
 /proc/fs/nfsd/clients/11/info:Implementation time: [0, 0]
 ```
 
+In *NFSv4.0 only* a TCP port has to be opened for callbacks, see
+`callback_tcpport` in `nfs` module. Newer NFSv4 revisions do not need
+this.
+
+
 #### nfsv3
 
-- *NFSv3* does require `rpcbind` (previously `portmapper`) and has
-  couple of separate processes (rpc.mountd, prpc.statd), in-kernel
-  *lockd* thread (nlockmgr) which require special firewall handling
+- in-kernel *nfsd* listening on 2049/{tcp,udp}
+- `rpcbind` (previously `portmapper`) is required, accepts port
+  reservations from local RPC services, makes them available to remote
+  RPC services
+- `rpc.mountd`, processes `MOUNT` requests from NFSv3 clients, checks
+  that the requested NFS share is currently exported anf if the client
+  is allowed to access it
+- `lockd`, a kernel thread running on both client and server,
+  implementing Network Lock Manager (NLM) protocol, which enables
+  NFSv3 clients to lock files on the server
+- `rpc.statd`, the Network Status Monitor (NSM) RPC protocol
+  implementation, which notifies NFSv3 client when an NFS server is
+  restarted without being gracefully brought down (???)
+
 - *autofs* requires NFSv3 daemons for operation
 
 `rpc.mountd` registers every successful mount request of clients into
@@ -3294,6 +3432,36 @@ details about `nfsstat` can be found at this
 | layoutcommit | Commit Writes Made |
 | layoutreturn | Release Layout |
 | getdevlist | Get All Devices |
+
+### troubleshooting
+
+Get physical location of a file, eg. `/boot/grub2/grub.cfg`.
+
+``` shell
+$ ls -l /boot/grub2/grub.cfg
+-rw------- 1 root root 10386 May 19 22:23 /boot/grub2/grub.cfg
+
+$ filefrag -v /boot/grub2/grub.cfg
+Filesystem type is: 9123683e
+File size of /boot/grub2/grub.cfg is 10386 (3 blocks of 4096 bytes)
+ ext:     logical_offset:        physical_offset: length:   expected: flags:
+   0:        0..       2:     632470..    632472:      3:             last,shared,eof
+/boot/grub2/grub.cfg: 1 extent found
+
+$ dd skip=2590597120 if=/dev/mapper/system-root count=10386 ibs=1 2>/dev/null | strings | head
+# DO NOT EDIT THIS FILE
+# It is automatically generated by grub2-mkconfig using templates
+# from /etc/grub.d and settings from /etc/default/grub
+### BEGIN /etc/grub.d/00_header ###
+set btrfs_relative_path="y"
+export btrfs_relative_path
+if [ -f ${config_directory}/grubenv ]; then
+  load_env -f ${config_directory}/grubenv
+elif [ -s $prefix/grubenv ]; then
+  load_env
+```
+
+TODO: continue over LVM to physical disk...
 
 ## firewall
 
@@ -8042,6 +8210,31 @@ set -g tmate-server-port "23"
 set -g tmate-server-rsa-fingerprint "91:cf:4f:cd:45:6b:c5:e0:9a:54:2e:90:7e:61:62:e2"
 ```
 
+## tftp
+
+``` shell
+# for libvirt network only
+$ systemctl cat tftp.socket
+# /usr/lib/systemd/system/tftp.socket
+[Unit]
+Description=Tftp Server Activation Socket
+
+[Socket]
+ListenDatagram=69
+
+[Install]
+WantedBy=sockets.target
+
+
+# /etc/systemd/system/tftp.socket.d/override.conf
+[Socket]
+ListenDatagram=192.168.122.1:69
+
+# how to disable ipv6?
+$ ss -tunlp | grep :69
+udp   UNCONN 0      0        192.168.122.1:69         0.0.0.0:*    users:(("systemd",pid=1,fd=59))
+udp   UNCONN 0      0                    *:69               *:*    users:(("systemd",pid=1,fd=58))
+```
 
 ## troubleshooting
 
@@ -8718,6 +8911,37 @@ cat > /tmp/esxi <<EOF
 EOF
 
 virsh define /tmp/esxi
+```
+
+### Xen
+
+``` shell
+# libvirt domain tunning
+$ virsh dumpxml s153qu01 | xmllint --xpath '//*/cpu' -
+<cpu mode="host-passthrough" check="none" migratable="on"/>
+```
+
+``` shell
+# Xen virthost
+$ cat /proc/cmdline
+root=UUID=751fee4a-0c5a-4aef-9ab5-8324a767503b noresume splash=none mitigations=auto console=xvc0,115200,8n1 console=hvc0 earlyprintk=xen  noresume splash=none mitigations=auto
+
+$ grep -Pv '^ *(#|$)' /etc/default/grub
+GRUB_DISABLE_OS_PROBER="true"
+GRUB_TERMINAL="serial console"
+GRUB_TIMEOUT="8"
+GRUB_ENABLE_CRYPTODISK="n"
+GRUB_GFXMODE="auto"
+GRUB_DISABLE_RECOVERY="true"
+GRUB_DISTRIBUTOR=
+GRUB_DEFAULT="saved"
+SUSE_BTRFS_SNAPSHOT_BOOTING="true"
+GRUB_USE_LINUXEFI="true"
+GRUB_SERIAL_COMMAND="serial --unit=0 --speed=115200 --parity=no"
+GRUB_CMDLINE_LINUX="console=ttyS0,115200n console=tty0"
+GRUB_CMDLINE_LINUX_DEFAULT="noresume splash=none mitigations=auto"
+GRUB_CMDLINE_LINUX_XEN_REPLACE="noresume splash=none mitigations=auto console=xvc0,115200,8n1 console=hvc0 earlyprintk=xen"
+GRUB_CMDLINE_XEN_DEFAULT="loglvl=all guest_loglvl=all com1=115200,8n1 console=com1,vga"
 ```
 
 ## windows
