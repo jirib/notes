@@ -69,7 +69,7 @@ python3 -c 'import os; \
   from jinja2 import Template; \
   data=sys.stdin.read(); \
   t = Template(data); \
-  print(t.render(os=os))' < /tmp/envsubst.j2
+  print(t.render(os=os))' < /tmp/corosync.j2
 
 # distribute config to both nodes!
 ```

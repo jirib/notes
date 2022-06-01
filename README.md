@@ -1977,6 +1977,13 @@ git submodule update
 exists
 ```
 
+#### tricks & tips
+
+- Get GH PR as raw diff/patch, an example:
+  https://github.com/weppos/whois/pull/90.diff
+  https://github.com/weppos/whois/pull/90.patch
+
+
 ### json
 
 A [playgroun](https://jqplay.org/) for `jq`.
@@ -3379,6 +3386,7 @@ grep -RH '' /proc/sys/sunrpc/nfs_debug # above commands change this value
   Jun 23 13:04:10 linux-u93p kernel: NFS call fsstat
   Jun 23 13:04:10 linux-u93p kernel: NFS reply fsstat: 0
   ```
+
 
 ##### nfsstat
 
