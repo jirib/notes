@@ -687,6 +687,49 @@ better modify `pxelinux.0` binary.
 
 And copy `pxelinux.0` to your TFTP directory.
 
+
+## cloud
+
+### azure
+
+``` shell
+$ az login
+```
+
+``` shell
+$ cat ~/.azure/config
+[cloud]
+name = AzureCloud
+
+[defaults]
+group = <resource group>
+location = germanywestcentral
+vm = <vmprefix>
+
+[storage]
+account = <account name>
+```
+
+``` shell
+$ az vm image list --offer sles-15-sp3-byos --all | jq '.[-1]'
+{
+  "offer": "sles-15-sp3-byos",
+  "publisher": "SUSE",
+  "sku": "gen2",
+  "urn": "SUSE:sles-15-sp3-byos:gen2:2022.05.05",
+  "version": "2022.05.05"
+}
+```
+
+``` shell
+$ az sshkey create --public-key "$(ssh-add -L | grep ssh-rsa)" --name <key name>
+```
+
+``` shell
+$ az vm create --name <vm name> --image SUSE:sles-15-sp3-byos:gen2:2022.05.05 \
+    --ssh-key-name <key name>
+```
+
 ## clusters
 
 ### pacemaker/corosync
@@ -1987,6 +2030,24 @@ exists
 ### json
 
 A [playgroun](https://jqplay.org/) for `jq`.
+
+### patches / diffs
+
+Patching files from different paths from one diff, that is extracting
+a portion of the diff and applying separately:
+
+``` shell
+s153cl1:/usr/lib/python3.6/site-packages/crmsh # filterdiff -p2 \
+    -i 'hb_report.in' -i 'utillib.py' /tmp/974.diff | \
+    sed 's/hb_report\.in/hb_report/g' | patch -b -p1
+patching file hb_report/hb_report
+patching file hb_report/utillib.py
+
+s153cl1:/usr/lib/python3.6/site-packages/crmsh # filterdiff -p2 \
+    -i 'msg.py' -i 'utils.py' /tmp/974.diff | patch -p2 -b
+patching file msg.py
+patching file utils.py
+```
 
 ### perl
 
@@ -7365,6 +7426,8 @@ samba-4.13.13+git.539.fdbc44a8598.x86_64.rpm
 
 *TODO*: NetworkManager networking style; validate dbus/machine-id
 
+#### SLES
+
 ``` shell
 # generic
 : > /etc/machine-id # machine-id in /var/lib/dbus is symlink
@@ -7381,7 +7444,29 @@ rm /var/lib/wicked/{duid,iaid,lease-eth0-dhcp-ipv4}.xml
 <editor> /etc/default/grub_installdevice # path to block device
 <editor> /etc/sysconfig/network/if{cfg,route}-eth0
 
-# TIP: enable serial console so `virsh console <domain>' works
+# tips:
+# - enable serial console so `virsh console <domain>' works
+
+find /var/log -type f -exec sh -c ': > $1' {} {} \;
+: > /root/.bash_history
+rm -rf /var/cache/*
+```
+
+Let's create new VM `s153.qcow2`/`s153qb01.xml` from
+eg. `_s153.qcow2`/`_s153.xml` template.
+
+``` shell
+$ template=foo
+$ newvm=bar
+$ slesver=15.3
+
+$ qemu-img create -f qcow2 -b _${slesver//./}.qcow2 -F qcow2 s${slesver//./}qb01.qcow2 21G
+
+$ virsh define <(virsh dumpxml ${template} | \
+  sed -e '/uuid/d' \
+    -e '/mac address/d' \
+    -e 's/<name>.*<\/name>/<name>'${newvm}'<\/name>/' \
+    -e 's/sle\/[^"]*/sle\/'${slesver}'/' )
 ```
 
 #### support
