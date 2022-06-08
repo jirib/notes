@@ -8173,13 +8173,13 @@ An example:
 ``` shell
 SHELL=/bin/bash
 ENV=/usr/sap/ABC/abcadm/.profile
-* * * * * echo $- SAPSYSTEMNAME > /tmp/bash_test
+* * * * * echo $- $SAPSYSTEMNAME > /tmp/bash_test
 ```
 
 ``` shell
 # please note CSH does not know $- variable!
 SHELL=/bin/csh
-* * * * * echo %SAPSYSTEMNAME > /tmp/csh_test
+* * * * * echo $SAPSYSTEMNAME > /tmp/csh_test
 ```
 
 
