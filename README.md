@@ -727,7 +727,18 @@ $ az sshkey create --public-key "$(ssh-add -L | grep ssh-rsa)" --name <key name>
 
 ``` shell
 $ az vm create --name <vm name> --image SUSE:sles-15-sp3-byos:gen2:2022.05.05 \
-    --ssh-key-name <key name>
+    --ssh-key-name <key name> --boot-diagnostics-storage csjbelka --eviction-policy Delete --nic-delete-option Delete --os-disk-delete-option Delete --admin-username sysadmin1
+
+```
+
+``` shell
+$ az vm show --name <vm name>  | \
+    jq -r '.osProfile | .linuxConfiguration.ssh.publicKeys[].path'
+/home/jiri/.ssh/authorized_keys
+```
+
+``` shell
+$ az vm list-ip-addresses -n csjbelka01 | grep ipAddress # for public IP
 ```
 
 ## clusters
@@ -8111,6 +8122,66 @@ man 5 crontab | sed -n '/RANDOM_DELAY/,/^$/p' | fmt -w80
 # system crontab file, see escaped '%' !!!
 @daily <username> sleep $(($RANDOM \% 3600 )) && <some command>
 ```
+
+#### shell in cron
+
+By default cron runs all jobs with `/bin/sh` shell, and on SLES it means BASH
+shell in Bourne Shell compatibility mode.
+
+If BASH is used as `/bin/sh` it thus does NOT read ~/.profile which most likely
+in some way includes for example `.sapenv.sh` (SAP env conf file which provides
+SAP <SID> specific environment variables).
+
+``` shell
+$ man bash | grep -A 10 'When bash is started non-interactively' | fmt -w 80
+       When bash is started non-interactively, to run a shell script,
+       for example, it looks for the variable BASH_ENV in the environment,
+       expands its value if it appears there, and uses the expanded value
+       as the name of  a  file  to read and execute.  Bash behaves as if
+       the following command were executed:
+              if [ -n "$BASH_ENV" ]; then . "$BASH_ENV"; fi
+       but the value of the PATH variable is not used to search for the
+       filename.
+
+       If  bash is invoked with the name sh, it tries to mimic the startup
+       behavior of historical versions of sh as closely as possible,
+       while conforming to the POSIX standard as well.  When invoked as an
+       interactive login shell, or a non-interactive shell with the --login
+       option, it first attempts to read and execute commands from /etc/profile
+       and ~/.profile, in that order.  The --noprofile option may be used
+       to inhibit this behavior.  When  invoked  as an  interactive shell
+       with the name sh, bash looks for the variable ENV, expands its value
+       if it is defined, and uses the expanded value as the name of a file
+       to read and execute.  Since a shell invoked as sh does not attempt to
+       read and execute commands from any other startup files, the --rcfile
+       option has no effect.  A non-interactive shell invoked with the name
+       sh does not attempt to read any other startup files.  When invoked
+       as sh,  bash  en- ters posix mode after the startup files are read.
+```
+
+As for CSH, if you would use `/bin/csh` as SHELL for the cron job, it will read
+`~/.cshrc` by default.
+
+``` shell
+$ man csh | grep 'Non-login' | fmt -w 80
+       Non-login shells read only /etc/csh.cshrc and ~/.tcshrc or ~/.cshrc
+       on startup.
+```
+
+An example:
+
+``` shell
+SHELL=/bin/bash
+ENV=/usr/sap/DAA/daaadm/.profile
+* * * * * echo $- SAPSYSTEMNAME > /tmp/bash_test
+```
+
+``` shell
+# please note CSH does not know $- variable!
+SHELL=/bin/csh
+* * * * * echo SAPSYSTEMNAME > /tmp/csh_test
+```
+
 
 ## shell
 
