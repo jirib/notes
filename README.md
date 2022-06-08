@@ -8168,7 +8168,7 @@ $ man csh | grep 'Non-login' | fmt -w 80
        on startup.
 ```
 
-An example:
+An example which assumes these are already user cron jobs:
 
 ``` shell
 SHELL=/bin/bash
