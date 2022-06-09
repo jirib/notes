@@ -2771,6 +2771,23 @@ attack into a system.
 >
 > -- [IPC$ share and null session behavior in > Windows](https://support.microsoft.com/en-us/kb/3034016)
 
+Downloading [multiple](https://superuser.com/a/856640) files via
+`mget`:
+
+``` shell
+$ smbclient //127.0.0.1/pub -Uroot%'' << EOM
+> mask ""
+> recurse on
+> prompt off
+> pwd
+> cd foo\bar\"foo bar"
+> mget *.csv
+> quit
+> EOM
+Try "help" to get a list of possible commands.
+Current directory is \\127.0.0.1\pub\
+getting file \foo\bar\foo bar\test 123.csv of size 0 as test 123.csv (0.0 KiloBytes/sec) (average 0.0 KiloBytes/sec)
+```
 
 #### TDB files
 
