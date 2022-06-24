@@ -7246,6 +7246,14 @@ ACTION=="add", SUBSYSTEM=="module", KERNEL=="nfs", \
     TAG+="systemd", ENV{SYSTEMD_WANTS}+="nfs-idmapd.service"
 ```
 
+...or...
+
+```
+# Set SecurityFlags to 0x81.
+ACTION=="add", SUBSYSTEM=="module", KERNEL=="cifs", RUN+="/bin/sh -c 'echo 0x81 > /proc/fs/cifs/SecurityFlags'"
+```
+
+
 #### modules loading
 
 > The default rules provided with Udev will cause udevd to call out to
