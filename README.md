@@ -2438,6 +2438,112 @@ $ echo 0 > /sys/module/dns_resolver/parameters/debug
 $ tar cvzf /tmp/cifs-troubleshooting.tgz /tmp/trace.pcap /tmp/trace.log
 ```
 
+Let's see `/proc/fs/cifs/DebugData`:
+
+``` shell
+$ mount -t cifs -o guest //127.0.0.1/pub-test$ /mnt
+
+$ cat /proc/fs/cifs/DebugData
+Display Internal CIFS Data Structures for Debugging
+---------------------------------------------------
+CIFS Version 2.36
+Features: DFS,FSCACHE,STATS2,DEBUG,ALLOW_INSECURE_LEGACY,CIFS_POSIX,UPCALL(SPNEGO),XATTR,ACL,WITNESS
+CIFSMaxBufSize: 16384
+Active VFS Requests: 0
+
+Servers:
+1) ConnectionId: 0xc Hostname: 127.0.0.1
+Number of credits: 389 Dialect 0x311
+TCP status: 1 Instance: 1
+Local Users To Server: 1 SecMode: 0x1 Req On Wire: 0
+In Send: 0 In MaxReq Wait: 0
+
+        Sessions:
+        1) Address: 127.0.0.1 Uses: 1 Capability: 0x300047      Session Status: 1
+        Security type: RawNTLMSSP  SessionId: 0xf40dcb8
+        User: 0 Cred User: 0
+
+        Shares:
+        0) IPC: \\127.0.0.1\IPC$ Mounts: 1 DevInfo: 0x0 Attributes: 0x0
+        PathComponentMax: 0 Status: 0 type: 0 Serial Number: 0x0
+        Share Capabilities: None        Share Flags: 0x0
+        tid: 0xb875c11c Maximal Access: 0x1f00a9
+
+        1) \\127.0.0.1\pub-test$ Mounts: 1 DevInfo: 0x20 Attributes: 0x1006f
+        PathComponentMax: 255 Status: 0 type: DISK Serial Number: 0xb86bf3d5
+        Share Capabilities: None Aligned, Partition Aligned,    Share Flags: 0x0
+        tid: 0xe5d96f6f Optimal sector size: 0x200      Maximal Access: 0x1f01ff
+
+
+        Server interfaces: 4
+        1)      Speed: 1000000000 bps
+                Capabilities:
+                IPv4: 10.0.0.1
+
+        2)      Speed: 1000000000 bps
+                Capabilities:
+                IPv4: 192.168.1.5
+
+        3)      Speed: 10000000 bps
+                Capabilities:
+                IPv4: 192.168.122.1
+
+        4)      Speed: 10000000 bps
+                Capabilities:
+                IPv4: 192.168.123.1
+
+
+        MIDs:
+--
+
+Witness registrations:
+```
+
+File `/proc/fs/cifs/open_files` is also interesting.
+
+``` shell
+$ umount /mnt
+umount: /mnt: target is busy.
+$ fuser -cuv /mnt
+                     USER        PID ACCESS COMMAND
+/mnt:                root     kernel mount (root)/mnt
+                     root      32283 f.... (root)less
+$ ps auxww | grep '32283'
+root       335  0.0  0.0   3932  2124 pts/10   S+   11:39   0:00 grep --color=auto 32283
+root     32283  0.0  0.0   3588  2624 pts/11   S+   11:36   0:00 less /mnt/foobar.txt
+
+$ cat /proc/fs/cifs/open_files
+# Version:1
+# Format:
+# <tree id> <persistent fid> <flags> <count> <pid> <uid> <filename>
+0xe5d96f6f 0xe61dfe5f 0x8000 1 32283 0 foobar.txt
+```
+
+Let's assume that we request that SMB package *must* be signed and
+*must* use NTLMv2 and NTLMSSP. See
+https://elixir.bootlin.com/linux/latest/source/fs/cifs/cifsglob.h#L1778.
+
+``` shell
+$ echo '0x85085' > /proc/fs/cifs/SecurityFlags
+
+$ mount -v -t cifs -o guest //127.0.0.1/pub-test$ /mnt
+mount.cifs kernel mount options: ip=127.0.0.1,unc=\\127.0.0.1\pub-test$,user=,pass=********
+mount error(13): Permission denied
+Refer to the mount.cifs(8) manual page (e.g. man mount.cifs) and kernel log messages (dmesg)
+
+$ dmesg | grep CIFS:
+[363189.451715] CIFS: Attempting to mount \\127.0.0.1\pub-test$
+[363189.487060] CIFS: VFS: sign fail cmd 0x3 message id 0x3
+[363189.487073] CIFS: VFS: \\127.0.0.1 SMB signature verification returned error = -13
+[363189.487081] CIFS: VFS: \\127.0.0.1 failed to connect to IPC (rc=-13)
+[363189.487261] CIFS: VFS: sign fail cmd 0x3 message id 0x4
+[363189.487267] CIFS: VFS: \\127.0.0.1 SMB signature verification returned error = -13
+[363189.487278] CIFS: VFS: session 0000000009b6ef72 has no tcon available for a dfs referral request
+[363189.487438] CIFS: VFS: sign fail cmd 0x2 message id 0x5
+[363189.487444] CIFS: VFS: \\127.0.0.1 SMB signature verification returned error = -13
+[363189.487451] CIFS: VFS: \\127.0.0.1 cifs_put_smb_ses: Session Logoff failure rc=-13
+[363189.487465] CIFS: VFS: cifs_mount failed w/return code = -13
+```
 
 #### samba
 
@@ -3397,6 +3503,23 @@ grep -RH '' /proc/fs/nfsd/ 2>/dev/null
 
 ##### nfs client
 
+How to check if a mounted share is part of same exported share?
+
+``` shell
+$ grep -P '/(mnt|tmp/chroot)' /etc/mtab
+127.0.0.1:/foo/all /mnt nfs4 rw,relatime,vers=4.2,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=127.0.0.1,local_lock=none,addr=127.0.0.1 0 0
+127.0.0.1:/foo/all/bar /tmp/chroot nfs4 rw,relatime,vers=4.2,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=127.0.0.1,local_lock=none,addr=127.0.0.1 0 0
+
+$ man mountpoint | grep -A1 -P -- '^\s*-d' | fmt -w 80
+       -d, --fs-devno
+           Show the major/minor numbers of the device that is mounted on
+           the given directory.
+
+$ for i in /mnt /tmp/chroot ; do mountpoint -d $i ; done
+0:83
+0:83
+```
+
 ``` shell
 rpcdebug -m <module> # status of debugging; 'nfs' (client), 'nfsd' (server)
 rpcdebug -m <module> -s   # enable debugging for module
@@ -3812,6 +3935,10 @@ dump. See `man 5 kdump` for details.
 ### modules
 
 kernel modules are usually loaded by `udev` based *uevent*, see [udev](#udev).
+
+Blacklisting a module is either via file definition or via
+`module_blacklist` kernel param, see [The kernel's command-line
+parameters](https://www.kernel.org/doc/html/v5.13/admin-guide/kernel-parameters.html).
 
 ``` shell
 echo "blacklist pcspkr" > /etc/modprobe.d/bell.conf # blacklist a module
@@ -7109,6 +7236,14 @@ lrwxrwxrwx 1 root root      9 Dec 21 15:57 /dev/iTCO_wdt -> watchdog1
 crw------- 1 root root 248, 1 Dec 21 15:57 /dev/watchdog1
 
 $ udevadm info -q property -n <dev> # info about a device
+```
+
+Run a command (below starting a systemd unit) when a module is loaded:
+
+``` shell
+$ cat /etc/udev/rules.d/99-nfs4_disable_idmapping.rules
+ACTION=="add", SUBSYSTEM=="module", KERNEL=="nfs", \
+    TAG+="systemd", ENV{SYSTEMD_WANTS}+="nfs-idmapd.service"
 ```
 
 #### modules loading
