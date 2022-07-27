@@ -128,7 +128,7 @@ for i in node,conn[0].timeo.noop_out_{interval,timeout}; do
 ``` shell
 lsmod | egrep "(w|dog)"                            # check for watchdog kernel modules
 modprobe softdog                                   # load kernel module
-echo '<module> /etc/modules-load.d/watchdog.conf # add module to auto-load
+echo softdog > /etc/modules-load.d/watchdog.conf # add module to auto-load
 systemctl restart systemd-modules-load             # ...
 ls -l /dev/watchdog*                               # check watchdog devices
 

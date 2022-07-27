@@ -741,6 +741,13 @@ $ az vm show --name <vm name>  | \
 $ az vm list-ip-addresses -n csjbelka01 | grep ipAddress # for public IP
 ```
 
+### tools
+
+#### cloud-init
+
+How to make "scripts" to run during every boot? See
+https://stackoverflow.com/questions/6475374/how-do-i-make-cloud-init-startup-scripts-run-every-time-my-ec2-instance-boots.
+
 ## clusters
 
 ### pacemaker/corosync
@@ -1988,6 +1995,10 @@ readelf -sW <shared_library> | \
   awk '$5 == "GLOBAL" && $7 ~ /[0-9]+/ { sub(/@.*/,""); print $NF }' | \
   sort -u                                                        # get global library symbols
 ```
+
+## diff / patch
+
+To extract hunks from a diff, see https://stackoverflow.com/questions/1990498/how-to-patch-only-a-particular-hunk-from-a-diff.
 
 ### git
 
@@ -5737,6 +5748,7 @@ iscsiadm -m session [-P 3] # list initiator session
 udevadm info -q property -n /dev/<scsi_lun>
 ```
 
+
 ##### iface
 
 in MPIO we usually want iSCSI connection go over multiple separate
@@ -7406,7 +7418,10 @@ ConditionPathExists=/path/to/needed_file
 #### troubleshooting
 
 - emergency shell - systemd after `pivot_root`
-- `systemd.log_level=debug systemd.log_target=console systemd.log_location=true systemd.show_status=true`
+- output to serial console:
+  ```
+  systemd.log_level=debug systemd.log_target=console systemd.log_location=true systemd.show_status=true loglevel=7 systemd.journald.forward_to_console=1
+  ```
 - `systemd-analyze set-log-level <level>` - change logging level
 - `systemctl show -p LogLevel` - get current logging level
 - `kill -SIGRTMIN+22 1` - sets systemd loglevel to debug, see `systemd(1)`
@@ -8168,6 +8183,9 @@ $6$zyuGj55qkPCh/zht$PDk60osb/mzE6xCvJx/X3uDWtU/8jGRefSQHIjCDdYsDEiKcZE3XmX/0dW7E
 
 ### sudo
 
+Environment variables for commands, see
+https://unix.stackexchange.com/questions/13240/etc-sudoers-specify-env-keep-for-one-command-only.
+
 #### AD users/groups
 
 See [Configure sudo authentication for Active Directory
@@ -8448,6 +8466,17 @@ echo "${VAR}"
   declare -A myhash
   ```
   Cf. [Bash Associative Array Cheat Sheet](https://lzone.de/cheat-sheet/Bash%20Associative%20Array)
+- how to print a character couple of times with `printf`?
+  ``` shell
+  $ printf -- 'x%.0s' {1..5} ; echo
+  xxxxx
+  $ printf -- 'x%.0s\n' {1..5} ; echo
+  x
+  x
+  x
+  x
+  x
+  ```
 
 ### sed
 
@@ -8612,6 +8641,25 @@ tshark -i <bonded_iface> -c 1 -f "ether proto 0x88cc" -Y "lldp" -O lldp
 ```
 
 ## virtualization
+
+### kvm
+
+How to detect if a system is KVM VM? This could give a hint:
+
+``` shell
+$ dmesg | grep kvm-clock
+[    0.000000] kvm-clock: Using msrs 4b564d01 and 4b564d00
+[    0.000000] kvm-clock: cpu 0, msr 35601001, primary cpu clock
+[    0.000000] kvm-clock: using sched offset of 4277437370 cycles
+[    0.000002] clocksource: kvm-clock: mask: 0xffffffffffffffff max_cycles: 0x1cd42e4dffb, max_idle_ns: 881590591483 ns
+[    0.122327] kvm-clock: cpu 1, msr 35601041, secondary cpu clock
+[    0.926531] clocksource: Switched to clocksource kvm-clock
+```
+
+``` shell
+$ lscpu | grep '^Hypervisor'
+Hypervisor vendor:               KVM
+```
 
 ### qemu
 
