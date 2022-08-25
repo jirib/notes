@@ -6129,6 +6129,7 @@ $  lsscsi -is 0:0:0:2
 
 ``` shell
 $ truncate -s +6M testresize.raw
+```
 
 ### mdraid
 
@@ -6297,6 +6298,20 @@ ID_FS_UUID_SUB=9b77fb5d-e85b-c9ad-c26d-e5ed2dc49c5c
 
 /dev/loop10
 ID_FS_UUID_SUB=f662655b-15c3-3fcb-9d78-c04c4d7a8aa6
+```
+
+``` shell
+$ dd if=/dev/loop11 bs=4K count=63 skip=1 status=none | xxd -s 0xd0 -l 0x10
+000000d0: ffff ffff ffff ffff 9e64 6062 8000 0000  .........d`b....
+                              ^^^^^^^^^ checksum
+$ mdadm -E /dev/loop11 | grep -i checksum
+       Checksum : 6260649e - correct
+
+$ dd if=/dev/loop11 bs=4K count=63 skip=1 status=none | xxd -s 0x10 -l 0x10
+00000010: 2824 cfaa d562 0ce6 1686 bcf9 323b ab97  ($...b......2;..
+
+$ mdadm -E /dev/loop11 | grep -i 'array uuid'
+     Array UUID : 2824cfaa:d5620ce6:1686bcf9:323bab97
 ```
 
 Hot-spare:
