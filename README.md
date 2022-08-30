@@ -1304,6 +1304,11 @@ Resources failures and what would happen:
 - *stop* failure -> fence (we cannot be sure what a resource won't mess with
   data thus STONITH)
 
+Note, one can define *on-fail* resource operation action, see
+[resource
+operations](https://access.redhat.com/documentation/en-us/red_hat_enterprise_linux/7/html/high_availability_add-on_reference/s1-resourceoperate-haar). For
+example, *start* failure leads to _block_.
+
 #### crm (crmsh)
 
 - by default *root* and *haclient* group members can manage cluster
