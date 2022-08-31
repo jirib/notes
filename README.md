@@ -4211,26 +4211,76 @@ notmuch tag +example.org path:/example.org/
 - null client, submission and forwards somewhere else, NO local delivery
 
 
-#### multiple instances
+### troubleshooting
 
-Let's simulate three systems:
+Comparing two Postfix configurations
 
-1. egress/internet facing inbound mail system which also supports local mail
-   submission for applications (eg. cron)
+``` shell
+$ sdiff -s <(postconf -n -c /tmp/postfix-data | sort) <(postconf -n -c /etc/postfix | sort) | sed -e '/config_directory/d'
+mydestination = $myhostname, localhost.$mydomain              | mydestination = $myhostname, localhost.$mydomain, localhost
+myhostname = myrelay.example.com                              | myhostname = 192
+relay_domains = $mydestination, lmdb:/etc/postfix/relay       | relay_domains = $mydestination lmdb:/etc/postfix/relay
+relayhost = mysmtp.example.com:25                             | relayhost =
+                                                              > smtpd_sasl_auth_enable = no
+                                                              > smtpd_sasl_path = smtpd
+                                                              > smtpd_sasl_type = cyrus
+                                                              > smtpd_tls_exclude_ciphers = RC4
+smtp_sasl_auth_enable = yes                                   | smtp_sasl_auth_enable = no
+smtp_sasl_password_maps = lmdb:/etc/postfix/sasl_passwd       | smtp_sasl_password_maps =
+smtp_sasl_security_options = noanonymous                      | smtp_sasl_security_options =
+virtual_alias_domains = lmdb:/etc/postfix/virtual
 
-2. egress/sending to other internet mail systems outgoing mails which also
-   supports local mail submnission for applications (eg. cron)
+# or an alternative
 
-3. ingress/internal system
-1.
+$ bash -c "comm -23 <(postconf -n -c /tmp/postfix-data | sort) <(postconf -n -c /etc/postfix | sort)" | sed -e '/config_directory/d'
+mydestination = $myhostname, localhost.$mydomain
+myhostname = mysmtp.example.com
+relay_domains = $mydestination, lmdb:/etc/postfix/relay
+relayhost = myrelay.example.com:25
+smtp_sasl_auth_enable = yes
+smtp_sasl_password_maps = lmdb:/etc/postfix/sasl_passwd
+smtp_sasl_security_options = noanonymous
+virtual_alias_domains = lmdb:/etc/postfix/virtual
+```
 
-   accepts local mail and relays the mail to somewhere else
+Comparing actual Postfix configuration with built-in defaults
 
-   ```
-   ...
-   ```
+``` shell
+$ bash -c "comm -23 <(postconf -n | sort) <(postconf -d | sort)"
+alias_maps = lmdb:/etc/aliases
+biff = no
+canonical_maps = lmdb:/etc/postfix/canonical
+compatibility_level = 2
+daemon_directory = /usr/lib/postfix/bin/
+debugger_command = PATH=/bin:/usr/bin:/usr/local/bin:/usr/X11R6/bin ddd $daemon_directory/$process_name $process_id & sleep 5
+delay_warning_time = 1h
+disable_vrfy_command = yes
+html_directory = /usr/share/doc/packages/postfix-doc/html
+inet_interfaces = localhost
+mailbox_size_limit = 0
+manpage_directory = /usr/share/man
+masquerade_exceptions = root
+message_size_limit = 0
+message_strip_characters = \0
+myhostname = 192
+mynetworks_style = subnet
+readme_directory = /usr/share/doc/packages/postfix-doc/README_FILES
+relay_domains = $mydestination lmdb:/etc/postfix/relay
+relocated_maps = lmdb:/etc/postfix/relocated
+sample_directory = /usr/share/doc/packages/postfix-doc/samples
+sender_canonical_maps = lmdb:/etc/postfix/sender_canonical
+setgid_group = maildrop
+smtpd_banner = $myhostname ESMTP
+smtpd_recipient_restrictions = permit_mynetworks,reject_unauth_destination
+smtpd_sender_restrictions = lmdb:/etc/postfix/access
+smtpd_tls_exclude_ciphers = RC4
+smtpd_tls_key_file =
+smtp_sasl_security_options =
+smtp_tls_key_file =
+transport_maps = lmdb:/etc/postfix/transport
+virtual_alias_maps = lmdb:/etc/postfix/virtual
+```
 
-2.
 ## networking
 
 ### bonding
