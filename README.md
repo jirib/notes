@@ -5453,6 +5453,22 @@ rpm -q --qf '%{NAME}-%{VERSION}-%{RELEASE} %{SIGPGP:pgpsig} %{SIGGPG:pgpsig}\n' 
 rpm -qa gpg-pubkey* | grep $key
 ```
 
+Checking RPM package files chksums and permissions.
+
+``` shell
+$ rpm -q --qf '[%{=NAME} %{FILENAMES} %{FILEMD5S}\n]' libcurl4
+libcurl4 /usr/lib64/libcurl.so.4
+libcurl4 /usr/lib64/libcurl.so.4.7.0 8c231b3ccbb33783f42367263b5fa5ff22341ab2e5e8566fedeeb62af26ed5cc
+libcurl4 /usr/share/licenses/libcurl4
+libcurl4 /usr/share/licenses/libcurl4/COPYING 6fd1a1c008b5ef4c4741dd188c3f8af6944c14c25afa881eb064f98fb98358e7
+
+$ rpm -q --qf '[%{=NAME} %{FILENAMES} %{FILEMODES:perms}\n]' libcurl4
+libcurl4 /usr/lib64/libcurl.so.4 lrwxrwxrwx
+libcurl4 /usr/lib64/libcurl.so.4.7.0 -rwxr-xr-x
+libcurl4 /usr/share/licenses/libcurl4 drwxr-xr-x
+libcurl4 /usr/share/licenses/libcurl4/COPYING -rw-r--r--
+```
+
 ## storage
 
 See [List of partition identifiers for PCs](https://www.win.tue.nl/~aeb/partitions/partition_types-1.html).
