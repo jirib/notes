@@ -4098,6 +4098,24 @@ man dracut.conf
 `omit_dracutmodules+=" <dracut module> "` to omit a module, see
 `/usr/lib/dracut/modules.d`.
 
+Extracting initrd... (something odd with kdump-save binary here).
+
+``` shell
+$ /usr/lib/dracut/skipcpio initrd-5.14.21-150400.24.18-default-kdump | \
+    xzcat -- | ( cd /tmp/kdump ; cpio -id)
+$ objdump -p /tmp/kdump/kdump/kdump-save | grep NEEDED
+  NEEDED               libz.so.1
+  NEEDED               libelf.so.1
+  NEEDED               libcurl.so.4
+  NEEDED               libesmtp.so.6
+  NEEDED               libmount.so.1
+  NEEDED               libstdc++.so.6
+  NEEDED               libgcc_s.so.1
+  NEEDED               libc.so.6
+$ find /tmp/kdump -type f -name 'lib*' | grep -c curl
+0
+```
+
 ### /proc
 
 https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html
