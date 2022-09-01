@@ -486,6 +486,16 @@ borg extract --strip-components <digit> ::$(borg list --last 1 | awk '{ print $1
 
 ### GRUB
 
+``` shell
+GRUB_CMDLINE_LINUX                     <--+-- appended for normal & recovery mode
+GRUB_CMDLINE_LINUX_DEFAULT             <--+-- appended for normal mode only
+GRUB_CMDLINE_LINUX_RECOVERY            <--+-- appended for recovery mode only
+GRUB_CMDLINE_LINUX_XEN_REPLACE         <--+-- replaces all values in GRUB_CMDLINE_LINUX
+GRUB_CMDLINE_LINUX_XEN_REPLACE_DEFAULT <--+-- replaces all values in GRUB_CMDLINE_LINUX_DEFAULT
+GRUB_CMDLINE_XEN                       <--+-- appended for Xen kernel only
+GRUB_CMDLINE_XEN_DEFAULT               <--+-- appended for Xen kernel normal mode only
+```
+
 `/etc/default/grub_installdevice` is used in various distros (SLES) by
 tools to install GRUB on boot disk.
 
@@ -4596,6 +4606,45 @@ examples...](https://web.archive.org/web/20210826070406/https://danielmiessler.c
 for some cool examples.
 
 #### tshark / wireshark
+
+
+PCAP file stats:
+
+``` shell
+$ rpm -qf $(which capinfos)
+wireshark-3.6.7-1.1.x86_64
+$ capinfos dump_POP_2022.08.09-10.55.52.pcap.1.gz
+capinfos: An error occurred after reading 3281218 packets from "dump_POP_2022.08.09-10.55.52.pcap.1.gz".
+capinfos: The file "dump_POP_2022.08.09-10.55.52.pcap.1.gz" appears to have been cut short in the middle of a packet.
+  (will continue anyway, checksums might be incorrect)
+File name:           dump_POP_2022.08.09-10.55.52.pcap.1.gz
+File type:           Wireshark/tcpdump/... - pcap (gzip compressed)
+File encapsulation:  Ethernet
+File timestamp precision:  microseconds (6)
+Packet size limit:   file hdr: 262144 bytes
+Number of packets:   3,281 k
+File size:           90 MB
+Data size:           4,447 MB
+Capture duration:    3565.325831 seconds
+First packet time:   2022-08-09 10:56:01.894982
+Last packet time:    2022-08-09 11:55:27.220813
+Data byte rate:      1,247 kBps
+Data bit rate:       9,979 kbps
+Average packet size: 1355.49 bytes
+Average packet rate: 920 packets/s
+SHA256:              e927a3d417d0befaa77bce2d543af824226dfb3ac63dad725152d2fa5388ce1d
+RIPEMD160:           cd25d25a49582a54ecaad577a94fcc5b4a5e7590
+SHA1:                42ad5963c9074adb147f8ea2523dd08bba562131
+Strict time order:   False
+Number of interfaces in file: 1
+Interface #0 info:
+                     Encapsulation = Ethernet (1 - ether)
+                     Capture length = 262144
+                     Time precision = microseconds (6)
+                     Time ticks per second = 1000000
+                     Number of stat entries = 0
+                     Number of packets = 3281218
+```
 
 ##### lacp
 
