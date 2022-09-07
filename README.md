@@ -1486,7 +1486,7 @@ crm configure edit
 
 ##### troubleshooting
 
-1.\ see transitions which trigger an action
+1\. see transitions which trigger an action
 
 Basically there's `LogAction` lines following by generated transition,
 thus the next `awk` stuff gets only relevant transitions.
