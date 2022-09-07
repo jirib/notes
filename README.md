@@ -1486,6 +1486,23 @@ crm configure edit
 
 ##### troubleshooting
 
+1.\ see transitions which trigger an action
+
+Basically there's `LogAction` lines following by generated transition,
+thus the next `awk` stuff gets only relevant transitions.
+
+``` shell
+$ awk 'BEGIN { start=0; } /(LogAction:|Calculated)/ { if($0 ~ /pe-input/ && start != 1) { next; }; if($0 ~ /LogAction/) { start=1; print; } else { start=0; print; }; }' pacemaker.log | head -n 8
+Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: LogAction:   * Recover    rsc_azure-events:1                  (                   vmeupldbup301 )
+Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: LogAction:   * Recover    rsc_SAPHana_UP3_HDB00:1             (            Master vmeupldbup301 )
+Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: LogAction:   * Recover    rsc_SAPHanaTopology_UP3_HDB00:1     (                   vmeupldbup301 )
+Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: process_pe_message: Calculated transition 219198, saving inputs in /var/lib/pacemaker/pengine/pe-input-3141.bz2
+Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: LogAction:   * Recover    rsc_azure-events:1                  (                   vmeupldbup301 )
+Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: LogAction:   * Recover    rsc_SAPHana_UP3_HDB00:1             (            Master vmeupldbup301 )
+Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: LogAction:   * Recover    rsc_SAPHanaTopology_UP3_HDB00:1     (                   vmeupldbup301 )
+Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: process_pe_message: Calculated transition 219199, saving inputs in /var/lib/pacemaker/pengine/pe-input-3142.bz2
+```
+
 logs must be gathered from all nodes
 
 ``` shell
