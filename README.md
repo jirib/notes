@@ -551,7 +551,7 @@ total 290068
 -rw------- 1 nobody nogroup   6075768 Sep  8 11:07 rear-s125qb01.log
 -rw------- 1 nobody nogroup       274 Sep  8 11:07 VERSION
 
-$ bsdtar tf /mnts125qb01/rear-s125qb01.iso
+$ bsdtar tf /mnt/s125qb01/rear-s125qb01.iso
 .
 isolinux
 isolinux/boot.cat
@@ -569,9 +569,13 @@ isolinux/rear.help
 isolinux/reboot.c32
 isolinux/vesamenu.c32
 
+# extracting rear boot media initrd from iso
+
 $ bsdtar -v -C /tmp -s '/isolinux//' -xf /mnt/s125qb01/rear-s125qb01.iso isolinux/initrd.cgz
 bsdtar: Removing leading '/' from member names
 x initrd.cgz
+
+# extracting rear boot media initrd itself...
 
 $ /usr/lib/dracut/skipcpio /tmp/initrd.cgz | zcat -- | ( mkdir /tmp/rear-initrd; cd /tmp/rear-initrd; cpio -id )
 1441025 blocks
@@ -603,6 +607,8 @@ $ find /tmp/rear-initrd/ | grep -P '(etc/rear|/var/lib/rear/)'
 /tmp/rear-initrd/var/lib/rear/layout/lvm
 /tmp/rear-initrd/var/lib/rear/sysreqs
 /tmp/rear-initrd/var/lib/rear/sysreqs/Minimal_System_Requirements.txt
+
+# "blueprint" for disk layout to be restored
 
 $ grep -Pv '^\s*($|#)' /tmp/rear-initrd/var/lib/rear/layout/disklayout.conf
 disk /dev/vda 22548578304 msdos
