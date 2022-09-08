@@ -484,6 +484,9 @@ borg extract --strip-components <digit> ::$(borg list --last 1 | awk '{ print $1
 
 ### rear
 
+[Rear](https://github.com/rear/rear) is not ready to use tool, it's
+more a DR framework written in BASH.
+
 ``` shell
 $ grep -Pv '^\s*(#|$)' /etc/rear/{local,os}.conf
 /etc/rear/os.conf:OS_VENDOR=SUSE_LINUX
@@ -504,6 +507,7 @@ And some very basic configuration.
 ``` shell
 $ grep -Pv '^\s*(#|$)' /etc/rear/{local,os}.conf
 /etc/rear/local.conf:BACKUP_URL=nfs://192.168.122.1/tmp
+/etc/rear/local.conf:BACKUP=NETFS
 /etc/rear/os.conf:OS_VENDOR=SUSE_LINUX
 /etc/rear/os.conf:OS_VERSION=12
 ```
@@ -513,8 +517,9 @@ Generate rear boot media (default is an iso).
 ``` shell
 $ rear -d -D mkbackup
 Relax-and-Recover 2.4 / Git
-Running rear mkbackup (PID 4114)
+Running rear mkbackup (PID 24256)
 Using log file: /var/log/rear/rear-s125qb01.log
+Using backup archive '/tmp/rear.E6R6I929nBcRCUU/outputfs/s125qb01/backup.tar.gz'
 Creating disk layout
 Doing SLES12-SP1 (and later) btrfs subvolumes setup because the default subvolume path contains '@/.snapshots/'
 Using sysconfig bootloader 'grub2'
@@ -525,60 +530,93 @@ br0 has lower interface eth0
 eth0 is a physical device
 Handled network interface 'br0'
 To log into the recovery system via ssh set up /root/.ssh/authorized_keys or specify SSH_ROOT_PASSWORD
-Copying logfile /var/log/rear/rear-s125qb01.log into initramfs as '/tmp/rear-s125qb01-partial-2022-09-08T11:06:30+02:00.log'
+Copying logfile /var/log/rear/rear-s125qb01.log into initramfs as '/tmp/rear-s125qb01-partial-2022-09-08T11:50:33+02:00.log'
 Copying files and directories
 Copying binaries and libraries
 Copying kernel modules
 Copying all files in /lib*/firmware/
 Creating recovery/rescue system initramfs/initrd initrd.cgz with gzip default compression
-Created initrd.cgz with gzip default compression (281504372 bytes) in 34 seconds
+Created initrd.cgz with gzip default compression (281906287 bytes) in 28 seconds
 Making ISO image
 Wrote ISO image: /var/lib/rear/output/rear-s125qb01.iso (278M)
 Copying resulting files to nfs location
 Saving /var/log/rear/rear-s125qb01.log as rear-s125qb01.log to nfs location
-Exiting rear mkbackup (PID 4114) and its descendant processes
+Creating tar archive '/tmp/rear.E6R6I929nBcRCUU/outputfs/s125qb01/backup.tar.gz'
+Archived 1488 MiB [avg 7977 KiB/sec] OK
+Archived 1488 MiB in 192 seconds [avg 7936 KiB/sec]
+Exiting rear mkbackup (PID 24256) and its descendant processes
 Running exit tasks
-You should also rm -Rf /tmp/rear.nxbJIr8LaMxW8ck
+You should also rm -Rf /tmp/rear.E6R6I929nBcRCUU
 
 # see what it did create...
 
-$  mount 192.168.122.1:/tmp /mnt # mounting the NFS share
-$ ls -l /mnt/s125qb01/
-total 290068
--rw------- 1 nobody nogroup         0 Sep  8 11:07 .lockfile
--rw------- 1 nobody nogroup       202 Sep  8 11:07 README
--rw------- 1 nobody nogroup 290942976 Sep  8 11:07 rear-s125qb01.iso
--rw------- 1 nobody nogroup   6075768 Sep  8 11:07 rear-s125qb01.log
--rw------- 1 nobody nogroup       274 Sep  8 11:07 VERSION
+$ mount 192.168.122.1:/tmp /mnt # mounting the NFS share
 
-$ bsdtar tf /mnt/s125qb01/rear-s125qb01.iso
-.
-isolinux
-isolinux/boot.cat
-isolinux/isolinux.bin
-isolinux/chain.c32
-isolinux/hdt.c32
-isolinux/initrd.cgz
-isolinux/isolinux.cfg
-isolinux/kernel
-isolinux/menu.c32
-isolinux/message
-isolinux/pci.ids
-isolinux/poweroff.com
-isolinux/rear.help
-isolinux/reboot.c32
-isolinux/vesamenu.c32
+$ ls -l /mnt/s125qb01/
+total 1823168
+-rw------- 1 nobody nogroup    9039974 Sep  8 11:55 backup.log
+-rw------- 1 nobody nogroup 1560350159 Sep  8 11:55 backup.tar.gz
+-rw------- 1 nobody nogroup        202 Sep  8 11:51 README
+-rw------- 1 nobody nogroup  291344384 Sep  8 11:51 rear-s125qb01.iso
+-rw------- 1 nobody nogroup    6175380 Sep  8 11:51 rear-s125qb01.log
+-rw------- 1 nobody nogroup        265 Sep  8 11:51 VERSION
+
+# listing the iso..
+
+$ 7z l /mnt/s125qb01/rear-s125qb01.iso
+
+7-Zip [64] 9.20  Copyright (c) 1999-2010 Igor Pavlov  2010-11-18
+p7zip Version 9.20 (locale=en_US.UTF-8,Utf16=on,HugeFiles=on,2 CPUs)
+
+Listing archive: /mnt/s125qb01/rear-s125qb01.iso
+
+--
+Path = /mnt/s125qb01/rear-s125qb01.iso
+Type = Iso
+Created = 2022-09-08 11:51:22
+Modified = 2022-09-08 11:51:22
+
+   Date      Time    Attr         Size   Compressed  Name
+------------------- ----- ------------ ------------  ------------------------
+2022-09-08 11:51:21 D....                            isolinux
+2022-09-08 11:51:22 .....         2048         2048  isolinux/boot.cat
+2022-09-08 11:51:21 .....        20192        20192  isolinux/chain.c32
+2022-09-08 11:51:21 .....       280644       280644  isolinux/hdt.c32
+2022-09-08 11:51:22 .....    281906287    281906287  isolinux/initrd.cgz
+2022-09-08 11:51:21 .....        24576        24576  isolinux/isolinux.bin
+2022-09-08 11:51:21 .....         2150         2150  isolinux/isolinux.cfg
+2022-08-03 11:28:28 .....      7323392      7323392  isolinux/kernel
+2022-09-08 11:51:21 .....        55140        55140  isolinux/menu.c32
+2022-09-08 11:51:21 .....          265          265  isolinux/message
+2022-09-08 11:51:21 .....      1183752      1183752  isolinux/pci.ids
+2022-09-08 11:51:21 .....          239          239  isolinux/poweroff.com
+2022-09-08 11:51:21 .....          985          985  isolinux/rear.help
+2022-09-08 11:51:21 .....          800          800  isolinux/reboot.c32
+2022-09-08 11:51:21 .....       153104       153104  isolinux/vesamenu.c32
+                    .....         2048         2048  [BOOT]/Bootable_NoEmulation.img
+------------------- ----- ------------ ------------  ------------------------
+                             290955622    290955622  15 files, 1 folders
 
 # extracting rear boot media initrd from iso
 
-$ bsdtar -v -C /tmp -s '/isolinux//' -xf /mnt/s125qb01/rear-s125qb01.iso isolinux/initrd.cgz
-bsdtar: Removing leading '/' from member names
-x initrd.cgz
+$ 7z e -so /mnt/s125qb01/rear-s125qb01.iso isolinux/initrd.cgz > /tmp/initrd.cgz
+
+7-Zip [64] 9.20  Copyright (c) 1999-2010 Igor Pavlov  2010-11-18
+p7zip Version 9.20 (locale=en_US.UTF-8,Utf16=on,HugeFiles=on,2 CPUs)
+
+Processing archive: /mnt/s125qb01/rear-s125qb01.iso
+
+Extracting  isolinux/initrd.cgz
+
+Everything is Ok
+
+Size:       281906287
+Compressed: 291344384
 
 # extracting rear boot media initrd itself...
 
 $ /usr/lib/dracut/skipcpio /tmp/initrd.cgz | zcat -- | ( mkdir /tmp/rear-initrd; cd /tmp/rear-initrd; cpio -id )
-1441025 blocks
+1443261 blocks
 
 $ find /tmp/rear-initrd/ | grep -P '(etc/rear|/var/lib/rear/)'
 /tmp/rear-initrd/etc/rear
@@ -667,6 +705,30 @@ btrfsnocopyonwrite @/var/lib/mysql
 btrfsnocopyonwrite @/var/lib/libvirt/images
 btrfsnocopyonwrite @/var/log
 swap /dev/vda3 uuid=2210ab59-f22a-4c39-a973-31ebeaf3cc85 label=
+
+# data itself
+
+$ tar tzf /mnt/s125qb01/backup.tar.gz | head -n 20
+./
+etc/
+etc/snapper/
+etc/snapper/configs/
+etc/snapper/configs/root
+etc/snapper/config-templates/
+etc/snapper/config-templates/default
+etc/snapper/filters/
+etc/snapper/filters/base.txt
+etc/snapper/filters/lvm.txt
+etc/snapper/filters/x11.txt
+etc/snapper/zypp-plugin.conf
+etc/zypp/
+etc/zypp/credentials.d/
+etc/zypp/credentials.d/SCCcredentials
+etc/zypp/credentials.d/SUSE_Linux_Enterprise_Server_12_SP5_x86_64
+etc/zypp/credentials.d/SUSE_Linux_Enterprise_High_Availability_Extension_12_SP5_x86_64
+etc/zypp/credentials.d/SUSE_Linux_Enterprise_Live_Patching_12_SP5_x86_64
+etc/zypp/credentials.d/SUSE_Package_Hub_12_SP5_x86_64
+etc/zypp/credentials.d/Advanced_Systems_Management_Module_12_x86_64
 ```
 
 
