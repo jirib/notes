@@ -482,6 +482,188 @@ borg list ::$(borg list --last 1 | awk '{ print $1 }') <path>
 borg extract --strip-components <digit> ::$(borg list --last 1 | awk '{ print $1 }') <path>
 ```
 
+### rear
+
+``` shell
+$ grep -Pv '^\s*(#|$)' /etc/rear/{local,os}.conf
+/etc/rear/os.conf:OS_VENDOR=SUSE_LINUX
+/etc/rear/os.conf:OS_VERSION=12
+
+# if it is EFI system ISO_MKISOFS_BIN has to be changed
+
+$ ls /sys/firmware/efi
+ls: cannot access '/sys/firmware/efi': No such file or directory
+$ grep MKISOFS /usr/share/rear/conf/default.conf
+# to use ebiso, specify ISO_MKISOFS_BIN=<full_path_to_ebiso>/ebiso
+ISO_MKISOFS_BIN="$( type -p xorrisofs || type -p mkisofs || type -p genisoimage )"
+# (via ISO_MKISOFS_BIN=/usr/bin/ebiso - see the ISO_MKISOFS_BIN variable above).
+```
+
+And some very basic configuration.
+
+``` shell
+$ grep -Pv '^\s*(#|$)' /etc/rear/{local,os}.conf
+/etc/rear/local.conf:BACKUP_URL=nfs://192.168.122.1/tmp
+/etc/rear/os.conf:OS_VENDOR=SUSE_LINUX
+/etc/rear/os.conf:OS_VERSION=12
+```
+
+Generate rear boot media (default is an iso).
+
+``` shell
+$ rear -d -D mkbackup
+Relax-and-Recover 2.4 / Git
+Running rear mkbackup (PID 4114)
+Using log file: /var/log/rear/rear-s125qb01.log
+Creating disk layout
+Doing SLES12-SP1 (and later) btrfs subvolumes setup because the default subvolume path contains '@/.snapshots/'
+Using sysconfig bootloader 'grub2'
+Creating root filesystem layout
+Handling network interface 'br0'
+br0 is a bridge
+br0 has lower interface eth0
+eth0 is a physical device
+Handled network interface 'br0'
+To log into the recovery system via ssh set up /root/.ssh/authorized_keys or specify SSH_ROOT_PASSWORD
+Copying logfile /var/log/rear/rear-s125qb01.log into initramfs as '/tmp/rear-s125qb01-partial-2022-09-08T11:06:30+02:00.log'
+Copying files and directories
+Copying binaries and libraries
+Copying kernel modules
+Copying all files in /lib*/firmware/
+Creating recovery/rescue system initramfs/initrd initrd.cgz with gzip default compression
+Created initrd.cgz with gzip default compression (281504372 bytes) in 34 seconds
+Making ISO image
+Wrote ISO image: /var/lib/rear/output/rear-s125qb01.iso (278M)
+Copying resulting files to nfs location
+Saving /var/log/rear/rear-s125qb01.log as rear-s125qb01.log to nfs location
+Exiting rear mkbackup (PID 4114) and its descendant processes
+Running exit tasks
+You should also rm -Rf /tmp/rear.nxbJIr8LaMxW8ck
+
+# see what it did create...
+
+$  mount 192.168.122.1:/tmp /mnt # mounting the NFS share
+$ ls -l /mnt/s125qb01/
+total 290068
+-rw------- 1 nobody nogroup         0 Sep  8 11:07 .lockfile
+-rw------- 1 nobody nogroup       202 Sep  8 11:07 README
+-rw------- 1 nobody nogroup 290942976 Sep  8 11:07 rear-s125qb01.iso
+-rw------- 1 nobody nogroup   6075768 Sep  8 11:07 rear-s125qb01.log
+-rw------- 1 nobody nogroup       274 Sep  8 11:07 VERSION
+
+$ bsdtar tf /mnts125qb01/rear-s125qb01.iso
+.
+isolinux
+isolinux/boot.cat
+isolinux/isolinux.bin
+isolinux/chain.c32
+isolinux/hdt.c32
+isolinux/initrd.cgz
+isolinux/isolinux.cfg
+isolinux/kernel
+isolinux/menu.c32
+isolinux/message
+isolinux/pci.ids
+isolinux/poweroff.com
+isolinux/rear.help
+isolinux/reboot.c32
+isolinux/vesamenu.c32
+
+$ bsdtar -v -C /tmp -s '/isolinux//' -xf /mnt/s125qb01/rear-s125qb01.iso isolinux/initrd.cgz
+bsdtar: Removing leading '/' from member names
+x initrd.cgz
+
+$ /usr/lib/dracut/skipcpio /tmp/initrd.cgz | zcat -- | ( mkdir /tmp/rear-initrd; cd /tmp/rear-initrd; cpio -id )
+1441025 blocks
+
+$ find /tmp/rear-initrd/ | grep -P '(etc/rear|/var/lib/rear/)'
+/tmp/rear-initrd/etc/rear
+/tmp/rear-initrd/etc/rear/rescue.conf
+/tmp/rear-initrd/etc/rear/cert
+/tmp/rear-initrd/etc/rear/os.conf
+/tmp/rear-initrd/etc/rear/local.conf
+/tmp/rear-initrd/etc/rear-release
+/tmp/rear-initrd/var/lib/rear/output
+/tmp/rear-initrd/var/lib/rear/recovery
+/tmp/rear-initrd/var/lib/rear/recovery/bootdisk
+/tmp/rear-initrd/var/lib/rear/recovery/directories_permissions_owner_group
+/tmp/rear-initrd/var/lib/rear/recovery/diskbyid_mappings
+/tmp/rear-initrd/var/lib/rear/recovery/mountpoint_device
+/tmp/rear-initrd/var/lib/rear/recovery/bootloader
+/tmp/rear-initrd/var/lib/rear/recovery/initrd_modules
+/tmp/rear-initrd/var/lib/rear/recovery/storage_drivers
+/tmp/rear-initrd/var/lib/rear/recovery/if_inet6
+/tmp/rear-initrd/var/lib/rear/layout
+/tmp/rear-initrd/var/lib/rear/layout/config
+/tmp/rear-initrd/var/lib/rear/layout/config/df.txt
+/tmp/rear-initrd/var/lib/rear/layout/config/files.md5sum
+/tmp/rear-initrd/var/lib/rear/layout/disklayout.conf
+/tmp/rear-initrd/var/lib/rear/layout/diskdeps.conf
+/tmp/rear-initrd/var/lib/rear/layout/disktodo.conf
+/tmp/rear-initrd/var/lib/rear/layout/lvm
+/tmp/rear-initrd/var/lib/rear/sysreqs
+/tmp/rear-initrd/var/lib/rear/sysreqs/Minimal_System_Requirements.txt
+
+$ grep -Pv '^\s*($|#)' /tmp/rear-initrd/var/lib/rear/layout/disklayout.conf
+disk /dev/vda 22548578304 msdos
+part /dev/vda 525336576 1048576 primary boot,lba /dev/vda1
+part /dev/vda 20398997504 526385152 primary none /dev/vda2
+part /dev/vda 1076887552 20925382656 primary none /dev/vda3
+part /dev/vda 546308096 22002270208 primary none /dev/vda4
+fs /dev/vda2 / btrfs uuid=b36e74cd-86ce-40f6-b760-e792f9d5be52 label= options=rw,relatime,space_cache,subvolid=259,subvol=/@/.snapshots/1/snapshot
+btrfsdefaultsubvol /dev/vda2 / 259 @/.snapshots/1/snapshot
+btrfsnormalsubvol /dev/vda2 / 257 @
+btrfsnormalsubvol /dev/vda2 / 260 @/boot/grub2/i386-pc
+btrfsnormalsubvol /dev/vda2 / 261 @/boot/grub2/x86_64-efi
+btrfsnormalsubvol /dev/vda2 / 262 @/home
+btrfsnormalsubvol /dev/vda2 / 263 @/opt
+btrfsnormalsubvol /dev/vda2 / 264 @/srv
+btrfsnormalsubvol /dev/vda2 / 265 @/tmp
+btrfsnormalsubvol /dev/vda2 / 266 @/usr/local
+btrfsnormalsubvol /dev/vda2 / 267 @/var/cache
+btrfsnormalsubvol /dev/vda2 / 268 @/var/crash
+btrfsnormalsubvol /dev/vda2 / 269 @/var/lib/libvirt/images
+btrfsnormalsubvol /dev/vda2 / 270 @/var/lib/machines
+btrfsnormalsubvol /dev/vda2 / 271 @/var/lib/mailman
+btrfsnormalsubvol /dev/vda2 / 272 @/var/lib/mariadb
+btrfsnormalsubvol /dev/vda2 / 273 @/var/lib/mysql
+btrfsnormalsubvol /dev/vda2 / 274 @/var/lib/named
+btrfsnormalsubvol /dev/vda2 / 275 @/var/lib/pgsql
+btrfsnormalsubvol /dev/vda2 / 276 @/var/log
+btrfsnormalsubvol /dev/vda2 / 277 @/var/opt
+btrfsnormalsubvol /dev/vda2 / 278 @/var/spool
+btrfsnormalsubvol /dev/vda2 / 279 @/var/tmp
+btrfsmountedsubvol /dev/vda2 / rw,relatime,space_cache,subvolid=259,subvol=/@/.snapshots/1/snapshot @/.snapshots/1/snapshot
+btrfsmountedsubvol /dev/vda2 /var/opt rw,relatime,space_cache,subvolid=277,subvol=/@/var/opt @/var/opt
+btrfsmountedsubvol /dev/vda2 /var/lib/mariadb rw,relatime,space_cache,subvolid=272,subvol=/@/var/lib/mariadb @/var/lib/mariadb
+btrfsmountedsubvol /dev/vda2 /var/spool rw,relatime,space_cache,subvolid=278,subvol=/@/var/spool @/var/spool
+btrfsmountedsubvol /dev/vda2 /boot/grub2/i386-pc rw,relatime,space_cache,subvolid=260,subvol=/@/boot/grub2/i386-pc @/boot/grub2/i386-pc
+btrfsmountedsubvol /dev/vda2 /var/crash rw,relatime,space_cache,subvolid=268,subvol=/@/var/crash @/var/crash
+btrfsmountedsubvol /dev/vda2 /var/lib/machines rw,relatime,space_cache,subvolid=270,subvol=/@/var/lib/machines @/var/lib/machines
+btrfsmountedsubvol /dev/vda2 /var/lib/mailman rw,relatime,space_cache,subvolid=271,subvol=/@/var/lib/mailman @/var/lib/mailman
+btrfsmountedsubvol /dev/vda2 /opt rw,relatime,space_cache,subvolid=263,subvol=/@/opt @/opt
+btrfsmountedsubvol /dev/vda2 /.snapshots rw,relatime,space_cache,subvolid=258,subvol=/@/.snapshots @/.snapshots
+btrfsmountedsubvol /dev/vda2 /var/lib/pgsql rw,relatime,space_cache,subvolid=275,subvol=/@/var/lib/pgsql @/var/lib/pgsql
+btrfsmountedsubvol /dev/vda2 /boot/grub2/x86_64-efi rw,relatime,space_cache,subvolid=261,subvol=/@/boot/grub2/x86_64-efi @/boot/grub2/x86_64-efi
+btrfsmountedsubvol /dev/vda2 /var/lib/named rw,relatime,space_cache,subvolid=274,subvol=/@/var/lib/named @/var/lib/named
+btrfsmountedsubvol /dev/vda2 /home rw,relatime,space_cache,subvolid=262,subvol=/@/home @/home
+btrfsmountedsubvol /dev/vda2 /var/lib/mysql rw,relatime,space_cache,subvolid=273,subvol=/@/var/lib/mysql @/var/lib/mysql
+btrfsmountedsubvol /dev/vda2 /var/tmp rw,relatime,space_cache,subvolid=279,subvol=/@/var/tmp @/var/tmp
+btrfsmountedsubvol /dev/vda2 /tmp rw,relatime,space_cache,subvolid=265,subvol=/@/tmp @/tmp
+btrfsmountedsubvol /dev/vda2 /var/cache rw,relatime,space_cache,subvolid=267,subvol=/@/var/cache @/var/cache
+btrfsmountedsubvol /dev/vda2 /usr/local rw,relatime,space_cache,subvolid=266,subvol=/@/usr/local @/usr/local
+btrfsmountedsubvol /dev/vda2 /srv rw,relatime,space_cache,subvolid=264,subvol=/@/srv @/srv
+btrfsmountedsubvol /dev/vda2 /var/lib/libvirt/images rw,relatime,space_cache,subvolid=269,subvol=/@/var/lib/libvirt/images @/var/lib/libvirt/images
+btrfsmountedsubvol /dev/vda2 /var/log rw,relatime,space_cache,subvolid=276,subvol=/@/var/log @/var/log
+btrfsnocopyonwrite @/var/lib/mariadb
+btrfsnocopyonwrite @/var/lib/pgsql
+btrfsnocopyonwrite @/var/lib/mysql
+btrfsnocopyonwrite @/var/lib/libvirt/images
+btrfsnocopyonwrite @/var/log
+swap /dev/vda3 uuid=2210ab59-f22a-4c39-a973-31ebeaf3cc85 label=
+```
+
+
 ## boot loaders
 
 ### GRUB
@@ -1492,15 +1674,15 @@ Basically there's `LogAction` lines following by generated transition,
 thus the next `awk` stuff gets only relevant transitions.
 
 ``` shell
-$ awk 'BEGIN { start=0; } /(LogAction:|Calculated)/ { if($0 ~ /pe-input/ && start != 1) { next; }; if($0 ~ /LogAction/) { start=1; print; } else { start=0; print; }; }' pacemaker.log | head -n 8
-Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: LogAction:   * Recover    rsc_azure-events:1                  (                   vmeupldbup301 )
-Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: LogAction:   * Recover    rsc_SAPHana_UP3_HDB00:1             (            Master vmeupldbup301 )
-Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: LogAction:   * Recover    rsc_SAPHanaTopology_UP3_HDB00:1     (                   vmeupldbup301 )
-Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: process_pe_message: Calculated transition 219198, saving inputs in /var/lib/pacemaker/pengine/pe-input-3141.bz2
-Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: LogAction:   * Recover    rsc_azure-events:1                  (                   vmeupldbup301 )
-Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: LogAction:   * Recover    rsc_SAPHana_UP3_HDB00:1             (            Master vmeupldbup301 )
-Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: LogAction:   * Recover    rsc_SAPHanaTopology_UP3_HDB00:1     (                   vmeupldbup301 )
-Sep 02 13:18:02 [27794] vmeupldbup302    pengine:   notice: process_pe_message: Calculated transition 219199, saving inputs in /var/lib/pacemaker/pengine/pe-input-3142.bz2
+$ awk 'BEGIN { start=0; } /(LogAction:[[:blank:]]+\*|Calculated)/ { if($0 ~ /pe-input/ && start != 1) { next; }; print;  if($0 ~ /LogAction/) { start=1; } else { start=0; }; }' pacemaker.log | head -n 8
+Sep 02 13:18:02 [27794] example2    pengine:   notice: LogAction:   * Recover    rsc_azure-events:1                  (                   example1 )
+Sep 02 13:18:02 [27794] example2    pengine:   notice: LogAction:   * Recover    rsc_SAPHana_UP3_HDB00:1             (            Master example1 )
+Sep 02 13:18:02 [27794] example2    pengine:   notice: LogAction:   * Recover    rsc_SAPHanaTopology_UP3_HDB00:1     (                   example1 )
+Sep 02 13:18:02 [27794] example2    pengine:   notice: process_pe_message: Calculated transition 219198, saving inputs in /var/lib/pacemaker/pengine/pe-input-3141.bz2
+Sep 02 13:18:02 [27794] example2    pengine:   notice: LogAction:   * Recover    rsc_azure-events:1                  (                   example1 )
+Sep 02 13:18:02 [27794] example2    pengine:   notice: LogAction:   * Recover    rsc_SAPHana_UP3_HDB00:1             (            Master example1 )
+Sep 02 13:18:02 [27794] example2    pengine:   notice: LogAction:   * Recover    rsc_SAPHanaTopology_UP3_HDB00:1     (                   example1 )
+Sep 02 13:18:02 [27794] example2    pengine:   notice: process_pe_message: Calculated transition 219199, saving inputs in /var/lib/pacemaker/pengine/pe-input-3142.bz2
 ```
 
 logs must be gathered from all nodes
