@@ -615,7 +615,11 @@ Compressed: 291344384
 
 # extracting rear boot media initrd itself...
 
-$ /usr/lib/dracut/skipcpio /tmp/initrd.cgz | zcat -- | ( mkdir /tmp/rear-initrd; cd /tmp/rear-initrd; cpio -id )
+$ /usr/lib/dracut/skipcpio /tmp/initrd.cgz | zcat -- | \
+    ( [[ -d /tmp/rear-initrd ]] && rm -rf /tmp/read-initrd;  \
+        mkdir /tmp/rear-initrd 2>/dev/null ; \
+        cd /tmp/rear-initrd; \
+        cpio -id )
 1443261 blocks
 
 $ find /tmp/rear-initrd/ | grep -P '(etc/rear|/var/lib/rear/)'
@@ -4398,6 +4402,33 @@ $ find /tmp/kdump -type f -name 'lib*' | grep -c curl
 https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html
 
 ## mail
+
+### mailx
+
+Sending mail with authentication via a relay.
+
+``` shell
+$ man mailx | sed -rn '/smtp[[:blank:]]+Normally,/,/^ *$/p' | fmt -w72
+       smtp   Normally, mailx invokes sendmail(8) directly to transfer
+       messages.  If the smtp variable is set, a SMTP connection to the
+       server specified by the value of this variable is used instead.
+       If the SMTP server  does
+              not use the standard port, a value of server:port can
+              be given, with port as a name or as a number.
+```
+That is, define something like the following...
+
+``` shell
+$ cat $HOME/.mailrc
+set name="Server1234"
+set from="username@example.com.com"
+set smtp=smtps://smtp.example.com.com
+set smtp-auth=login
+set smtp-auth-user=username@example.com
+set smtp-auth-password=mysecretpassword
+set ssl-verify=ignore
+```
+
 
 ### imap
 
@@ -8830,6 +8861,30 @@ man 5 crontab | sed -n '/RANDOM_DELAY/,/^$/p' | fmt -w80
 @daily <username> sleep $(($RANDOM \% 3600 )) && <some command>
 ```
 
+#### sending mail via mailx to a relay requiring authentication
+
+See [`mailx`](#mailx) how to setup authentication in `mailx`.
+
+Generally, Vixie Cron, allows to override default `sendmail` command
+used to send mails via `-m` option.
+
+``` shell
+$ man 8 cron | col -b | grep -A1 -P '^\s+-m' | fmt -w80
+       -m     This option allows you to specify a shell command to use for
+       sending Cron mail output instead of using sendmail(8) This command
+       must accept a fully formatted mail message (with headers) on standard
+       input and send it as
+              a mail message to the recipients specified in the mail headers.
+              Specifying the string off (i.e., crond -m off) will disable
+              the sending of mail.
+```
+
+On SLES one has to override cron's systemd service unit to add `-m`
+defining a shell wrapper if specific mail commands options are
+needed. See [Delivering cron and logwatch emails to gmail in RHEL
+](https://web.archive.org/web/20220923100759/https://lukas.zapletalovi.com/2018/09/delivering-cron-emails-to-gmail-in-rhel.html)
+for details.
+
 #### shell in cron
 
 By default cron runs all jobs with `/bin/sh` shell, and on SLES it means BASH
@@ -8891,6 +8946,75 @@ SHELL=/bin/csh
 
 
 ## shell
+
+### awk
+
+A block-by-block matching...
+
+``` shell
+$ cat /tmp/vhost.awk
+#!/usr/bin/awk -f
+BEGIN { out="" }
+!/<VirtualHost/ && out == "" {
+    next;
+}
+/<VirtualHost/ {
+    out=$0;
+    next;
+}
+/<\/VirtualHost/ {
+    out=out RS $0;
+    printf("%s", (out ~ lookup_pattern ? out""RS : ""));
+    out="";
+    next;
+}
+{ out=out RS $0;  next; }
+
+$ awk -f /tmp/vhost.awk web.txt
+<VirtualHost 172.25.43.81:443>
+    DocumentRoot /htdocs/
+    <Directory /htdocs/>
+     Options Indexes
+     <RequireAll>
+     Require all granted
+     </RequireAll>
+    </Directory>
+    ServerName example.com
+        SSLEngine on
+        Protocols h2 http/1.1
+        SSLCertificateFile /etc/apache2/ssl.csr/example.com.crt
+        SSLCertificateKeyFile /etc/apache2/ssl.csr/CA.key
+        SSLCertificateChainFile /etc/apache2/ssl.csr/example.com.txt
+    </VirtualHost>
+```
+
+And the same with here document...
+
+``` shell
+$ awk -v lookup_pattern="Protocols" -f - web.txt <<- EOD
+!/<VirtualHost/ && out == "" { next; }
+/<VirtualHost/ { out=\$0; next; }
+/<\/VirtualHost/ { out=out RS \$0;
+    printf("%s", (out ~ lookup_pattern ? out""RS : ""));
+}
+{ out=out RS \$0; next; }
+EOD
+<VirtualHost 172.25.43.81:443>
+    DocumentRoot /htdocs/
+    <Directory /htdocs/>
+     Options Indexes
+     <RequireAll>
+     Require all granted
+     </RequireAll>
+    </Directory>
+    ServerName example.com
+        SSLEngine on
+        Protocols h2 http/1.1
+        SSLCertificateFile /etc/apache2/ssl.csr/example.com.crt
+        SSLCertificateKeyFile /etc/apache2/ssl.csr/CA.key
+        SSLCertificateChainFile /etc/apache2/ssl.csr/example.com.txt
+    </VirtualHost>
+```
 
 ### bash
 
