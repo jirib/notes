@@ -421,6 +421,330 @@ enable-cache services no
 
 Sometimes is also needed to increase `max-db-size` for some databases.
 
+
+### openldap
+
+Terminology:
+
+- LDAP: lightweight directory access protocol
+- directory information tree (DIT): hierarchical tree structure of LDAP
+- root: top of the directory hierarchy
+- distinguished name (DN): complete path to any node, unique identifier of an object
+- entry or object: one unit in an LDAP directory, qualified by its
+  distinguished name (DN)
+- organizational unit (OU): an organizational boundarry, geographical
+  or functional (eg. country, department,...)
+- bind or binding: connection process to an LDAP server
+- attributes: pieces of information associated with an entry
+  (eg. employee's phone number)
+- objectclass: special attribute type, like in OOP, a class defining
+  which attributes are required for an object; each object _must_ have
+  objectclass
+- schema: schema determining the structure and contents of the
+  directory; contains objectclass definitions, attribute types
+  definitions etc.
+- LDIF: LDAP Data Interchange Format, plain-text file for LDAP
+  entries, used for importing and exporting data to and form an LDAP
+  server
+
+#### server
+
+OSes or distroes vary how they handle OpenLDAP, here SLES related info.
+
+Check what is default `slapd.conf`:
+
+``` shell
+$ grep -Pv '^\s*($|#)' /etc/openldap/slapd.conf
+```
+
+First we need a password, OpenLDAP rootpw:
+
+``` shell
+$ install -m 600 /dev/null /root/.ldappw
+$ vi /root/.ldappw
+
+$ slappasswd -T /root/.ldappw
+{SSHA}iqKe4WidL7RnQsIKjRMsfOhaKcXv2wNs
+```
+
+Then, an example configuration to start with:
+
+``` shell
+$ cat /root/slapd.conf
+pidfile         /run/slapd/slapd.pid
+argsfile        /run/slapd/slapd.args
+include /etc/openldap/schema/core.schema
+include /etc/openldap/schema/cosine.schema
+include /etc/openldap/schema/inetorgperson.schema
+include /etc/openldap/schema/rfc2307bis.schema
+TLSCACertificateFile /etc/openldap/certs/server.pem
+TLSCertificateFile /etc/openldap/certs/server.pem
+TLSCertificateKeyFile /etc/openldap/certs/server.pem
+TLSCipherSuite HIGH+TLSv1.2+kECDHE+aECDSA!AES!SHA384!SHA256
+TLSProtocolMin 3.3
+moduleload back_mdb.la
+database     mdb
+suffix       "dc=example,dc=com"
+rootdn       "cn=Manager,dc=example,dc=com"
+rootpw       {SSHA}iqKe4WidL7RnQsIKjRMsfOhaKcXv2wNs
+directory    /var/lib/ldap
+```
+
+OpenLDAP configuration could be either _files_ or _ldap_ based one,
+that is in case of SLES, one could use:
+
+``` shell
+$ grep 'BACKEND' /etc/sysconfig/openldap
+OPENLDAP_CONFIG_BACKEND="ldap"
+```
+
+Create, TLS key and cert as you wish, then this is our starting point:
+
+``` shell
+$ find /etc/openldap | grep -P '/(certs|schema|slap\d.)'
+/etc/openldap/certs
+/etc/openldap/certs/server.pem
+/etc/openldap/schema
+/etc/openldap/schema/core.schema
+/etc/openldap/schema/cosine.schema
+/etc/openldap/schema/inetorgperson.schema
+/etc/openldap/schema/rfc2307bis.schema
+```
+
+Let's generate config directory format configuration:
+
+``` shell
+$ slaptest -f /root/slapd.conf -F /etc/openldap/slapd.d/
+config file testing succeeded
+
+$ find /etc/openldap/slapd.d/
+/etc/openldap/slapd.d/
+/etc/openldap/slapd.d/cn=config.ldif
+/etc/openldap/slapd.d/cn=config
+/etc/openldap/slapd.d/cn=config/cn=module{0}.ldif
+/etc/openldap/slapd.d/cn=config/cn=schema.ldif
+/etc/openldap/slapd.d/cn=config/cn=schema
+/etc/openldap/slapd.d/cn=config/cn=schema/cn={0}core.ldif
+/etc/openldap/slapd.d/cn=config/cn=schema/cn={1}cosine.ldif
+/etc/openldap/slapd.d/cn=config/cn=schema/cn={2}inetorgperson.ldif
+/etc/openldap/slapd.d/cn=config/cn=schema/cn={3}rfc2307bis.ldif
+/etc/openldap/slapd.d/cn=config/olcDatabase={-1}frontend.ldif
+/etc/openldap/slapd.d/cn=config/olcDatabase={0}config.ldif
+/etc/openldap/slapd.d/cn=config/olcDatabase={1}mdb.ldif
+```
+
+Starting systemd `slapd.service` unit should also correct permissions,
+if not use `chown`/`chmod`.
+
+``` shell
+$ ss -tnlp | grep slapd
+LISTEN 0      512          0.0.0.0:389        0.0.0.0:*    users:(("slapd",pid=15653,fd=7))
+LISTEN 0      512          0.0.0.0:636        0.0.0.0:*    users:(("slapd",pid=15653,fd=9))
+LISTEN 0      512             [::]:389           [::]:*    users:(("slapd",pid=15653,fd=8))
+LISTEN 0      512             [::]:636           [::]:*    users:(("slapd",pid=15653,fd=10))
+```
+
+OpenLDAP utils use `/etc/openldap/ldap.conf` configuration, see `ldap.conf(5)`.
+
+``` shell
+$ ldapsearch -d 0 -v -x -y /root/.ldappw -D 'cn=Manager,dc=example,dc=com'
+ldap_initialize( <DEFAULT> )
+filter: (objectclass=*)
+requesting: All userApplication attributes
+# extended LDIF
+#
+# LDAPv3
+# base <dc=example,dc=com> (default) with scope subtree
+# filter: (objectclass=*)
+# requesting: ALL
+#
+
+# search result
+search: 2
+result: 32 No such object
+
+# numResponses: 1
+```
+
+bind failure would look like this:
+
+``` shell
+$ ldapsearch -d 0 -v -x -w badpass -D 'cn=Manager,dc=example,dc=com' -b 'dc=example,dc=com'
+ldap_initialize( <DEFAULT> )
+ldap_bind: Invalid credentials (49)
+```
+
+A TLS issue could look like this, here it is SAN problem:
+
+``` shell
+$ ldapsearch -d 1 -v -x -y /root/.ldappw -D 'cn=Manager,dc=example,dc=com' -b 'dc=example,dc=com'
+ldap_initialize( <DEFAULT> )
+ldap_create
+ldap_sasl_bind
+ldap_send_initial_request
+ldap_new_connection 1 1 0
+ldap_int_open_connection
+ldap_connect_to_host: TCP t14s:636
+ldap_new_socket: 3
+ldap_prepare_socket: 3
+ldap_connect_to_host: Trying 192.168.1.4:636
+ldap_pvt_connect: fd: 3 tm: -1 async: 0
+attempting to connect:
+connect success
+TLS trace: SSL_connect:before SSL initialization
+TLS trace: SSL_connect:SSLv3/TLS write client hello
+TLS trace: SSL_connect:SSLv3/TLS write client hello
+TLS trace: SSL_connect:SSLv3/TLS read server hello
+TLS trace: SSL_connect:TLSv1.3 read encrypted extensions
+TLS certificate verification: depth: 0, err: 0, subject: /CN=t14s, issuer: /CN=t14s
+TLS trace: SSL_connect:SSLv3/TLS read server certificate
+TLS trace: SSL_connect:TLSv1.3 read server certificate verify
+TLS trace: SSL_connect:SSLv3/TLS read finished
+TLS trace: SSL_connect:SSLv3/TLS write change cipher spec
+TLS trace: SSL_connect:SSLv3/TLS write finished
+TLS: unable to get subjectAltName from peer certificate.
+TLS: can't connect: TLS: unable to get subjectAltName from peer certificate.
+ldap_err2string
+ldap_sasl_bind(SIMPLE): Can't contact LDAP server (-1)
+```
+
+Incorrectly created TLS key:
+
+``` shell
+$ openssl x509 -text -noout -in /etc/openldap/certs/server.pem \
+    -certopt no_subject,no_header,no_version,no_serial,no_signame,no_validity,no_issuer,no_pubkey,no_sigdump,no_aux
+        X509v3 extensions:
+            X509v3 Subject Key Identifier:
+                D1:78:F4:21:D3:98:17:84:49:5D:D2:EF:2E:82:7E:DC:AD:98:C8:8C
+            X509v3 Authority Key Identifier:
+                keyid:D1:78:F4:21:D3:98:17:84:49:5D:D2:EF:2E:82:7E:DC:AD:98:C8:8C
+
+            X509v3 Basic Constraints: critical
+                CA:TRUE
+```
+
+Offtopic here but anyway, a comparison with defined SAN:
+
+``` shell
+$ : | openssl s_client -showcerts -connect www.openbsd.org:443 2>/dev/null | \
+    openssl x509 -inform pem -noout -text | grep -B 1 DNS: | fmt -w80
+            X509v3 Subject Alternative Name:
+                DNS:ftplist1.openbsd.org, DNS:libressl.org, DNS:openbsd.org,
+                DNS:openiked.org, DNS:openssh.com, DNS:rpki-client.org,
+                DNS:www.libressl.org, DNS:www.openbsd.org,
+                DNS:www.openiked.org, DNS:www.openrsync.org,
+                DNS:www.openssh.com, DNS:www.rpki-client.org
+```
+
+Let's try to add first entry:
+
+``` shell
+$ grep -P '^objectclass.*(dcObject|organization(alRole)?)' /etc/openldap/schema/*.schema
+/etc/openldap/schema/core.schema:objectclass ( 2.5.6.4 NAME 'organization'
+/etc/openldap/schema/core.schema:objectclass ( 2.5.6.5 NAME 'organizationalUnit'
+/etc/openldap/schema/core.schema:objectclass ( 2.5.6.7 NAME 'organizationalPerson'
+/etc/openldap/schema/core.schema:objectclass ( 2.5.6.8 NAME 'organizationalRole'
+/etc/openldap/schema/core.schema:objectclass ( 1.3.6.1.4.1.1466.344 NAME 'dcObject'
+```
+
+Huh? Let's try to see some more details:
+
+``` shell
+$ sed -rn '/objectclass.*(dcObject|organization(alRole)?)/,/^ *$/p' /etc/openldap/schema/*.schema
+objectclass ( 2.5.6.4 NAME 'organization'
+        DESC 'RFC2256: an organization'
+        SUP top STRUCTURAL
+        MUST o
+        MAY ( userPassword $ searchGuide $ seeAlso $ businessCategory $
+                x121Address $ registeredAddress $ destinationIndicator $
+                preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $
+                telephoneNumber $ internationalISDNNumber $
+                facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $
+                postalAddress $ physicalDeliveryOfficeName $ st $ l $ description ) )
+
+objectclass ( 2.5.6.5 NAME 'organizationalUnit'
+        DESC 'RFC2256: an organizational unit'
+        SUP top STRUCTURAL
+        MUST ou
+        MAY ( userPassword $ searchGuide $ seeAlso $ businessCategory $
+                x121Address $ registeredAddress $ destinationIndicator $
+                preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $
+                telephoneNumber $ internationalISDNNumber $
+                facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $
+                postalAddress $ physicalDeliveryOfficeName $ st $ l $ description ) )
+
+objectclass ( 2.5.6.7 NAME 'organizationalPerson'
+        DESC 'RFC2256: an organizational person'
+        SUP person STRUCTURAL
+        MAY ( title $ x121Address $ registeredAddress $ destinationIndicator $
+                preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $
+                telephoneNumber $ internationalISDNNumber $
+                facsimileTelephoneNumber $ street $ postOfficeBox $ postalCode $
+                postalAddress $ physicalDeliveryOfficeName $ ou $ st $ l ) )
+
+objectclass ( 2.5.6.8 NAME 'organizationalRole'
+        DESC 'RFC2256: an organizational role'
+        SUP top STRUCTURAL
+        MUST cn
+        MAY ( x121Address $ registeredAddress $ destinationIndicator $
+                preferredDeliveryMethod $ telexNumber $ teletexTerminalIdentifier $
+                telephoneNumber $ internationalISDNNumber $ facsimileTelephoneNumber $
+                seeAlso $ roleOccupant $ preferredDeliveryMethod $ street $
+                postOfficeBox $ postalCode $ postalAddress $
+                physicalDeliveryOfficeName $ ou $ st $ l $ description ) )
+
+objectclass ( 1.3.6.1.4.1.1466.344 NAME 'dcObject'
+        DESC 'RFC2247: domain component object'
+        SUP top AUXILIARY MUST dc )
+```
+
+A LDIF example:
+
+``` shell
+$ cat > /tmp/input.ldif <<EOF
+# organization object
+dn: dc=example,dc=com
+objectclass: dcObject
+objectclass: organization
+o: Example inc.
+dc: example
+
+# a user
+dn: cn=testuser, dc=example, dc=com
+objectclass: organizationalRole
+cn: testuser
+EOF
+```
+
+``` shell
+$ ldapadd -d 0 -v -x -y /root/.ldappw -D 'cn=Manager,dc=example,dc=com' -f /tmp/input.ldif
+ldap_initialize( <DEFAULT> )
+add objectclass:
+        dcObject
+        organization
+add o:
+        Example inc.
+add dc:
+        example
+adding new entry "dc=example,dc=com"
+modify complete
+
+add objectclass:
+        organizationalRole
+add cn:
+        testuser
+adding new entry "cn=testuser, dc=example, dc=com"
+modify complete
+```
+
+``` shell
+$ ldapsearch -LLL -x -y /root/.ldappw -D 'cn=Manager,dc=example,dc=com' -b 'dc=example,dc=com' '(cn=testuser)'
+dn: cn=testuser,dc=example,dc=com
+objectClass: organizationalRole
+cn: testuser
+```
+
+
 ### sssd
 
 *sssd* validates CN in TLS cert!
