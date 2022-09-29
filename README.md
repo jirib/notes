@@ -744,6 +744,35 @@ objectClass: organizationalRole
 cn: testuser
 ```
 
+We can use `slapcat` to convert current directory database to LDIF:
+
+``` shell
+$ slapcat -F /etc/openldap/slapd.d -b dc=example,dc=com
+dn: dc=example,dc=com
+objectClass: dcObject
+objectClass: organization
+o: Example inc.
+dc: example
+structuralObjectClass: organization
+entryUUID: a3521d8e-d44d-103c-8c86-ab7e9632b02b
+creatorsName: cn=Manager,dc=example,dc=com
+createTimestamp: 20220929142039Z
+entryCSN: 20220929142039.527732Z#000000#000#000000
+modifiersName: cn=Manager,dc=example,dc=com
+modifyTimestamp: 20220929142039Z
+
+dn: cn=testuser,dc=example,dc=com
+objectClass: organizationalRole
+cn: testuser
+structuralObjectClass: organizationalRole
+entryUUID: a35500b2-d44d-103c-8c87-ab7e9632b02b
+creatorsName: cn=Manager,dc=example,dc=com
+createTimestamp: 20220929142039Z
+entryCSN: 20220929142039.546654Z#000000#000#000000
+modifiersName: cn=Manager,dc=example,dc=com
+modifyTimestamp: 20220929142039Z
+```
+
 
 ### sssd
 
