@@ -773,8 +773,133 @@ modifiersName: cn=Manager,dc=example,dc=com
 modifyTimestamp: 20220929142039Z
 ```
 
+Delete of an object:
+
+``` shell
+$ ldapdelete -v -x -y /root/.ldappw -D 'cn=Manager,dc=example,dc=com' 'cn=testuser, dc=example, dc=com'
+ldap_initialize( <DEFAULT> )
+deleting entry "cn=testuser, dc=example, dc=com"
+```
+
+The above user examle was not very usual, thus let's add new one:
+
+``` shell
+$ cat input.ldif
+dn: ou=people, dc=example, dc=com
+ou: people
+objectClass: organizationalUnit
+
+dn: uid=u123456, ou=people, dc=example, dc=com
+objectClass: top
+objectClass: person
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: u123456
+cn: Joe Dirt
+sn: Dirt
+loginShell: /bin/bash
+uidNumber: 10000
+gidNumber: 10000
+homeDirectory: /home/u123456
+employeeNumber: 123456
+employeeType: full-time
+mobile: +420777111222
+
+$ ldapadd -x -y /root/.ldappw -D 'cn=Manager,dc=example,dc=com' -f input.ldif
+adding new entry "ou=people, dc=example, dc=com"
+
+adding new entry "uid=u123456, ou=people, dc=example, dc=com"
+```
+
+Now, let's set users password:
+
+``` shell
+$ ldappasswd -x -y /root/.ldappw -D 'cn=Manager,dc=example,dc=com' -S 'uid=u123456, ou=people, dc=example, dc=com'                                                                                                           New
+ password:
+Re-enter new password:
+
+$ ldapsearch -LLL -x -y /root/.ldappw -D 'cn=Manager,dc=example,dc=com' -b 'ou=people, dc=example,dc=com' '(uid=u123456)' userPassword
+dn: uid=u123456,ou=people,dc=example,dc=com
+userPassword:: e1NTSEF9WGlzS3E5OWtmaG9UdHM0V2hRUmR5VkxHTk1uQzlQdis=
+```
+
+Modifying password via `ldapmodify`:
+
+``` shell
+$ slappasswd -n | base64 -
+New password:
+Re-enter new password:
+e1NTSEF9aFNyTy95bWpWZUhzUDRlUnplK1dmM3VjSlJmZ1d5OXQ=
+
+$ cat input.ldif
+dn: uid=u123456, ou=people, dc=example, dc=com
+changetype: modify
+replace: userPassword
+userPassword:: e1NTSEF9aFNyTy95bWpWZUhzUDRlUnplK1dmM3VjSlJmZ1d5OXQ=
+
+$ ldapmodify -v -x -y /root/.ldappw -D 'cn=Manager,dc=example,dc=com' -f input.ldif
+ldap_initialize( <DEFAULT> )
+replace userPassword:
+        {SSHA}hSrO/ymjVeHsP4eRze+Wf3ucJRfgWy9t
+modifying entry "uid=u123456, ou=people, dc=example, dc=com"
+modify complete
+
+$ ldapsearch -LLL -x -y /root/.ldappw -D 'cn=Manager,dc=example,dc=com' -b 'ou=people, dc=example,dc=com' '(uid=u123456)' userPassword
+dn: uid=u123456,ou=people,dc=example,dc=com
+userPassword:: e1NTSEF9aFNyTy95bWpWZUhzUDRlUnplK1dmM3VjSlJmZ1d5OXQ=
+
+# and test
+$ ldapsearch -LLL -x -W -D 'uid=u123456,ou=people,dc=example,dc=com' \
+    -b 'ou=people,dc=example,dc=com' '(uid=u123456)' dn
+Enter LDAP Password:
+dn: uid=u123456,ou=people,dc=example,dc=com
+```
+
 
 ### sssd
+
+#### LDAP
+
+The bind password can be obfuscated with `sss_offuscate -s -d
+<DOMAIN>`, still do not make it world readable!
+
+``` shell
+$ grep -Pv '^\s*($|#)' /etc/sssd/sssd.conf
+[sssd]
+config_file_version = 2
+services = nss, pam
+domains = LDAP
+[nss]
+[pam]
+[domain/LDAP]
+id_provider = ldap
+auth_provider = ldap
+ldap_uri = ldaps://127.0.0.1
+ldap_search_base = dc=example,dc=com
+ldap_default_bind_dn = cn=Manager,dc=example,dc=com
+ldap_tls_reqcert = allow
+ldap_schema = rfc2307bis
+access_provider = permit
+sudo_provider = ldap
+chpass_provider = ldap
+autofs_provider = ldap
+resolver_provider = ldap
+ldap_default_authtok = AAAQAGGoVoHtJJrfe9zbbZe331Uc2CC8gm6TL27QlD9PZRbkYjYbcvOv3JjDEV2IIuxLeISWK+yfoSOBD41c34HkQi0AAQID
+ldap_default_authtok_type = obfuscated_password
+```
+
+``` shell
+$ systemd-cgls -u sssd.service
+Unit sssd.service (/system.slice/sssd.service):
+├─3017 /usr/sbin/sssd -i --logger=files
+├─3018 /usr/libexec/sssd/sssd_be --domain LDAP --uid 0 --gid 0 --logger=files
+├─3019 /usr/libexec/sssd/sssd_nss --uid 0 --gid 0 --logger=files
+└─3020 /usr/libexec/sssd/sssd_pam --uid 0 --gid 0 --logger=files
+```
+
+#### troubleshooting
 
 *sssd* validates CN in TLS cert!
 
@@ -785,6 +910,47 @@ Jun 10 15:49:37 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS
 Jun 10 15:50:50 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
 Jun 10 15:50:52 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
 Jun 10 15:50:56 localhost.localdomain sssd[be[ldap]][17206]: Could not start TLS encryption. TLS: hostname does not match CN in peer certificate
+```
+
+Invalid credentials to LDAP server:
+
+``` shell
+   *  (2022-10-04 14:18:48): [be[LDAP]] [simple_bind_done] (0x0400): Bind result: Invalid credentials(49), no errmsg set
+   *  (2022-10-04 14:18:48): [be[LDAP]] [sdap_op_destructor] (0x2000): Operation 2 finished
+   *  (2022-10-04 14:18:48): [be[LDAP]] [sdap_cli_connect_recv] (0x0040): Unable to establish connection [1432158227]: Authentication Failed
+
+# or with more debug level
+
+(2022-10-04 14:17:06): [be[LDAP]] [sdap_call_op_callback] (0x20000): Handling LDAP operation [2][server: [127.0.0.1:636] simple bind: [cn=Manager,dc=example,dc=com]] took [0.217] milliseconds.
+(2022-10-04 14:17:06): [be[LDAP]] [simple_bind_done] (0x1000): Server returned no controls.
+(2022-10-04 14:17:06): [be[LDAP]] [simple_bind_done] (0x0400): Bind result: Invalid credentials(49), no errmsg set
+(2022-10-04 14:17:06): [be[LDAP]] [sdap_op_destructor] (0x2000): Operation 2 finished
+(2022-10-04 14:17:06): [be[LDAP]] [sdap_cli_connect_recv] (0x0040): Unable to establish connection [1432158227]: Authentication Failed
+```
+
+LDAP server not reachable:
+
+``` shell
+(2022-10-04 14:25:43): [be[LDAP]] [sssd_async_connect_done] (0x0020): connect failed [111][Connection refused].
+   *  (2022-10-04 14:25:43): [be[LDAP]] [sssd_async_socket_init_send] (0x4000): Using file descriptor [19] for the connection.
+   *  (2022-10-04 14:25:43): [be[LDAP]] [sssd_async_socket_init_send] (0x0400): Setting 6 seconds timeout [ldap_network_timeout] for connecting
+   *  (2022-10-04 14:25:43): [be[LDAP]] [sssd_async_connect_done] (0x0020): connect failed [111][Connection refused].
+(2022-10-04 14:25:43): [be[LDAP]] [sssd_async_socket_init_done] (0x0020): sdap_async_sys_connect request failed: [111]: Connection refused.(2022-10-04 14:25:43): [be[LDAP]] [sss_ldap_init_sys_connect_done] (0x0020): sssd_async_socket_init request failed: [111]: Connection refused.
+   *  (2022-10-04 14:25:43): [be[LDAP]] [sssd_async_socket_init_done] (0x0020): sdap_async_sys_connect request failed: [111]: Connection refused.   *  (2022-10-04 14:25:43): [be[LDAP]] [sssd_async_socket_state_destructor] (0x0400): closing socket [19]
+   *  (2022-10-04 14:25:43): [be[LDAP]] [sss_ldap_init_sys_connect_done] (0x0020): sssd_async_socket_init request failed: [111]: Connection refused.
+(2022-10-04 14:26:58): [be[LDAP]] [sssd_async_connect_done] (0x0020): [RID#4] connect failed [111][Connection refused].
+   *  (2022-10-04 14:26:58): [be[LDAP]] [sssd_async_socket_init_send] (0x4000): [RID#4] Using file descriptor [21] for the connection.
+   *  (2022-10-04 14:26:58): [be[LDAP]] [sssd_async_socket_init_send] (0x0400): [RID#4] Setting 6 seconds timeout [ldap_network_timeout] for connecting
+   *  (2022-10-04 14:26:58): [be[LDAP]] [sssd_async_connect_done] (0x0020): [RID#4] connect failed [111][Connection refused].
+(2022-10-04 14:26:58): [be[LDAP]] [sssd_async_socket_init_done] (0x0020): [RID#4] sdap_async_sys_connect request failed: [111]: Connection refused.(2022-10-04 14:26:58): [be[LDAP]] [sss_ldap_init_sys_connect_done] (0x0020): [RID#4] sssd_async_socket_init request failed: [111]: Connection refused.
+   *  (2022-10-04 14:26:58): [be[LDAP]] [sssd_async_socket_init_done] (0x0020): [RID#4] sdap_async_sys_connect request failed: [111]: Connection refused.   *  (2022-10-04 14:26:58): [be[LDAP]] [sssd_async_socket_state_destructor] (0x0400): [RID#4] closing socket [21]
+   *  (2022-10-04 14:26:58): [be[LDAP]] [sss_ldap_init_sys_connect_done] (0x0020): [RID#4] sssd_async_socket_init request failed: [111]: Connection refused.
+(2022-10-04 14:27:00): [be[LDAP]] [sssd_async_connect_done] (0x0020): [RID#5] connect failed [111][Connection refused].
+(2022-10-04 14:27:00): [be[LDAP]] [sssd_async_socket_init_done] (0x0020): [RID#5] sdap_async_sys_connect request failed: [111]: Connection refused.   *  ... skipping repetitive backtrace ...
+(2022-10-04 14:27:00): [be[LDAP]] [sss_ldap_init_sys_connect_done] (0x0020): [RID#5] sssd_async_socket_init request failed: [111]: Connection refused.
+(2022-10-04 14:27:04): [be[LDAP]] [sssd_async_connect_done] (0x0020): [RID#6] connect failed [111][Connection refused].
+(2022-10-04 14:27:04): [be[LDAP]] [sssd_async_socket_init_done] (0x0020): [RID#6] sdap_async_sys_connect request failed: [111]: Connection refused.   *  ... skipping repetitive backtrace ...
+(2022-10-04 14:27:04): [be[LDAP]] [sss_ldap_init_sys_connect_done] (0x0020): [RID#6] sssd_async_socket_init request failed: [111]: Connection refused.
 ```
 
 - `sss_cache -E` invalidate all cached entries, with the exception of sudo rules
@@ -4961,7 +5127,78 @@ virtual_alias_maps = lmdb:/etc/postfix/virtual
 ```
 
 
-## monitoring
+## monitoring and logging
+
+### rsyslog
+
+`rsyslog` is ..., but anyway, TLS client fowarding:
+
+``` shell
+global(
+  DefaultNetstreamDriverCAFile="<path>"
+  DefaultNetstreamDriverCertFile="<path>"
+  DefaultNetstreamDriverKeyFile="<path>"
+)
+
+# Set up the action for all messages
+*.* action(
+  type="omfwd"
+  StreamDriver="gtls"
+  StreamDriverMode="1"
+  StreamDriverAuthMode="anon"
+  target="127.0.0.1" port="12345" protocol="tcp"
+))
+```
+
+Since 8.2108.0, one should be able to define TLS settings in _omfwd_ module directly:
+
+``` shell
+  StreamDriver.CAFile="<path>"
+  StreamDriver.KeyFile="<path>"
+  StreamDriver.CertFile="<path>"
+```
+
+
+### vector
+
+> Vector is a high-performance observability data pipeline that puts
+> organizations in control of their observability data. Collect,
+> transform, and route all your logs, metrics, and traces to any
+> vendors...
+
+Vector is written in Rust...
+
+A primitive configuration could be something like this:
+
+``` shell
+$ cat vector.toml
+[sources.my_source_id]
+type = "syslog"
+address = "127.0.0.1:12345"
+mode = "tcp"
+tls.key_file = "<path>"
+tls.crt_file = "<path>"
+tls.ca_file = "<path>"
+tls.enabled = true
+
+[sinks.my_sink_id]
+type = "console"
+inputs = [ "my_source_id" ]
+target = "stdout"
+encoding.codec = "text"
+
+$ vector -c vector.toml
+2022-10-04T14:00:18.142247Z  INFO vector::app: Log level is enabled. level="vector=info,codec=info,vrl=info,file_source=info,tower_limit=trace,rdkafka=info,buffers=info,kube=info"
+2022-10-04T14:00:18.142319Z  INFO vector::app: Loading configs. paths=["vector.toml"]
+2022-10-04T14:00:18.146363Z  INFO vector::topology::running: Running healthchecks.
+2022-10-04T14:00:18.146482Z  INFO vector::topology::builder: Healthcheck: Passed.
+2022-10-04T14:00:18.146493Z  INFO vector: Vector has started. debug="false" version="0.24.1" arch="x86_64" build_id="8935681 2022-09-12"
+2022-10-04T14:00:18.146516Z  INFO vector::app: API is disabled, enable by setting `api.enabled` to `true` and use commands like `vector top`.
+2022-10-04T14:00:18.149903Z  INFO source{component_kind="source" component_id=my_source_id component_type=syslog component_name=my_source_id}: vector::sources::util::tcp: Listening. addr=127.0.0.1:12345
+```
+
+
+### sar
 
 To get a graphical output from `sar` files, one can:
 
