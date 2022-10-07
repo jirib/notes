@@ -4920,6 +4920,58 @@ $ find /tmp/kdump -type f -name 'lib*' | grep -c curl
 
 https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html
 
+
+### swap and memory
+
+Terminology:
+
+- swapping: refers to a mechanism originally adopted in the UNIX
+  System versions of AT&T Bell Lab, and to copying the entire process
+  address space, or at any rate, the non-shareable text data segment,
+  out to the swap, or back, in one go. Generally an obsoleted
+  "strategy".
+- swap out/swap in: moving out and "importing" back memory of a process
+- paging: refers to a mechanism originally added to UNIX BSD variants,
+  and to copying in/out one or more pages of the address space.
+- page cache: data in memory for read file to avoid expensive disk
+  access on the subsequent reads; relates to _disk buffering_, and
+  used to be called _buffer cache_. This also works for _writes_
+- dirty page: a page in cache that has been changed in memory and
+  needs to be written back to disk, `kdmflush` treads periodically
+  writes dirty pages to the underlying storage device.
+- anonymous memory/anonymous mappings: represents a memory that is not
+  backed by a filesystem, ie. mappings for a program's stack and heap
+  or by explicit calls to `mmap(2)`.
+- reclaimable memory: pages that can be swapped out, eg. page cache or
+  anonymous memory.
+- unreclaimable memory: not to be swapped out, eg. internal kernel
+  data or DMA buffers...
+- OOM killer: an operation to kill a task in a hope that after it
+  exists enough memory will be freed to save the rest of the system,
+  ie. kernel is unable to reclaim enough memory to continue to
+  operate.
+- compaction: defragmantation of memory.
+
+How to check what has been swapped out:
+
+``` shell
+$ smem -U jiri | head
+  PID User     Command                         Swap      USS      PSS      RSS
+ 4678 jiri     /bin/bash -c set -o pipefai      324        4        8     1564
+ 4680 jiri     grep -v INFO:                    188        4        8     1552
+ 5760 jiri     /bin/bash                        352        4        8     1524
+ 5782 jiri     /opt/google/chrome/nacl_hel      356        4        9     1632
+ 5769 jiri     cat                              144        4       11     1432
+ 5691 jiri     -bash                           2764        8       17     1968
+ 4713 jiri     /usr/libexec/gdm/gdm-x-sess      592       12       18     2172
+ 5720 jiri     -bash                           2660       12       21     1992
+ 5776 jiri     /opt/google/chrome/chrome_c      296       20       23     1360
+
+$ grep '^VmSwap' /proc/5776/status
+VmSwap:      296 kB
+```
+
+
 ## mail
 
 ### mailx
