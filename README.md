@@ -4971,6 +4971,16 @@ $ grep '^VmSwap' /proc/5776/status
 VmSwap:      296 kB
 ```
 
+Tunning options:
+
+- `vm.swappiness`: value represents the percentage of the free memory
+  before swapping out application data (as anonymous pages); it also
+  controls the degree to which the system favors anonymous pages or
+  the page cache. A high value improves file-system performance, while
+  aggressively swapping less active processes out of physical
+  memory. A low value avoids swapping processes out of memory, which
+  usually decreases latency, at the cost of I/O performance.
+
 
 ## mail
 
