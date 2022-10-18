@@ -451,6 +451,26 @@ Terminology:
 
 OSes or distroes vary how they handle OpenLDAP, here SLES related info.
 
+SLES makes it a little bit complicated:
+
+``` shell
+$ grep -Pv '^\s*($|#)' /etc/sysconfig/openldap
+OPENLDAP_START_LDAP="no"
+OPENLDAP_START_LDAPS="yes"
+OPENLDAP_START_LDAPI="yes"
+OPENLDAP_SLAPD_PARAMS=""
+OPENLDAP_USER="ldap"
+OPENLDAP_GROUP="ldap"
+OPENLDAP_CHOWN_DIRS="yes"
+OPENLDAP_LDAP_INTERFACES=""
+OPENLDAP_LDAPS_INTERFACES=""
+OPENLDAP_LDAPI_INTERFACES=""
+OPENLDAP_REGISTER_SLP="no"
+OPENLDAP_KRB5_KEYTAB=""
+OPENLDAP_CONFIG_BACKEND="files"
+OPENLDAP_MEMORY_LIMIT="yes"
+```
+
 Check what is default `slapd.conf`:
 
 ``` shell
@@ -470,79 +490,60 @@ $ slappasswd -T /root/.ldappw
 Then, an example configuration to start with:
 
 ``` shell
-$ cat /root/slapd.conf
+$ cat /etc/openldap/slapd.conf
+loglevel        492
 pidfile         /run/slapd/slapd.pid
 argsfile        /run/slapd/slapd.args
 include /etc/openldap/schema/core.schema
 include /etc/openldap/schema/cosine.schema
 include /etc/openldap/schema/inetorgperson.schema
 include /etc/openldap/schema/rfc2307bis.schema
-TLSCACertificateFile /etc/openldap/certs/server.pem
-TLSCertificateFile /etc/openldap/certs/server.pem
-TLSCertificateKeyFile /etc/openldap/certs/server.pem
-TLSCipherSuite HIGH+TLSv1.2+kECDHE+aECDSA!AES!SHA384!SHA256
-TLSProtocolMin 3.3
+include /etc/openldap/schema/yast.schema
+include /usr/share/doc/packages/samba/examples/LDAP/samba.schema
+modulepath /usr/lib64/openldap
 moduleload back_mdb.la
+access to dn.base=""
+        by * read
+access to dn.base="cn=Subschema"
+        by * read
+access to attrs=userPassword,userPKCS12
+        by self write
+        by * auth
+access to attrs=shadowLastChange
+        by self write
+        by * read
+access to *
+        by * read
+TLSProtocolMin 3.3
+TLSCipherSuite HIGH+TLSv1.2+kECDHE+aECDSA!AES!SHA384!SHA256
+TLSCACertificateFile /etc/openldap/example.com.crt
+TLSCertificateFile /etc/openldap/example.com.crt
+TLSCertificateKeyFile /etc/openldap/example.com.key
+disallow bind_anon
+require authc
 database     mdb
 suffix       "dc=example,dc=com"
 rootdn       "cn=Manager,dc=example,dc=com"
-rootpw       {SSHA}iqKe4WidL7RnQsIKjRMsfOhaKcXv2wNs
+rootpw       {SSHA}r+sjFrnEg2okiTc0WzWHsN1oUm6bZ9Ha
 directory    /var/lib/ldap
+index        objectClass eq
+lastmod      on
 ```
 
-OpenLDAP configuration could be either _files_ or _ldap_ based one,
-that is in case of SLES, one could use:
+NOTE: If `slapd` fails to start and it seems to be related to TLS,
+check permissions!
+
+For log levels see https://www.openldap.org/doc/admin24/slapdconfig.html.
 
 ``` shell
-$ grep 'BACKEND' /etc/sysconfig/openldap
-OPENLDAP_CONFIG_BACKEND="ldap"
+$ ss -tnlp | grep slapd | col -b | sed -r 's/[[:blank:]]+/ /g'
+LISTEN 0 128 0.0.0.0:636 0.0.0.0:* users:(("slapd",pid=4936,fd=7))
+LISTEN 0 128 [::]:636 [::]:* users:(("slapd",pid=4936,fd=8))
 ```
 
-Create, TLS key and cert as you wish, then this is our starting point:
-
-``` shell
-$ find /etc/openldap | grep -P '/(certs|schema|slap\d.)'
-/etc/openldap/certs
-/etc/openldap/certs/server.pem
-/etc/openldap/schema
-/etc/openldap/schema/core.schema
-/etc/openldap/schema/cosine.schema
-/etc/openldap/schema/inetorgperson.schema
-/etc/openldap/schema/rfc2307bis.schema
-```
-
-Let's generate config directory format configuration:
-
-``` shell
-$ slaptest -f /root/slapd.conf -F /etc/openldap/slapd.d/
-config file testing succeeded
-
-$ find /etc/openldap/slapd.d/
-/etc/openldap/slapd.d/
-/etc/openldap/slapd.d/cn=config.ldif
-/etc/openldap/slapd.d/cn=config
-/etc/openldap/slapd.d/cn=config/cn=module{0}.ldif
-/etc/openldap/slapd.d/cn=config/cn=schema.ldif
-/etc/openldap/slapd.d/cn=config/cn=schema
-/etc/openldap/slapd.d/cn=config/cn=schema/cn={0}core.ldif
-/etc/openldap/slapd.d/cn=config/cn=schema/cn={1}cosine.ldif
-/etc/openldap/slapd.d/cn=config/cn=schema/cn={2}inetorgperson.ldif
-/etc/openldap/slapd.d/cn=config/cn=schema/cn={3}rfc2307bis.ldif
-/etc/openldap/slapd.d/cn=config/olcDatabase={-1}frontend.ldif
-/etc/openldap/slapd.d/cn=config/olcDatabase={0}config.ldif
-/etc/openldap/slapd.d/cn=config/olcDatabase={1}mdb.ldif
-```
-
-Starting systemd `slapd.service` unit should also correct permissions,
-if not use `chown`/`chmod`.
-
-``` shell
-$ ss -tnlp | grep slapd
-LISTEN 0      512          0.0.0.0:389        0.0.0.0:*    users:(("slapd",pid=15653,fd=7))
-LISTEN 0      512          0.0.0.0:636        0.0.0.0:*    users:(("slapd",pid=15653,fd=9))
-LISTEN 0      512             [::]:389           [::]:*    users:(("slapd",pid=15653,fd=8))
-LISTEN 0      512             [::]:636           [::]:*    users:(("slapd",pid=15653,fd=10))
-```
+`slapd` ACLs are first match win, so the most specific ACL must have
+priority!  See
+https://www.openldap.org/doc/admin24/access-control.html#Access%20Control%20Common%20Examples.
 
 OpenLDAP utils use `/etc/openldap/ldap.conf` configuration, see `ldap.conf(5)`.
 
@@ -744,34 +745,7 @@ objectClass: organizationalRole
 cn: testuser
 ```
 
-We can use `slapcat` to convert current directory database to LDIF:
 
-``` shell
-$ slapcat -F /etc/openldap/slapd.d -b dc=example,dc=com
-dn: dc=example,dc=com
-objectClass: dcObject
-objectClass: organization
-o: Example inc.
-dc: example
-structuralObjectClass: organization
-entryUUID: a3521d8e-d44d-103c-8c86-ab7e9632b02b
-creatorsName: cn=Manager,dc=example,dc=com
-createTimestamp: 20220929142039Z
-entryCSN: 20220929142039.527732Z#000000#000#000000
-modifiersName: cn=Manager,dc=example,dc=com
-modifyTimestamp: 20220929142039Z
-
-dn: cn=testuser,dc=example,dc=com
-objectClass: organizationalRole
-cn: testuser
-structuralObjectClass: organizationalRole
-entryUUID: a35500b2-d44d-103c-8c87-ab7e9632b02b
-creatorsName: cn=Manager,dc=example,dc=com
-createTimestamp: 20220929142039Z
-entryCSN: 20220929142039.546654Z#000000#000#000000
-modifiersName: cn=Manager,dc=example,dc=com
-modifyTimestamp: 20220929142039Z
-```
 
 Delete of an object:
 
@@ -857,6 +831,67 @@ Enter LDAP Password:
 dn: uid=u123456,ou=people,dc=example,dc=com
 ```
 
+We can use `slapcat` to convert current directory database to LDIF:
+
+``` shell
+dn: dc=example,dc=com
+objectClass: dcObject
+objectClass: organization
+o: Example Corp.
+dc: example
+structuralObjectClass: organization
+entryUUID: e55fe110-e33a-103c-8b11-df684872bf89
+creatorsName: cn=Manager,dc=example,dc=com
+createTimestamp: 20221018141417Z
+entryCSN: 20221018141417.351360Z#000000#000#000000
+modifiersName: cn=Manager,dc=example,dc=com
+modifyTimestamp: 20221018141417Z
+
+dn: ou=people,dc=example,dc=com
+objectClass: organizationalUnit
+ou: people
+structuralObjectClass: organizationalUnit
+entryUUID: 7e4e96d0-e33d-103c-8b12-df684872bf89
+creatorsName: cn=Manager,dc=example,dc=com
+createTimestamp: 20221018143252Z
+entryCSN: 20221018143252.922917Z#000000#000#000000
+modifiersName: cn=Manager,dc=example,dc=com
+modifyTimestamp: 20221018143252Z
+
+dn: cn=Gerald W. Carter,ou=people,dc=example,dc=com
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: top
+objectClass: shadowAccount
+cn: Gerald W. Carter
+sn: Carter
+mail: jerry@example.com
+structuralObjectClass: inetOrgPerson
+entryUUID: 3b7335b0-e341-103c-8b13-df684872bf89
+creatorsName: cn=Manager,dc=example,dc=com
+createTimestamp: 20221018145938Z
+userPassword:: e1NTSEF9MnFodE5jSDIrZFE0dWcyTG9xRTVMU3RBN050M0VvOVY=
+shadowLastChange: 11108
+shadowMax: 99999
+shadowWarning: 7
+shadowFlag: 134539460
+loginShell: /bin/bash
+uidNumber: 1010
+gidNumber: 1010
+homeDirectory: /home/gwcarter
+uid: gwcarter
+entryCSN: 20221018151429.080994Z#000000#000#000000
+modifiersName: cn=Manager,dc=example,dc=com
+modifyTimestamp: 20221018151429Z
+```
+
+``` shell
+# via sss NSS
+getent passwd gwcarter
+$ getent passwd gwcarter
+gwcarter:*:1010:1010:Gerald W. Carter:/home/gwcarter:/bin/bash
+```
 
 ### sssd
 
