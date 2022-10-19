@@ -4670,6 +4670,108 @@ kernel.sysrq = 184
 enable remount read-only (32) plus enable sync command (16) plus
 enable debugging dumps of processes etc. (8), see above link for details.
 
+
+### analysis
+
+Same kernel and kernel debug files have to be present.
+
+``` shell
+$  crash /boot/vmlinux-5.14.21-150400.24.18-default.gz /home/vmcore
+...
+WARNING: kernel relocated [344MB]: patching 118441 gdb minimal_symbol values
+
+      KERNEL: /boot/vmlinux-5.14.21-150400.24.18-default.gz
+   DEBUGINFO: /usr/lib/debug/boot/vmlinux-5.14.21-150400.24.18-default.debug
+    DUMPFILE: /home/vmcore  [PARTIAL DUMP]
+        CPUS: 8
+        DATE: Mon Oct 17 15:17:15 CEST 2022
+      UPTIME: 00:59:10
+LOAD AVERAGE: 0.39, 0.17, 0.06
+       TASKS: 337
+    NODENAME: intpocvm015
+     RELEASE: 5.14.21-150400.24.18-default
+     VERSION: #1 SMP PREEMPT_DYNAMIC Thu Aug 4 14:17:48 UTC 2022 (e9f7bfc)
+     MACHINE: x86_64  (2299 Mhz)
+      MEMORY: 64 GB
+       PANIC: ""
+         PID: 62215
+     COMMAND: "kfod.bin"
+        TASK: ffff8cd0660b4000  [THREAD_INFO: ffff8cd0660b4000]
+         CPU: 3
+       STATE: TASK_RUNNING (PANIC)
+
+crash>
+crash> bt 62215
+PID: 62215  TASK: ffff8cd0660b4000  CPU: 3   COMMAND: "kfod.bin"
+ #0 [ffffa7eb08d8fa80] machine_kexec at ffffffff9687ec63
+ #1 [ffffa7eb08d8fad8] __crash_kexec at ffffffff9697fbed
+ #2 [ffffa7eb08d8fba0] crash_kexec at ffffffff96980b04
+ #3 [ffffa7eb08d8fbb0] oops_end at ffffffff9683ddb8
+ #4 [ffffa7eb08d8fbd0] exc_general_protection at ffffffff97234063
+ #5 [ffffa7eb08d8fc70] asm_exc_general_protection at ffffffff97400a4e
+    [exception RIP: kmem_cache_free+71]
+    RIP: ffffffff96b10fa7  RSP: ffffa7eb08d8fd28  RFLAGS: 00010207
+    RAX: 014c530d8efa3800  RBX: 531f7ee27e8e05c2  RCX: ffffd34540000000
+    RDX: 00000000140f6003  RSI: 531f7ee27e8e05c2  RDI: ffff8cdefffb9200
+    RBP: 0000000000000000   R8: 0000000000000000   R9: ffff8cd047059628
+    R10: 0000000000020000  R11: 0000000000000000  R12: ffff8ccfea29b800
+    R13: 531f7ee2fe8e05c2  R14: 0000000000000000  R15: 0000000000000000
+    ORIG_RAX: ffffffffffffffff  CS: 0010  SS: 0018
+ #6 [ffffa7eb08d8fd58] __bio_crypt_free_ctx at ffffffff96d1f389
+ #7 [ffffa7eb08d8fd68] bio_free at ffffffff96ccd356
+ #8 [ffffa7eb08d8fd80] asm_cleanup_bios at ffffffffc0ba916e [oracleasm]
+ #9 [ffffa7eb08d8fda8] asmfs_file_read at ffffffffc0ba945e [oracleasm]
+#10 [ffffa7eb08d8fdc8] vfs_read at ffffffff96b4710a
+#11 [ffffa7eb08d8fdf8] ksys_read at ffffffff96b47525
+#12 [ffffa7eb08d8fe38] do_syscall_64 at ffffffff97233468
+#13 [ffffa7eb08d8fe68] vfs_read at ffffffff96b4710a
+#14 [ffffa7eb08d8feb8] exit_to_user_mode_prepare at ffffffff969531dc
+#15 [ffffa7eb08d8fed0] syscall_exit_to_user_mode at ffffffff972376f8
+#16 [ffffa7eb08d8fee0] do_syscall_64 at ffffffff97233477
+#17 [ffffa7eb08d8ff00] syscall_exit_to_user_mode at ffffffff972376f8
+#18 [ffffa7eb08d8ff10] do_syscall_64 at ffffffff97233477
+#19 [ffffa7eb08d8ff28] exc_page_fault at ffffffff97236f27
+#20 [ffffa7eb08d8ff50] entry_SYSCALL_64_after_hwframe at ffffffff97400099
+    RIP: 00007f8b6105d6ce  RSP: 00007ffd934cd4a8  RFLAGS: 00000246
+    RAX: ffffffffffffffda  RBX: 00007ffd934cd4d0  RCX: 00007f8b6105d6ce
+    RDX: 0000000000000050  RSI: 00007ffd934cd4d0  RDI: 0000000000000009
+    RBP: 00007ffd934cdac0   R8: 0000000000000001   R9: 0000000000000000
+    R10: 0000000000000000  R11: 0000000000000246  R12: 00000000ffffffff
+    R13: 00007ffd934cdcb8  R14: 0000000000000000  R15: 0000000001bae8a0
+    ORIG_RAX: 0000000000000000  CS: 0033  SS: 002b
+crash> ps -p 62215
+PID: 0      TASK: ffffffff9821a940  CPU: 0   COMMAND: "swapper/0"
+ PID: 1      TASK: ffff8ccfc021c000  CPU: 4   COMMAND: "systemd"
+  PID: 2134   TASK: ffff8ccfc3e58000  CPU: 3   COMMAND: "sshd"
+   PID: 58625  TASK: ffff8ccfeedd8000  CPU: 0   COMMAND: "sshd"
+    PID: 58669  TASK: ffff8cd051d54000  CPU: 5   COMMAND: "sshd"
+     PID: 58817  TASK: ffff8cd014b68000  CPU: 2   COMMAND: "bash"
+      PID: 58976  TASK: ffff8ccffe650000  CPU: 3   COMMAND: "gridSetup.sh"
+       PID: 58992  TASK: ffff8ccffa774000  CPU: 4   COMMAND: "perl"
+        PID: 62214  TASK: ffff8ccfdbe88000  CPU: 1   COMMAND: "java"
+         PID: 62215  TASK: ffff8cd0660b4000  CPU: 3   COMMAND: "kfod.bin
+crash> p ((struct task_struct *) 0xffff8cd0660b4000)->cred->uid
+$1 = {
+  val = 1001
+}
+crash> sys
+      KERNEL: /boot/vmlinux-5.14.21-150400.24.18-default.gz
+   DEBUGINFO: /usr/lib/debug/boot/vmlinux-5.14.21-150400.24.18-default.debug
+    DUMPFILE: /home/vmcore  [PARTIAL DUMP]
+        CPUS: 8
+        DATE: Mon Oct 17 15:17:15 CEST 2022
+      UPTIME: 00:59:10
+LOAD AVERAGE: 0.39, 0.17, 0.06
+       TASKS: 337
+    NODENAME: intpocvm015
+     RELEASE: 5.14.21-150400.24.18-default
+     VERSION: #1 SMP PREEMPT_DYNAMIC Thu Aug 4 14:17:48 UTC 2022 (e9f7bfc)
+     MACHINE: x86_64  (2299 Mhz)
+      MEMORY: 64 GB
+       PANIC: ""
+```
+
+
 ## fadump
 
 *fadump* (Firmware Assisted Dump) is a robus crash dump mechanism using Power
