@@ -4752,7 +4752,7 @@ PID: 0      TASK: ffffffff9821a940  CPU: 0   COMMAND: "swapper/0"
       PID: 58976  TASK: ffff8ccffe650000  CPU: 3   COMMAND: "gridSetup.sh"
        PID: 58992  TASK: ffff8ccffa774000  CPU: 4   COMMAND: "perl"
         PID: 62214  TASK: ffff8ccfdbe88000  CPU: 1   COMMAND: "java"
-         PID: 62215  TASK: ffff8cd0660b4000  CPU: 3   COMMAND: "kfod.bin
+         PID: 62215  TASK: ffff8cd0660b4000  CPU: 3   COMMAND: "kfod.bin"
 crash> p ((struct task_struct *) 0xffff8cd0660b4000)->cred->uid
 $1 = {
   val = 1001
