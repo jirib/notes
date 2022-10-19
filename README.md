@@ -3515,6 +3515,7 @@ Samba operational modes:
   - unspecified `security` with `server role = STANDALONE`
 - *DC*, domain controller
 - `[security = AUTO]`, `server role = active directory domain controller`
+- *PDC* aka *NT4 domain*, `security = User` and `domain logons = Yes`
 
 For logging, see [Configuring Logging on a Samba
 Server](https://wiki.samba.org/index.php/Configuring_Logging_on_a_Samba_Server).
@@ -3679,6 +3680,224 @@ be used with whatever idmap backend; this is a *default domain* which can be
 used *only* with `tdb` or `autorid` backends, see [3.4.2. THE * DEFAULT
 DOMAIN](https://access.redhat.com/documentation/zh-cn/red_hat_enterprise_linux/8/html/deploying_different_types_of_servers/con_the-asterisk-default-domain_assembly_understanding-and-configuring-samba-id-mapping).
 
+##### PDC aka NT4 domain
+
+*WARNING*: Not finished!!!
+
+See https://wiki.samba.org/index.php/Setting_up_Samba_as_an_NT4_PDC_(Quick_Start).
+
+``` shell
+$ testparm -sv 2>&1 | grep -P '^\s*(security|domain logon|Server role)'
+Server role: ROLE_DOMAIN_PDC
+        domain logons = Yes
+        security = USER
+```
+
+Usually such PDC would have LDAP backend for users...
+
+``` shell
+$ grep -Pv '^\s*($|#)' /etc/samba/smb.conf
+[global]
+        log level = 10
+        netbios name = S153CL1
+        workgroup = EXAMPLE
+        security = User
+        domain logons = Yes
+        domain master = Yes
+        local master = Yes
+        preferred master = Yes
+        passdb backend = ldapsam:ldaps://s153cl1.example.com
+        encrypt passwords = Yes
+        ldap admin dn = cn=Manager,dc=example,dc=com
+        ldap debug level = 1
+        ldap debug threshold = 10
+        ldap delete dn = Yes
+        ldap ssl = no
+        ldap server require strong auth = Yes
+        ldap group suffix = ou=groups
+        ldap idmap suffix = ou=idmap
+        ldap machine suffix = ou=computers
+        ldap user suffix = ou=people
+        ldap suffix = dc=example,dc=com
+        idmap config * : backend = ldap
+        idmap config * : range = 1000-999999
+        idmap config * : ldap_url = ldaps://s153cl1.example.com/
+        idmap config * : ldap_base_dn = ou=idmap,dc=example,dc=com
+```
+
+TLS cert of LDAP server must be in system trust store, otherwise
+connection may fail. Note, that `tls *` `smb.conf(5)` options are
+related to Samba 4 AD mode, ie. irrelevant for PDC with LDAP backend.
+
+`ldap admin dn` password is not save in `smb.conf`, but it is saved in
+`secrets.tdb` in Samba's _private dir`, security is file permissions based.
+
+``` shell
+$ smbpasswd -w <ldap admin dn password>
+```
+
+``` shell
+$ tdbdump /var/lib/samba/private/secrets.tdb | grep -A 1 LDAP_BIND_PW
+key(49) = "SECRETS/LDAP_BIND_PW/cn=Manager,dc=example,dc=com"
+data(6) = "linux\00"
+
+$ ls -l /var/lib/samba/private/secrets.tdb
+-rw------- 1 root root 430080 Oct 19 23:46 /var/lib/samba/private/secrets.tdb
+```
+
+Users to Samba/LDAP are added with `smbpasswd`. _posixAccount_ based
+user entry must exit - TODO: recheck! -; a user entry DN must be
+'uid=<user>' and `ldap user suffix` (see `smb.conf(5)`). (Note, `ldap
+filter` was deleted from Samba in 2005!). And example:
+
+```
+# an existing user entry
+dn: uid=gwcarter,ou=people,dc=example,dc=com
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: top
+objectClass: shadowAccount
+cn: Gerald W. Carter
+sn: Carter
+mail: jerry@example.com
+structuralObjectClass: inetOrgPerson
+entryUUID: 3b7335b0-e341-103c-8b13-df684872bf89
+creatorsName: cn=Manager,dc=example,dc=com
+createTimestamp: 20221018145938Z
+userPassword:: e1NTSEF9MnFodE5jSDIrZFE0dWcyTG9xRTVMU3RBN050M0VvOVY=
+shadowLastChange: 11108
+shadowMax: 99999
+shadowWarning: 7
+shadowFlag: 134539460
+loginShell: /bin/bash
+uidNumber: 1010
+gidNumber: 1010
+homeDirectory: /home/gwcarter
+uid: gwcarter
+entryCSN: 20221019213926.792794Z#000000#000#000000
+modifiersName: cn=Manager,dc=example,dc=com
+modifyTimestamp: 20221019213926Z
+```
+
+``` shell
+$ smbpasswd -D 10 -a gwcarter
+...
+Finding user gwcarter
+Trying _Get_Pwnam(), username as lowercase is gwcarter
+Get_Pwnam_internals did find user [gwcarter]!
+...
+ldapsam_add_sam_account: User exists without samba attributes: adding them
+[LDAP] ldap_get_dn
+[LDAP] ldap_get_values
+smbldap_make_mod: attribute |uid| not changed.
+init_ldap_from_sam: Setting entry for user: gwcarter
+[LDAP] ldap_get_values
+smbldap_get_single_attribute: [sambaSID] = [<does not exist>]
+smbldap_make_mod: adding attribute |sambaSID| value |S-1-5-21-2679777877-1024446765-2520388554-1001|
+[LDAP] ldap_get_values
+smbldap_get_single_attribute: [displayName] = [<does not exist>]
+smbldap_make_mod: adding attribute |displayName| value |Gerald W. Carter|
+[LDAP] ldap_get_values
+smbldap_get_single_attribute: [sambaAcctFlags] = [<does not exist>]
+smbldap_make_mod: adding attribute |sambaAcctFlags| value |[DU         ]|
+smbldap_modify: dn => [uid=gwcarter,ou=people,dc=example,dc=com]
+...
+ldapsam_add_sam_account: added: uid == gwcarter in the LDAP database
+[LDAP] ldap_msgfree
+smbldap_search_ext: base => [dc=example,dc=com], filter => [(&(uid=gwcarter)(objectclass=sambaSamAccount))], scope => [2]
+[LDAP] ldap_search_ext
+[LDAP] put_filter: "(&(uid=gwcarter)(objectclass=sambaSamAccount))"
+[LDAP] put_filter: AND
+[LDAP] put_filter_list "(uid=gwcarter)(objectclass=sambaSamAccount)"
+[LDAP] put_filter: "(uid=gwcarter)"
+[LDAP] put_filter: simple
+[LDAP] put_simple_filter: "uid=gwcarter"
+[LDAP] put_filter: "(objectclass=sambaSamAccount)"
+[LDAP] put_filter: simple
+[LDAP] put_simple_filter: "objectclass=sambaSamAccount"
+...
+Finding user gwcarter
+Trying _Get_Pwnam(), username as lowercase is gwcarter
+Get_Pwnam_internals did find user [gwcarter]!
+xid_to_sid: GID 1010 -> S-0-0 from cache
+xid_to_sid: GID 1010 -> S-1-22-2-1010 fallback
+smbldap_search_ext: base => [dc=example,dc=com], filter => [(&(objectClass=sambaGroupMapping)(gidNumber=1010))], scope => [2]
+[LDAP] ldap_search_ext
+[LDAP] put_filter: "(&(objectClass=sambaGroupMapping)(gidNumber=1010))"
+[LDAP] put_filter: AND
+[LDAP] put_filter_list "(objectClass=sambaGroupMapping)(gidNumber=1010)"
+[LDAP] put_filter: "(objectClass=sambaGroupMapping)"
+[LDAP] put_filter: simple
+[LDAP] put_simple_filter: "objectClass=sambaGroupMapping"
+[LDAP] put_filter: "(gidNumber=1010)"
+[LDAP] put_filter: simple
+[LDAP] put_simple_filter: "gidNumber=1010"
+...
+ldapsam_update_sam_account: successfully modified uid = gwcarter in the LDAP database
+[LDAP] ldap_msgfree
+Added user gwcarter.
+```
+
+The user entry got `sambaSID`, `sambaNTPassword`...
+
+```
+# modified user entry
+dn: uid=gwcarter,ou=people,dc=example,dc=com
+objectClass: organizationalPerson
+objectClass: inetOrgPerson
+objectClass: posixAccount
+objectClass: top
+objectClass: shadowAccount
+objectClass: sambaSamAccount
+cn: Gerald W. Carter
+sn: Carter
+mail: jerry@example.com
+structuralObjectClass: inetOrgPerson
+entryUUID: 3b7335b0-e341-103c-8b13-df684872bf89
+creatorsName: cn=Manager,dc=example,dc=com
+createTimestamp: 20221018145938Z
+userPassword:: e1NTSEF9MnFodE5jSDIrZFE0dWcyTG9xRTVMU3RBN050M0VvOVY=
+shadowLastChange: 11108
+shadowMax: 99999
+shadowWarning: 7
+shadowFlag: 134539460
+loginShell: /bin/bash
+uidNumber: 1010
+gidNumber: 1010
+homeDirectory: /home/gwcarter
+uid: gwcarter
+sambaSID: S-1-5-21-2679777877-1024446765-2520388554-1001
+displayName: Gerald W. Carter
+sambaNTPassword: F0873F3268072C7B1150B15670291137
+sambaPasswordHistory: 000000000000000000000000000000000000000000000000000000
+ 0000000000
+sambaPwdLastSet: 1666216348
+sambaAcctFlags: [U          ]
+entryCSN: 20221019215228.050371Z#000000#000#000000
+modifiersName: cn=Manager,dc=example,dc=com
+modifyTimestamp: 20221019215228Z
+```
+
+``` shell
+$ pdbedit -d 0 -L
+ldap_url_parse_ext(ldap://localhost/)
+ldap_init: trying /etc/openldap/ldap.conf
+ldap_init: using /etc/openldap/ldap.conf
+ldap_init: HOME env is /root
+ldap_init: trying /root/ldaprc
+ldap_init: trying /root/.ldaprc
+ldap_init: using /root/.ldaprc
+ldap_init: trying ldaprc
+ldap_init: LDAPCONF env is NULL
+ldap_init: LDAPRC env is NULL
+gwcarter:1010:Gerald W. Carter
+
+$ wbinfo -u
+gwcarter
+```
+
+
 ##### issues
 
 - [https://wiki.archlinux.org/title/Samba#Windows_1709_or_up_does_not_discover_the_samba_server_in_Network_view](https://wiki.archlinux.org/title/Samba#Windows_10_1709_and_up_connectivity_problems_-_%22Windows_cannot_access%22_0x80004005)
@@ -3694,7 +3913,6 @@ DOMAIN](https://access.redhat.com/documentation/zh-cn/red_hat_enterprise_linux/8
   WSDD_INTERFACES="wlan0"
   WSDD_ARGS="-4 -s -v"
   ```
-
 
 
 #### shares
