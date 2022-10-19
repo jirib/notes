@@ -4676,6 +4676,9 @@ enable debugging dumps of processes etc. (8), see above link for details.
 Same kernel and kernel debug files have to be present.
 
 ``` shell
+$ strings /home/vmcore | grep -m 1 -i osrelease
+OSRELEASE=5.14.21-150400.24.18-default
+
 $  crash /boot/vmlinux-5.14.21-150400.24.18-default.gz /home/vmcore
 ...
 WARNING: kernel relocated [344MB]: patching 118441 gdb minimal_symbol values
