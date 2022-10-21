@@ -3515,7 +3515,9 @@ Samba operational modes:
   - unspecified `security` with `server role = STANDALONE`
 - *DC*, domain controller
 - `[security = AUTO]`, `server role = active directory domain controller`
-- *PDC* aka *NT4 domain*, `security = User` and `domain logons = Yes`
+- *PDC* aka *NT4 domain*, `security = User` and `domain logons = Yes`,
+  `domain master = Yes`, `encrypt password = Yes`; plus `[netlogon]`
+  shared must be available to all users
 
 For logging, see [Configuring Logging on a Samba
 Server](https://wiki.samba.org/index.php/Configuring_Logging_on_a_Samba_Server).
@@ -3687,9 +3689,11 @@ DOMAIN](https://access.redhat.com/documentation/zh-cn/red_hat_enterprise_linux/8
 See https://wiki.samba.org/index.php/Setting_up_Samba_as_an_NT4_PDC_(Quick_Start).
 
 ``` shell
-$ testparm -sv 2>&1 | grep -P '^\s*(security|domain logon|Server role)'
+$ testparm -sv 2>&1 | grep -P '^\s*(encrypt passwords|security|domain (logon|master)|Server role)'
 Server role: ROLE_DOMAIN_PDC
         domain logons = Yes
+        domain master = Yes
+        encrypt passwords = Yes
         security = USER
 ```
 
@@ -3896,6 +3900,10 @@ gwcarter:1010:Gerald W. Carter
 $ wbinfo -u
 gwcarter
 ```
+
+TODO: wins, dns/netbios (nmblookup, nmbstatus), account with privileges to add computers.
+      https://wiki.samba.org/index.php/Joining_a_Windows_Client_or_Server_to_a_Domain
+      https://wiki.samba.org/index.php/Required_Settings_for_Samba_NT4_Domains (registry settings???)
 
 
 ##### issues
@@ -11140,3 +11148,12 @@ $ dig +short +noall +answer @192.168.122.200 _ldap._tcp.home.arpa. SRV
 ### OpenSSH server
 
 See https://docs.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse
+
+### templating windoze
+
+Install all drivers, eg. virtio-win drivers.
+
+```
+> %windir%\system32\sysprep\sysprep.exe /?
+> %windir%\system32\sysprep\sysprep.exe /generalize /shutdown
+```
