@@ -3133,10 +3133,10 @@ mount -o subvol=[<subvol_name> | <subvol_id>] <storage_dev> /<path>
 List subvols on non-mounted FS:
 
 ``` shell
-# btrfs inspect-internal dump-tree -t 1 /dev/system/root | \
+$ btrfs inspect-internal dump-tree -t 1 /dev/system/root | \
     grep -P 'item \d+ key \(\d+ ROOT_ITEM' | wc -l
 78
-# btrfs subvolume list / | wc -l
+$ btrfs subvolume list / | wc -l
 78
 ```
 
