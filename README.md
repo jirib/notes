@@ -3130,6 +3130,52 @@ egrep -v '^(\s*#|$)' /etc/sysconfig/btrfsmaintenance # SUSE btrfs maintenance co
 mount -o subvol=[<subvol_name> | <subvol_id>] <storage_dev> /<path>
 ```
 
+List subvols on non-mounted FS:
+
+``` shell
+# btrfs inspect-internal dump-tree -t 1 /dev/system/root | \
+    grep -P 'item \d+ key \(\d+ ROOT_ITEM' | wc -l
+78
+# btrfs subvolume list / | wc -l
+78
+```
+
+Set or get default subvol when the filesystem is mounted:
+
+``` shell
+$ btrfs subvolume set-default --help
+usage: btrfs subvolume set-default <subvolume>
+       btrfs subvolume set-default <subvolid> <path>
+
+    Set the default subvolume of the filesystem mounted as default.
+
+    The subvolume can be specified by its path,
+    or the pair of subvolume id and path to the filesystem.
+
+$ btrfs subvolume get-default /
+ID 266 gen 1764765 top level 265 path @/.snapshots/1/snapshot
+```
+
+Set r/w of BTRFS snapshot created by `snapper`:
+
+``` shell
+$ btrfs property list -t subvol /.snapshots/421/snapshot
+ro                  read-only status of a subvolume
+$ btrfs property get -t subvol /.snapshots/421/snapshot ro
+ro=true
+
+$ touch /.snapshots/421/snapshot/TEST
+touch: cannot touch '/.snapshots/421/snapshot/TEST': Read-only file system
+
+$ btrfs property set -t subvol /.snapshots/421/snapshot ro false
+$ btrfs property get -t subvol /.snapshots/421/snapshot ro
+ro=false
+
+$ touch /.snapshots/421/snapshot/TEST
+$ ls -l /.snapshots/421/snapshot/TEST
+-rw-r--r-- 1 root root 0 Oct 25 09:47 /.snapshots/421/snapshot/TEST
+```
+
 #### disable copy-on-write (cow)
 
 > A subvolume may contain files that constantly change, such as
