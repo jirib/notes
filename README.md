@@ -3947,7 +3947,72 @@ $ wbinfo -u
 gwcarter
 ```
 
-TODO: wins, dns/netbios (nmblookup, nmbstatus), account with privileges to add computers.
+NetBIOS name service is old DNS-like protocol, often related to
+Microsoft implementation of NetBIOS Name Service called Windows
+Internet Name Service (WINS).
+
+``` shell
+$ testparm -sv 2>&1 | grep -P '^\s*(wins|dns proxy)'
+        dns proxy = Yes
+        wins hook =
+        wins proxy = No
+        wins server = 192.168.122.11
+        wins support = Yes
+```
+
+``` shell
+$ ss -tunlp | grep -P 'nmbd'
+udp    UNCONN   0        0          192.168.122.255:137           0.0.0.0:*      users:(("nmbd",pid=8694,fd=23))
+udp    UNCONN   0        0           192.168.122.11:137           0.0.0.0:*      users:(("nmbd",pid=8694,fd=22))
+udp    UNCONN   0        0          192.168.123.255:137           0.0.0.0:*      users:(("nmbd",pid=8694,fd=19))
+udp    UNCONN   0        0           192.168.123.11:137           0.0.0.0:*      users:(("nmbd",pid=8694,fd=18))
+udp    UNCONN   0        0                  0.0.0.0:137           0.0.0.0:*      users:(("nmbd",pid=8694,fd=16))
+udp    UNCONN   0        0          192.168.122.255:138           0.0.0.0:*      users:(("nmbd",pid=8694,fd=25))
+udp    UNCONN   0        0           192.168.122.11:138           0.0.0.0:*      users:(("nmbd",pid=8694,fd=24))
+udp    UNCONN   0        0          192.168.123.255:138           0.0.0.0:*      users:(("nmbd",pid=8694,fd=21))
+udp    UNCONN   0        0           192.168.123.11:138           0.0.0.0:*      users:(("nmbd",pid=8694,fd=20))
+udp    UNCONN   0        0                  0.0.0.0:138           0.0.0.0:*      users:(("nmbd",pid=8694,fd=17))
+```
+
+``` shell
+$ nmblookup -d 0 'EXAMPLE#1c' 'EXAMPLE#1b'
+192.168.123.11 EXAMPLE<1c>
+192.168.123.11 EXAMPLE<1b>
+
+$ nmbstatus
+Found 1 hosts. Collecting additional information. Please wait.
+.
+WORKGROUP       EXAMPLE
+PDC     S153CL1
+DMB     S153CL1
+LMB     S153CL1
+MEMBERS S153CL1
+```
+
+Creating 'Domain Admins' group, its RID is always 512!
+
+``` shell
+$ net getlocalsid EXAMPLE
+SID for domain EXAMPLE is: S-1-5-21-2679777877-1024446765-2520388554
+
+$ getent group domainadmins
+domainadmins:*:100001:gwcarter
+
+$ id gwcarter
+uid=100000(gwcarter) gid=100000(domainusers) groups=100001(domainadmins),100000(domainusers)
+
+$ net groupmap add sid=S-1-5-21-2679777877-1024446765-2520388554-512 ntgroup="Domain Admins" unixgroup=domainadmins
+Successfully added group Domain Admins to the mapping db as a domain group
+```
+
+``` shell
+$ wbinfo -u
+gwcarter
+$ wbinfo -g
+domain admins
+```
+
+TODO: account with privileges to add computers.
       https://wiki.samba.org/index.php/Joining_a_Windows_Client_or_Server_to_a_Domain
       https://wiki.samba.org/index.php/Required_Settings_for_Samba_NT4_Domains (registry settings???)
 
@@ -5971,20 +6036,22 @@ tshark -r /tmp/out-new.pcap
    13   0.269268 58.69.105.23 → 58.69.105.18 TCP 66 32968 → 22 [ACK] Seq=109 Ack=477 Win=501 Len=0 TSval=3160104812 TSecr=796687011
 ```
 
+
 #### tcpdump
 
 See [A tcpdump tutorial with
 examples...](https://web.archive.org/web/20210826070406/https://danielmiessler.com/study/tcpdump/)
 for some cool examples.
 
-#### tshark / wireshark
 
+#### tshark / wireshark
 
 PCAP file stats:
 
 ``` shell
 $ rpm -qf $(which capinfos)
 wireshark-3.6.7-1.1.x86_64
+
 $ capinfos dump_POP_2022.08.09-10.55.52.pcap.1.gz
 capinfos: An error occurred after reading 3281218 packets from "dump_POP_2022.08.09-10.55.52.pcap.1.gz".
 capinfos: The file "dump_POP_2022.08.09-10.55.52.pcap.1.gz" appears to have been cut short in the middle of a packet.
@@ -6016,6 +6083,57 @@ Interface #0 info:
                      Time ticks per second = 1000000
                      Number of stat entries = 0
                      Number of packets = 3281218
+```
+
+An example for fields and display filter:
+
+``` shell
+$ tshark -r /tmp/latest-dump.pcap -Y nbns -T fields -e frame.time -e ip.src -e ip.dst -e ip.proto -e _ws.col.Info -e nbns.netbios_name
+Oct 26, 2022 11:53:07.995874000 CEST    193.197.33.232  193.197.33.36   17      Name query NB DLAN<1c>
+Oct 26, 2022 11:53:07.996368000 CEST    193.197.33.36   193.197.33.232  17      Name query response NB 193.197.33.248
+Oct 26, 2022 11:53:09.196091000 CEST    193.197.33.232  193.197.33.36   17      Name query NB UNIVERS<20>
+Oct 26, 2022 11:53:09.196555000 CEST    193.197.33.36   193.197.33.232  17      Name query response NB 193.197.33.248
+```
+
+Protocols...
+
+``` shell
+$ tshark -G protocols | grep -P '\bnbns\b'
+NetBIOS Name Service    NBNS    nbns
+```
+
+``` shell
+$ tshark -r /tmp/w10qe01.pcap -Y 'nbns and frame.number==174' -O nbns
+Frame 174: 104 bytes on wire (832 bits), 104 bytes captured (832 bits)
+Ethernet II, Src: RealtekU_67:87:7d (52:54:00:67:87:7d), Dst: RealtekU_1a:54:5d (52:54:00:1a:54:5d)
+Internet Protocol Version 4, Src: 192.168.122.11, Dst: 192.168.122.248
+User Datagram Protocol, Src Port: 137, Dst Port: 137
+NetBIOS Name Service
+    Transaction ID: 0xb5a4
+    Flags: 0x8580, Response, Opcode: Name query, Authoritative, Recursion desired, Recursion available, Reply code: No error
+        1... .... .... .... = Response: Message is a response
+        .000 0... .... .... = Opcode: Name query (0)
+        .... .1.. .... .... = Authoritative: Server is an authority for domain
+        .... ..0. .... .... = Truncated: Message is not truncated
+        .... ...1 .... .... = Recursion desired: Do query recursively
+        .... .... 1... .... = Recursion available: Server can do recursive queries
+        .... .... ...0 .... = Broadcast: Not a broadcast packet
+        .... .... .... 0000 = Reply code: No error (0)
+    Questions: 0
+    Answer RRs: 1
+    Authority RRs: 0
+    Additional RRs: 0
+    Answers
+        EXAMPLE<1b>: type NB, class IN
+            Name: EXAMPLE<1b> (Domain Master Browser)
+            Type: NB (32)
+            Class: IN (1)
+            Time to live: 3 days
+            Data length: 6
+            Name flags: 0x6000, ONT: Unknown (H-node, unique)
+                0... .... .... .... = Name type: Unique name
+                .11. .... .... .... = ONT: Unknown (3)
+            Addr: 192.168.122.11
 ```
 
 ##### lacp
