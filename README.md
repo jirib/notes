@@ -3734,6 +3734,12 @@ DOMAIN](https://access.redhat.com/documentation/zh-cn/red_hat_enterprise_linux/8
 
 See https://wiki.samba.org/index.php/Setting_up_Samba_as_an_NT4_PDC_(Quick_Start).
 
+Some
+[info](https://documentation.clearos.com/content:en_us:kb_adding_workstation_to_a_domain)
+about newer Windows and joining to NT4
+domains. [`nltest.exe`](https://ss64.com/nt/nltest.html) info about DC
+operations.
+
 ``` shell
 $ testparm -sv 2>&1 | grep -P '^\s*(encrypt passwords|security|domain (logon|master)|Server role)'
 Server role: ROLE_DOMAIN_PDC
