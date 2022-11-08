@@ -574,6 +574,9 @@ op_defaults op-options \
 EOF
 ```
 
+NOTE!!! `PREFER_SITE_TAKEOVER` wins/overwrites `migration-threshold`!!!
+
+
 ``` shell
 pip3 install --user jinja2 # install jinja template system
 
