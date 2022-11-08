@@ -3801,6 +3801,84 @@ $ ls -l /var/lib/samba/private/secrets.tdb
 -rw------- 1 root root 430080 Oct 19 23:46 /var/lib/samba/private/secrets.tdb
 ```
 
+`winbindd`, when `idmap_ldap(8)` backend is used, uses its own secret to authenticate
+to an LDAP server.
+
+
+``` shell
+$ testparm -sv 2>&1 | grep workgroup
+        workgroup = EXAMPLE
+
+$ testparm -sv 2>&1 | grep -P 'idmap config.*backend.*ldap'
+        idmap config * : backend = ldap
+
+# NOTE: net idmap set secret <DOMAIN> <secret>
+#       but domain must match value in 'idmap config <domain> : backend = ldap'
+
+$ net idmap set secret 'EXAMPLE' linux
+The only currently supported backend are LDAP and rfc2307
+
+$ net idmap set secret '*' linux
+Secret stored
+
+$ tdbdump /var/lib/samba/private/secrets.tdb | grep -A 1 -i idmap_ldap
+key(57) = "SECRETS/GENERIC/IDMAP_LDAP_*/cn=Manager,dc=example,dc=com"
+data(6) = "linux\00"
+```
+
+There must be several entries in LDAP for PDC/NT4 domain with ldapsam.
+
+``` shell
+# loaded Samba objectClasses
+$ ldapsearch -LLL -H ldaps://s153cl1.example.com:636 -x -W \
+  -D 'cn=Manager,dc=example,dc=com' -s base -b 'cn=subschema' \
+  objectclasses | \
+    grep -Po '^objectClasses: .*NAME '"'"'\K(\w+)(?=.*)' | grep samba | sort
+Enter LDAP Password:
+sambaConfig
+sambaConfigOption
+sambaDomain
+sambaGroupMapping
+sambaIdmapEntry
+sambaSamAccount
+sambaShare
+sambaSidEntry
+sambaTrustedDomain
+sambaTrustedDomainPassword
+sambaTrustPassword
+sambaUnixIdPool
+
+$ ldapsearch -LLL -H ldaps://s153cl1.example.com:636 -x -W -D 'cn=Manager,dc=example,dc=com' -b 'dc=example,dc=com' 'objectClass=sambaDomain'
+Enter LDAP Password:
+dn: sambaDomainName=EXAMPLE,dc=example,dc=com
+sambaDomainName: EXAMPLE
+sambaSID: S-1-5-21-2679777877-1024446765-2520388554
+sambaAlgorithmicRidBase: 1000
+objectClass: sambaDomain
+sambaNextUserRid: 1000
+sambaMinPwdLength: 5
+sambaPwdHistoryLength: 0
+sambaLogonToChgPwd: 0
+sambaMaxPwdAge: -1
+sambaMinPwdAge: 0
+sambaLockoutDuration: 30
+sambaLockoutObservationWindow: 30
+sambaLockoutThreshold: 0
+sambaForceLogoff: -1
+sambaRefuseMachinePwdChange: 0
+sambaNextRid: 1003
+```
+
+``` shell
+$ net -d 0 getlocalsid
+SID for domain S153CL1 is: S-1-5-21-986102549-73732553-4076470224
+
+$ net -d 0 getdomainsid
+SID for domain EXAMPLE is: S-1-5-21-2679777877-1024446765-2520388554
+
+
+```
+
 Users to Samba/LDAP are added with `smbpasswd`. _posixAccount_ based
 user entry must exit - TODO: recheck! -; a user entry DN must be
 'uid=<user>' and `ldap user suffix` (see `smb.conf(5)`). (Note, `ldap
