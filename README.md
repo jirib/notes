@@ -3847,7 +3847,135 @@ sambaTrustedDomain
 sambaTrustedDomainPassword
 sambaTrustPassword
 sambaUnixIdPool
+```
 
+One way to populate LDAP for Samba is to use `smbldap-populate` from
+[smbldap-tools](https://github.com/fumiyas/smbldap-tools). Note I had
+to use this
+[workaround](https://github.com/fumiyas/smbldap-tools/issues/2).
+
+``` shell
+$ systemctl is-active smb
+active
+
+$ net getlocalsid EXAMPLE
+SID for domain EXAMPLE is: S-1-5-21-2679777877-1024446765-2520388554
+
+$ grep -Pv '^\s*(#|$)' /usr/local/etc/smbldap-tools/smbldap{_bind,}.conf
+/usr/local/etc/smbldap-tools/smbldap_bind.conf:slaveDN="cn=Manager,dc=example,dc=com"
+/usr/local/etc/smbldap-tools/smbldap_bind.conf:slavePw="linux"
+/usr/local/etc/smbldap-tools/smbldap_bind.conf:masterDN="cn=Manager,dc=example,dc=com"
+/usr/local/etc/smbldap-tools/smbldap_bind.conf:masterPw="linux"
+/usr/local/etc/smbldap-tools/smbldap.conf:SID="S-1-5-21-2679777877-1024446765-2520388554"
+/usr/local/etc/smbldap-tools/smbldap.conf:sambaDomain="EXAMPLE"
+/usr/local/etc/smbldap-tools/smbldap.conf:slaveLDAP="ldap://127.0.0.1/"
+/usr/local/etc/smbldap-tools/smbldap.conf:masterLDAP="ldap://127.0.0.1/"
+/usr/local/etc/smbldap-tools/smbldap.conf:ldapTLS="1"
+/usr/local/etc/smbldap-tools/smbldap.conf:verify="none"
+/usr/local/etc/smbldap-tools/smbldap.conf:cafile="/usr/local/etc/smbldap-tools/ca.pem"
+/usr/local/etc/smbldap-tools/smbldap.conf:suffix="dc=example,dc=com"
+/usr/local/etc/smbldap-tools/smbldap.conf:usersdn="ou=Users,${suffix}"
+/usr/local/etc/smbldap-tools/smbldap.conf:computersdn="ou=Computers,${suffix}"
+/usr/local/etc/smbldap-tools/smbldap.conf:groupsdn="ou=Groups,${suffix}"
+/usr/local/etc/smbldap-tools/smbldap.conf:idmapdn="ou=Idmap,${suffix}"
+/usr/local/etc/smbldap-tools/smbldap.conf:sambaUnixIdPooldn="sambaDomainName=${sambaDomain},${suffix}"
+/usr/local/etc/smbldap-tools/smbldap.conf:scope="sub"
+/usr/local/etc/smbldap-tools/smbldap.conf:password_hash="SSHA"
+/usr/local/etc/smbldap-tools/smbldap.conf:password_crypt_salt_format="%s"
+/usr/local/etc/smbldap-tools/smbldap.conf:userLoginShell="/bin/bash"
+/usr/local/etc/smbldap-tools/smbldap.conf:userHome="/home/%U"
+/usr/local/etc/smbldap-tools/smbldap.conf:userHomeDirectoryMode="700"
+/usr/local/etc/smbldap-tools/smbldap.conf:userGecos="System User"
+/usr/local/etc/smbldap-tools/smbldap.conf:defaultUserGid="513"
+/usr/local/etc/smbldap-tools/smbldap.conf:defaultComputerGid="515"
+/usr/local/etc/smbldap-tools/smbldap.conf:skeletonDir="/etc/skel"
+/usr/local/etc/smbldap-tools/smbldap.conf:shadowAccount="1"
+/usr/local/etc/smbldap-tools/smbldap.conf:defaultMaxPasswordAge="45"
+/usr/local/etc/smbldap-tools/smbldap.conf:userSmbHome="\\S153CL1\%U"
+/usr/local/etc/smbldap-tools/smbldap.conf:userProfile="\\S153CL1\profiles\%U"
+/usr/local/etc/smbldap-tools/smbldap.conf:userHomeDrive="H:"
+/usr/local/etc/smbldap-tools/smbldap.conf:userScript="logon.bat"
+/usr/local/etc/smbldap-tools/smbldap.conf:mailDomain="example.com"
+/usr/local/etc/smbldap-tools/smbldap.conf:lanmanPassword="0"
+/usr/local/etc/smbldap-tools/smbldap.conf:with_smbpasswd="0"
+/usr/local/etc/smbldap-tools/smbldap.conf:smbpasswd="/usr/bin/smbpasswd"
+/usr/local/etc/smbldap-tools/smbldap.conf:with_slappasswd="0"
+/usr/local/etc/smbldap-tools/smbldap.conf:slappasswd="/usr/sbin/slappasswd"
+
+# note 'nis.schema' and that 'rfc2307bis.schema' is NOT present!
+
+$ grep -P '^include .*schema' /etc/openldap/slapd.conf
+include /etc/openldap/schema/core.schema
+include /etc/openldap/schema/cosine.schema
+include /etc/openldap/schema/nis.schema
+include /etc/openldap/schema/inetorgperson.schema
+include /etc/openldap/schema/yast.schema
+include /usr/share/doc/packages/samba/examples/LDAP/samba.schema
+include /etc/openldap/schema/ppolicy.schema
+
+$ slapcat
+dn: dc=example,dc=com
+objectClass: dcObject
+objectClass: organization
+o: Example Corp.
+dc: example
+structuralObjectClass: organization
+entryUUID: e55fe110-e33a-103c-8b11-df684872bf89
+creatorsName: cn=Manager,dc=example,dc=com
+createTimestamp: 20221018141417Z
+entryCSN: 20221018141417.351360Z#000000#000#000000
+modifiersName: cn=Manager,dc=example,dc=com
+modifyTimestamp: 20221018141417Z
+
+$ smbldap-populate -a Administrator -b guest
+Populating LDAP directory for domain EXAMPLE (S-1-5-21-2679777877-1024446765-2520388554)
+(using builtin directory structure)
+
+entry dc=example,dc=com already exist.
+adding new entry: ou=Users,dc=example,dc=com
+adding new entry: ou=Groups,dc=example,dc=com
+adding new entry: ou=Computers,dc=example,dc=com
+adding new entry: ou=Idmap,dc=example,dc=com
+adding new entry: sambaDomainName=EXAMPLE,dc=example,dc=com
+adding new entry: uid=Administrator,ou=Users,dc=example,dc=com
+adding new entry: uid=guest,ou=Users,dc=example,dc=com
+adding new entry: cn=Domain Admins,ou=Groups,dc=example,dc=com
+adding new entry: cn=Domain Users,ou=Groups,dc=example,dc=com
+adding new entry: cn=Domain Guests,ou=Groups,dc=example,dc=com
+adding new entry: cn=Domain Computers,ou=Groups,dc=example,dc=com
+adding new entry: cn=Administrators,ou=Groups,dc=example,dc=com
+adding new entry: cn=Account Operators,ou=Groups,dc=example,dc=com
+adding new entry: cn=Print Operators,ou=Groups,dc=example,dc=com
+adding new entry: cn=Backup Operators,ou=Groups,dc=example,dc=com
+adding new entry: cn=Replicators,ou=Groups,dc=example,dc=com
+
+Please provide a password for the domain Administrator:
+Changing UNIX and samba passwords for Administrator
+New password:
+Retype new password:
+
+$ slapcat  | grep ^dn
+dn: dc=example,dc=com
+dn: ou=Users,dc=example,dc=com
+dn: ou=Groups,dc=example,dc=com
+dn: ou=Computers,dc=example,dc=com
+dn: ou=Idmap,dc=example,dc=com
+dn: sambaDomainName=EXAMPLE,dc=example,dc=com
+dn: uid=Administrator,ou=Users,dc=example,dc=com
+dn: uid=guest,ou=Users,dc=example,dc=com
+dn: cn=Domain Admins,ou=Groups,dc=example,dc=com
+dn: cn=Domain Users,ou=Groups,dc=example,dc=com
+dn: cn=Domain Guests,ou=Groups,dc=example,dc=com
+dn: cn=Domain Computers,ou=Groups,dc=example,dc=com
+dn: cn=Administrators,ou=Groups,dc=example,dc=com
+dn: cn=Account Operators,ou=Groups,dc=example,dc=com
+dn: cn=Print Operators,ou=Groups,dc=example,dc=com
+dn: cn=Backup Operators,ou=Groups,dc=example,dc=com
+dn: cn=Replicators,ou=Groups,dc=example,dc=com
+```
+
+
+``` shell
 $ ldapsearch -LLL -H ldaps://s153cl1.example.com:636 -x -W -D 'cn=Manager,dc=example,dc=com' -b 'dc=example,dc=com' 'objectClass=sambaDomain'
 Enter LDAP Password:
 dn: sambaDomainName=EXAMPLE,dc=example,dc=com
@@ -5495,8 +5623,10 @@ Terminology:
 - paging: refers to a mechanism originally added to UNIX BSD variants,
   and to copying in/out one or more pages of the address space.
 - page cache: data in memory for read file to avoid expensive disk
-  access on the subsequent reads; relates to _disk buffering_, and
-  used to be called _buffer cache_. This also works for _writes_
+  access on the subsequent reads; relates to _disk buffering. Since
+  2.4.10 the _buffer cache_ (the contents of the blocks accessed by
+  the VFS) does not really exit anymore; _block buffers_ are stored as
+  _buffer pages_ in the page cache. This also works for _writes_
 - dirty page: a page in cache that has been changed in memory and
   needs to be written back to disk, `kdmflush` treads periodically
   writes dirty pages to the underlying storage device.
@@ -5781,8 +5911,27 @@ Since 8.2108.0, one should be able to define TLS settings in _omfwd_ module dire
   StreamDriver.CertFile="<path>"
 ```
 
+#### rsyslog & SLES
+
+$ systemctl stop rsyslog.service syslog.socket
+$ ls -l /dev/log
+lrwxrwxrwx 1 root root 28 Nov 30 15:47 /dev/log -> /run/systemd/journal/dev-log
+
+$ pgrep -c rsyslogd
+0
+
+$ rsyslogd -iNONE -d -n 2>&1 | tee /tmp/rsyslogd.out.txt
+...
+
+$ lsof -np $(pgrep rsyslogd) | grep -P 'unix\b.*DGRAM'
+rsyslogd 27268 root    4u  unix 0xffff997cf9256a80      0t0      63700 /run/systemd/journal/syslog type=DGRAM
+rsyslogd 27268 root    6u  unix 0xffff997cf9257740      0t0      63702 type=DGRAM
 
 ### vector
+
+**NOTE**: as of Dec 21 2022, _vector_ can't write to datagram-oriented
+unix sockets (SOCK_DGRAM), so eg. using a sink for a rsyslog unix
+socket won't work!
 
 > Vector is a high-performance observability data pipeline that puts
 > organizations in control of their observability data. Collect,
