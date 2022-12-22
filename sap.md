@@ -55,7 +55,8 @@ SAP HANA needs only little space in `/usr/` (`/usr/sap`), it creates a lot of
 symlinks to real HANA directory (eg. `/hana`).
 
 ``` shell
-$ zypper in -t pattern sap-hana supportutils-plugin-ha-sap
+$ zypper in -t pattern sap-hana
+$ zypper in supportutils-plugin-ha-sap
 
 $ saptune solution verify
 
