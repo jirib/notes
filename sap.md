@@ -48,10 +48,22 @@ Some SAP basic vocabulary/info:
 SUSE SAP documentation:
 [documentation.suse.com/sbp/all/](https://documentation.suse.com/sbp/all)
 
-#### HOWTO install SAP HANA2 for testing
+
+#### HOWTO install SAP HANA2 for testing on SLES
 
 SAP HANA needs only little space in `/usr/` (`/usr/sap`), it creates a lot of
 symlinks to real HANA directory (eg. `/hana`).
+
+``` shell
+$ zypper in -t pattern sap-hana supportutils-plugin-ha-sap
+
+$ saptune solution verify
+
+$ findmnt | grep /hana
+├─/hana/data                          /dev/mapper/hana-lvol0                              xfs        rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota
+├─/hana/log                           /dev/mapper/hana-lvol1                              xfs        rw,relatime,attr2,inode64,logbufs=8,logbsize=32k,noquota
+└─/hana/shared                        192.168.0.1:/data/nfs/xxxxxx/jb154sapqe/hana-shared nfs4       rw,relatime,vers=4.2,rsize=1048576,wsize=1048576,namlen=255,hard,proto=tcp,timeo=600,retrans=2,sec=sys,clientaddr=192.168.0.57,local_lock=none,addr=192.168.0.1
+```
 
 OS tunning:
 
@@ -74,7 +86,9 @@ $ cd HDB_LCM_LINUX_X86_64 # Hana database life-cycle management
 Starting the installer:
 
 ``` shell
-$ ./hdblcm # installer
+$ ./hdblcm --action=install --dump_configfile_template=/root/hana.tmpl # template config
+
+$ ./hdblcm --action=install --ignore=check_min_mem # installer
 ...
 > 1 (install action)
 > 2 (server component)
