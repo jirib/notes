@@ -583,7 +583,7 @@ rsc_defaults rsc-options: \
     resource-stickiness=1000 \
     migration-threshold=5000
 
-op_defaults op-options \
+op_defaults op-options: \
     timeout=600 \
     record-pending=true
 EOF
