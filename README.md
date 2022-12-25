@@ -9205,6 +9205,42 @@ systemctl --no-legend list-unit-files | \
 systemctl list-dependencies <unit> --reverse --all # list unit dependency
 ```
 
+systemd could set `PrivateTmp` per unit:
+
+``` shell
+$ systemctl show -p PrivateTmp --value named
+yes
+
+$ cat /proc/$(systemctl show -p MainPID --value named)/mountinfo | \
+    awk '$4 ~ /systemd-private/ && $5 == "/tmp"'
+855 987 0:47 /@/tmp/systemd-private-b97214a53a9d46e99d95e1449f64d5ad-named.service-WtH6e6/tmp /tmp rw,relatime shared:556 master:29 - btrfs /dev/mapper/system-root rw,ssd,space_cache,subvolid=259,subvol=/@/tmp
+
+$ nsenter -t $(systemctl show -p MainPID --value named) -m ls -al /tmp
+total 0
+drwxrwxrwt 1 root root   0 Dec 25 18:02 .
+drwxr-xr-x 1 root root 246 Dec 13 12:43 ..
+
+$ nsenter -t $(systemctl show -p MainPID --value named) -m touch /tmp/xxx
+
+$ nsenter -t $(systemctl show -p MainPID --value named) -m ls -al /tmp
+total 0
+drwxrwxrwt 1 root root   6 Dec 25 19:13 .
+drwxr-xr-x 1 root root 246 Dec 13 12:43 ..
+-rw-r--r-- 1 root root   0 Dec 25 19:13 xxx
+
+$ cat /proc/$(systemctl show -p MainPID --value named)/mountinfo | \
+    awk '$4 ~ /systemd-private/ && $5 == "/tmp" { sub(/\/@/,"",$4); print $4 }'
+/tmp/systemd-private-b97214a53a9d46e99d95e1449f64d5ad-named.service-WtH6e6/tmp
+
+$ls -al $(cat /proc/$(systemctl show -p MainPID --value named)/mountinfo | \
+    awk '$4 ~ /systemd-private/ && $5 == "/tmp" { sub(/\/@/,"",$4); print $4 }')
+total 0
+drwxrwxrwt 1 root root 6 Dec 25 19:13 .
+drwx------ 1 root root 6 Dec 25 18:02 ..
+-rw-r--r-- 1 root root 0 Dec 25 19:13 xxx
+```
+
+
 #### desktop stuff
 
 ``` shell
@@ -10423,6 +10459,14 @@ echo "${VAR}"
   x
   x
   ```
+
+
+### coreutils
+
+``` shell
+$ date --date='last friday' +%d # to see date of last Friday
+```
+
 
 ### sed
 
