@@ -5222,6 +5222,9 @@ enable debugging dumps of processes etc. (8), see above link for details.
 
 ### analysis
 
+NOTE: VM snapshot from VMware environement (`.vmsn` and `.vmem` files)
+can be analyzed directly with `crash` tool
+
 Same kernel and kernel debug files have to be present.
 
 ``` shell
