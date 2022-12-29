@@ -2028,6 +2028,16 @@ $ crmadmin -D # show designated coordinator (DC)
 Designated Controller is: s153cl01
 ```
 
+Ongoing activities on the cluster?
+
+``` shell
+$ crmadmin -qD # get DC name
+s153cl1
+$ crmadmin -qS s153cl1
+Status of crmd@s153cl1: S_IDLE (ok)
+S_IDLE
+```
+
 ``` shell
 $ crm_mon -r -1 # show cluster status
 Cluster Summary:
