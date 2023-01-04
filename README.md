@@ -6980,7 +6980,7 @@ $ grub2-mkconfig -o /boot/grub2/grub.cfg # and reboot
 After reboot:
 
 ``` shell
-$ grep -iP '(DMAR|IOMMU)' /var/log/boot.msg
+$ dmesg | grep -iP '(DMAR|IOMMU)'
 <6>[    0.000000] Command line: BOOT_IMAGE=/boot/vmlinuz-5.3.18-150300.59.49-default root=/dev/mapper/system-root console=ttyS2,115200 resume=/dev/system/swap rd.shell=0 crashkernel=196M,high crashkernel=72M,low mitigations=auto intel_iommu=on iommu=pt
 <6>[    0.031190] ACPI: DMAR 0x00000000BF7B00F0 000090 (v01 AMI    OEMDMAR  00000001 MSFT 00000097)
 <5>[    0.380718] Kernel command line: BOOT_IMAGE=/boot/vmlinuz-5.3.18-150300.59.49-default root=/dev/mapper/system-root console=ttyS2,115200 resume=/dev/system/swap rd.shell=0 crashkernel=196M,high crashkernel=72M,low mitigations=auto intel_iommu=on iommu=pt
@@ -7114,6 +7114,80 @@ ExecStart=/bin/bash -c ' \
 
 [Install]
 WantedBy=multi-user.target
+```
+
+Details about physical ports:
+
+``` shell
+# only physical ports have sriov_totalvfs file
+
+$ dirname /sys/class/net/*/../../sriov_totalvfs | grep -Po '/net/\K([^/]+)(?=.*)'
+eth1
+eth3
+eth4
+eth5
+
+ $  dirname /sys/class/net/*/../../sriov_totalvfs | grep -Po '/net/\K([^/]+)(?=.*)' | while read l ; do ip link show $l ; done
+3: eth1: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 90:e2:ba:04:28:c0 brd ff:ff:ff:ff:ff:ff
+    vf 0     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 1     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 2     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 3     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 4     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 5     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 6     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    altname enp2s0f0
+5: eth3: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 90:e2:ba:04:28:c1 brd ff:ff:ff:ff:ff:ff
+    vf 0     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 1     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 2     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 3     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 4     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 5     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 6     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    altname enp2s0f1
+6: eth4: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 90:e2:ba:04:2d:74 brd ff:ff:ff:ff:ff:ff
+    vf 0     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 1     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 2     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 3     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 4     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 5     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 6     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    altname enp3s0f0
+7: eth5: <BROADCAST,MULTICAST> mtu 1500 qdisc noop state DOWN mode DEFAULT group default qlen 1000
+    link/ether 90:e2:ba:04:2d:75 brd ff:ff:ff:ff:ff:ff
+    vf 0     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 1     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 2     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 3     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 4     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 5     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+    vf 6     link/ether 00:00:00:00:00:00 brd ff:ff:ff:ff:ff:ff, spoof checking on, link-state auto, trust off
+```
+
+There are various options for VFs, see `ip-link(8)`:
+
+```
+spoofchk on|off - turn packet spoof checking on or
+off for the specified VF.
+
+...
+
+state auto|enable|disable - set the virtual link state
+as seen by the specified VF. Setting to auto means a
+reflection of the PF link state, enable lets the VF
+to communicate with other VFs on this host even if
+the PF link state is down, disable causes the HW to
+drop any packets sent by the VF.
+
+trust on|off - trust the specified VF user. This
+enables that VF user can set a specific feature which
+may impact security and/or performance. (e.g. VF
+multicast promiscuous mode)
 ```
 
 
@@ -9363,6 +9437,46 @@ journalctl --rotate --vacuum-time=0.1s # clean journal
 ### SLES
 
 #### installation
+
+Hack to make a bootable USB from an ISO:
+
+``` shell
+$ fdisk /dev/sda # create partition and set it active
+$ mkfs.ext4 /dev/sda1
+$ mount /dev/sda1 /mnt
+$ mkdir /tmp/iso
+$ mount -o loop <iso> /tmp/iso
+$ rsync -vvv -a --exclude 'Module-Desktop-Applications**.rpm' \
+    --exclude 'Module-Development-Tools**.rpm' \
+    --exclude 'Module-HPC**.rpm' \
+    --exclude 'Module-Legacy**.rpm' \
+    --exclude 'Module-Legacy**.rpm' \
+    --exclude 'Module-Live-Patching**.rpm' \
+    --exclude 'Module-RT**.rpm' \
+    --exclude 'Module-SUSE-Manager**.rpm' \
+    --exclude 'Module-Transactional-Server**.rpm' \
+    --exclude 'Module-Web-Scripting**.rpm' \
+    /tmp/iso/ /mnt/
+$ grub2-install --target=i386-pc --recheck --debug --boot-directory=/mnt/boot /dev/sda
+$ cat > /mnt/boot/grub2/grub.cfg <<EOF
+serial --speed=115200 --unit=0 --word=8 --parity=no --stop=1
+set timeout=60
+default=0
+menuentry 'Installation' --class opensuse --class gnu-linux --class gnu --class os {
+  echo 'Loading kernel ...'
+  linux /boot/x86_64/loader/linux textmode=1 console=ttyS0,115200n81
+  echo 'Loading initial ramdisk ...'
+  initrd /boot/x86_64/loader/initrd
+}
+EOF
+$ umount /mnt
+$ umount /tmp/iso
+
+# one can test with qemu
+
+$ qemu-system-x86_64 -m 1024 -smp 2 -drive file=/dev/sdb,format=raw -vga none \
+  -nographic
+```
 
 *linuxrc* is *init* instead of *systemd*
 
