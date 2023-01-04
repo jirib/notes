@@ -7190,6 +7190,63 @@ may impact security and/or performance. (e.g. VF
 multicast promiscuous mode)
 ```
 
+**TODO**: under construction
+
+A VM using VFs cannot change MAC address:
+
+``` shell
+vm $ dmesg | grep bond
+[    8.045478] bond0: (slave eth0): Enslaving as a backup interface with a down link
+[    8.345013] bond0: (slave eth1): Error -99 calling set_mac_address
+[    8.697019] bond0: (slave eth0): link status definitely up, 1000 Mbps full duplex
+[    8.697661] bond0: (slave eth0): making interface the new active one
+[    8.715159] bond0: active interface up!
+[    8.716329] IPv6: ADDRCONF(NETDEV_CHANGE): bond0: link becomes ready
+[  503.892194] bond0: (slave eth1): Error -99 calling set_mac_address
+```
+
+On host, one can see:
+
+``` shell
+host $ dmesg -w
+[18019.275993] igb 0000:03:00.0: VF 0 attempted to override administratively set MAC address
+               Reload the VF driver to resume operations
+```
+
+Looking for VFs and back...
+
+``` shell
+# PFs
+
+host $ ls -1 /sys/devices/*/*/*/net/eth*/../../sriov_totalvfs
+/sys/devices/pci0000:00/0000:00:05.0/0000:02:00.0/net/eth1/../../sriov_totalvfs
+/sys/devices/pci0000:00/0000:00:05.0/0000:02:00.1/net/eth3/../../sriov_totalvfs
+/sys/devices/pci0000:00/0000:00:1c.0/0000:03:00.0/net/eth4/../../sriov_totalvfs
+/sys/devices/pci0000:00/0000:00:1c.0/0000:03:00.1/net/eth5/../../sriov_totalvfs
+
+# looking for VFs related to eth4 PF
+
+host $ ls -1d $(readlink -f /sys/class/net/eth4)/../../virtfn*/net/*
+/sys/devices/pci0000:00/0000:00:1c.0/0000:03:00.0/net/eth4/../../virtfn0/net/eth0
+/sys/devices/pci0000:00/0000:00:1c.0/0000:03:00.0/net/eth4/../../virtfn1/net/eth2
+/sys/devices/pci0000:00/0000:00:1c.0/0000:03:00.0/net/eth4/../../virtfn2/net/eth20
+/sys/devices/pci0000:00/0000:00:1c.0/0000:03:00.0/net/eth4/../../virtfn3/net/eth21
+/sys/devices/pci0000:00/0000:00:1c.0/0000:03:00.0/net/eth4/../../virtfn4/net/eth22
+/sys/devices/pci0000:00/0000:00:1c.0/0000:03:00.0/net/eth4/../../virtfn5/net/eth23
+/sys/devices/pci0000:00/0000:00:1c.0/0000:03:00.0/net/eth4/../../virtfn6/net/eth24
+
+# looking PCI locations for VFs under eth4 PF
+
+host $ readlink -f $(readlink -f /sys/class/net/eth4)/../../virtfn*/net/*)
+/sys/devices/pci0000:00/0000:00:1c.0/0000:04:10.0/net/eth0
+/sys/devices/pci0000:00/0000:00:1c.0/0000:04:10.2/net/eth2
+/sys/devices/pci0000:00/0000:00:1c.0/0000:04:10.4/net/eth20
+/sys/devices/pci0000:00/0000:00:1c.0/0000:04:10.6/net/eth21
+/sys/devices/pci0000:00/0000:00:1c.0/0000:04:11.0/net/eth22
+/sys/devices/pci0000:00/0000:00:1c.0/0000:04:11.2/net/eth23
+/sys/devices/pci0000:00/0000:00:1c.0/0000:04:11.4/net/eth24
+```
+
 
 ## package management
 
