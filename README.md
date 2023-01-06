@@ -5336,6 +5336,46 @@ LOAD AVERAGE: 0.39, 0.17, 0.06
        PANIC: ""
 ```
 
+``` shell
+crash> log | sed -n '/RTC time:/s/.* time: \([^,]*\), date: \(.*\)/\2 \1/p'
+2022-12-06 15:02:29
+crash> !date --date='2022-12-06 15:02:29' +"%s"
+1670335349
+crash> log | perl -pe 's/(\d+)/localtime(1670335349+$1)/e' | tail
+[Fri Jan  6 11:19:20 2023.058462] RBP: 0000000000000000 R08: 0000000000000000 R09: 0138cb8651caaf7d
+[Fri Jan  6 11:19:20 2023.058462] R10: ffffffff88803e20 R11: 00000000000aae9e R12: 0000000000000000
+[Fri Jan  6 11:19:20 2023.058462] R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
+[Fri Jan  6 11:19:20 2023.090572]  ? __sched_text_end+0x7/0x7
+[Fri Jan  6 11:19:20 2023.090572]  default_idle+0x1c/0x150
+[Fri Jan  6 11:19:20 2023.090572]  do_idle+0x1bf/0x270
+[Fri Jan  6 11:19:20 2023.090572]  cpu_startup_entry+0x19/0x20
+[Fri Jan  6 11:19:20 2023.090572]  start_kernel+0x559/0x57e
+[Fri Jan  6 11:19:20 2023.090572]  secondary_startup_64_no_verify+0xc2/0xd0
+[Fri Jan  6 11:19:20 2023.090572] Kernel Offset: 0x6000000 from 0xffffffff81000000 (relocation range: 0xffffffff80000000-0xffffffffbfffffff)
+
+crash> log | perl -pe 's/(\d+)/localtime(1670335349+$1)/e' | grep -m1 -C 10 sysrq
+[Wed Jan  4 20:00:14 2023.778249] floppy: error 10 while reading block 0
+[Thu Jan  5 03:00:03 2023.339826] blk_update_request: I/O error, dev fd0, sector 0 op 0x0:(READ) flags 0x0 phys_seg 1 prio class 0
+[Thu Jan  5 03:00:03 2023.346777] floppy: error 10 while reading block 0
+[Thu Jan  5 12:30:15 2023.884118] blk_update_request: I/O error, dev fd0, sector 0 op 0x0:(READ) flags 0x0 phys_seg 1 prio class 0
+[Thu Jan  5 12:30:15 2023.892338] floppy: error 10 while reading block 0
+[Thu Jan  5 20:00:14 2023.847606] blk_update_request: I/O error, dev fd0, sector 0 op 0x0:(READ) flags 0x0 phys_seg 1 prio class 0
+[Thu Jan  5 20:00:14 2023.854650] floppy: error 10 while reading block 0
+[Fri Jan  6 03:00:03 2023.135697] blk_update_request: I/O error, dev fd0, sector 0 op 0x0:(READ) flags 0x0 phys_seg 1 prio class 0
+[Fri Jan  6 03:00:03 2023.144006] floppy: error 10 while reading block 0
+[Fri Jan  6 11:14:24 2023.829289] CIFS: VFS: \\FFISOFS has not responded in 180 seconds. Reconnecting...
+[Fri Jan  6 11:19:19 2023.962359] sysrq: Trigger a crash
+[Fri Jan  6 11:19:19 2023.965234] Kernel panic - not syncing: sysrq triggered crash
+[Fri Jan  6 11:19:19 2023.966333] CPU: 0 PID: 0 Comm: swapper/0 Kdump: loaded Tainted: G               X    5.3.18-150300.59.98-default #1 SLE15-SP3
+[Fri Jan  6 11:19:19 2023.966333] Hardware name: Microsoft Corporation Virtual Machine/Virtual Machine, BIOS 090008  12/07/2018
+[Fri Jan  6 11:19:19 2023.966333] Call Trace:
+[Fri Jan  6 11:19:19 2023.966333]  <IRQ>
+[Fri Jan  6 11:19:19 2023.966333]  dump_stack+0x66/0x8b
+[Fri Jan  6 11:19:19 2023.966333]  panic+0xfe/0x2e3
+[Fri Jan  6 11:19:19 2023.966333]  ? printk+0x52/0x72
+[Fri Jan  6 11:19:19 2023.966333]  sysrq_handle_crash+0x11/0x20
+[Fri Jan  6 11:19:19 2023.966333]  __handle_sysrq+0x89/0x140
+```
 
 ## fadump
 
