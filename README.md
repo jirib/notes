@@ -11200,6 +11200,35 @@ and via "internal" iscsi driver
     </disk>
 ```
 
+Attaching disk online:
+
+``` shell
+$ virsh domblklist s153cl1
+ Target   Source
+-----------------------------------------------
+ vda      /home/vms/s153cl1.qcow2
+ sda      iqn.2022-06.com.example.t14s:san1/0
+ sdb      iqn.2022-06.com.example.t14s:san1/1
+ sdc      iqn.2022-06.com.example.t14s:san1/0
+ sdd      iqn.2022-06.com.example.t14s:san1/1
+ sde      iqn.2022-06.com.example.t14s:san2/0
+ sdf      iqn.2022-06.com.example.t14s:san2/1
+ sdg      iqn.2022-06.com.example.t14s:san2/0
+ sdh      iqn.2022-06.com.example.t14s:san2/1
+ sdi      -
+
+$ cat /tmp/disk.xml
+<disk type="file" device="disk">
+          <driver name="qemu" type="qcow2"/>
+            <source file="/home/vms/s153cl2-drbd.qcow2"/>
+              <target dev="sdj" bus="scsi"/>
+              <address type='drive' controller='0' bus='0' target='0' unit='6'/>
+      </disk>
+
+$ virsh attach-device s153cl1 /tmp/disk.xml --live
+Device attached successfully
+```
+
 #### troubleshooting
 
 ``` shell
