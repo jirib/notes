@@ -2296,6 +2296,27 @@ crm configure edit
 < location l-mariadb_never_with_webserver -inf: g-mariadb:Started g-webserver:Started
 ```
 
+##### tips & tricks
+
+``` shell
+$ crm
+crm(live/jb154sapqe01)# cib import /tmp/pe-input-325.bz2
+crm(pe-input-325/jb154sapqe01)# cibstatus origin
+shadow:pe-input-325
+```
+
+``` shell
+$ crm
+crm(pe-input-325/jb154sapqe01)# configure show related:grp_QSA_ASCS16
+group grp_QSA_ASCS16 rsc_ip_QSA_ASCS16 rsc_ip_QSA_ECC_CI rsc_lvm_QSA_ASCS16 rsc_fs_QSA_ASCS16 rsc_sap_QSA_ASCS16 \
+        meta target-role=Started \
+        meta resource-stickiness=3000
+colocation col_TWS_with_ASCS16 inf: grp_QSA_ASCS16 grp_QSA_TWS
+colocation col_W00_with_ASCS16 inf: grp_QSA_ASCS16 grp_QSW_W00
+colocation col_sap_QSA_not_both -5000: grp_QSA_ERS02 grp_QSA_ASCS16
+order ord_cl-storage_before_grp_QSA_ASCS16 Mandatory: cl-storage grp_QSA_ASCS16
+```
+
 ##### acls
 
 - same users and userids on all nodes
@@ -2310,7 +2331,7 @@ Basically there's `LogAction` lines following by generated transition,
 thus the next `awk` stuff gets only relevant transitions.
 
 ``` shell
-$ awk 'BEGIN { start=0; } /(LogAction:[[:blank:]]+\*|Calculated)/ { if($0 ~ /pe-input/ && start != 1) { next; }; print;  if($0 ~ /LogAction/) { start=1; } else { start=0; }; }' pacemaker.log | head -n 8
+$ awk 'BEGIN { start=0; } /(LogAction.*\*|Calculated)/ { if($0 ~ /pe-input/ && start != 1) { next; }; print;  if($0 ~ /LogAction/) { start=1; } else { start=0; }; }' pacemaker.log | head -n 8
 Sep 02 13:18:02 [27794] example2    pengine:   notice: LogAction:   * Recover    rsc_azure-events:1                  (                   example1 )
 Sep 02 13:18:02 [27794] example2    pengine:   notice: LogAction:   * Recover    rsc_SAPHana_UP3_HDB00:1             (            Master example1 )
 Sep 02 13:18:02 [27794] example2    pengine:   notice: LogAction:   * Recover    rsc_SAPHanaTopology_UP3_HDB00:1     (                   example1 )
@@ -2319,6 +2340,41 @@ Sep 02 13:18:02 [27794] example2    pengine:   notice: LogAction:   * Recover   
 Sep 02 13:18:02 [27794] example2    pengine:   notice: LogAction:   * Recover    rsc_SAPHana_UP3_HDB00:1             (            Master example1 )
 Sep 02 13:18:02 [27794] example2    pengine:   notice: LogAction:   * Recover    rsc_SAPHanaTopology_UP3_HDB00:1     (                   example1 )
 Sep 02 13:18:02 [27794] example2    pengine:   notice: process_pe_message: Calculated transition 219199, saving inputs in /var/lib/pacemaker/pengine/pe-input-3142.bz2
+```
+
+Sorting PE files is not so straightforward...
+
+``` shell
+$ ls hb_report-Wed-11-Jan-2023/*/pengine/*.bz2 | while read f ; do date=$(bzcat $f | grep -Po 'execution-date="\K(\d+)(?=.*)'); echo $f $(date -d @${date}); done | sort -V -k4
+hb_report-Wed-11-Jan-2023/example01/pengine/pe-input-340.bz2 Wed Jan 11 08:55:26 CET 2023
+hb_report-Wed-11-Jan-2023/example01/pengine/pe-input-341.bz2 Wed Jan 11 08:56:01 CET 2023
+hb_report-Wed-11-Jan-2023/example01/pengine/pe-input-342.bz2 Wed Jan 11 08:56:52 CET 2023
+hb_report-Wed-11-Jan-2023/example01/pengine/pe-input-343.bz2 Wed Jan 11 08:57:35 CET 2023
+hb_report-Wed-11-Jan-2023/example01/pengine/pe-input-344.bz2 Wed Jan 11 08:58:20 CET 2023
+hb_report-Wed-11-Jan-2023/example01/pengine/pe-input-345.bz2 Wed Jan 11 08:58:22 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-warn-15.bz2 Wed Jan 11 09:00:54 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-157.bz2 Wed Jan 11 09:01:07 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-158.bz2 Wed Jan 11 09:04:31 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-159.bz2 Wed Jan 11 09:05:05 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-160.bz2 Wed Jan 11 09:06:55 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-161.bz2 Wed Jan 11 09:21:57 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-162.bz2 Wed Jan 11 09:30:44 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-163.bz2 Wed Jan 11 09:30:44 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-164.bz2 Wed Jan 11 09:47:42 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-165.bz2 Wed Jan 11 11:59:25 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-166.bz2 Wed Jan 11 11:59:34 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-167.bz2 Wed Jan 11 11:59:38 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-168.bz2 Wed Jan 11 11:59:42 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-169.bz2 Wed Jan 11 11:59:46 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-170.bz2 Wed Jan 11 11:59:48 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-171.bz2 Wed Jan 11 11:59:51 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-input-172.bz2 Wed Jan 11 11:59:54 CET 2023
+hb_report-Wed-11-Jan-2023/example02/pengine/pe-warn-16.bz2 Wed Jan 11 12:09:11 CET 2023
+hb_report-Wed-11-Jan-2023/example01/pengine/pe-input-346.bz2 Wed Jan 11 12:09:26 CET 2023
+hb_report-Wed-11-Jan-2023/example01/pengine/pe-input-347.bz2 Wed Jan 11 12:09:54 CET 2023
+hb_report-Wed-11-Jan-2023/example01/pengine/pe-input-348.bz2 Wed Jan 11 12:12:46 CET 2023
+hb_report-Wed-11-Jan-2023/example01/pengine/pe-input-349.bz2 Wed Jan 11 12:13:14 CET 2023
+hb_report-Wed-11-Jan-2023/example01/pengine/pe-input-350.bz2 Wed Jan 11 12:14:52 CET 2023
 ```
 
 logs must be gathered from all nodes
@@ -2774,6 +2830,24 @@ Environment="NO_PROXY=localhost,127.0.0.1"
 # systemctl show -p Environment docker
 Environment=HTTP_PROXY=http://127.0.0.1:8080 HTTPS_PROXY=https://127.0.0.1:8080 NO_PROXY=localhost,127.0.0.1
 ```
+
+
+## dbus
+
+``` shell
+$ dbus-send --system --print-reply --dest=org.freedesktop.DBus  /org/freedesktop/DBus org.freedesktop.DBus.ListNames | grep -i network
+      string "org.opensuse.Network.Nanny"
+      string "org.opensuse.Network"
+      string "org.opensuse.Network.DHCP4"
+      string "org.opensuse.Network.AUTO4"
+      string "org.opensuse.Network.DHCP6"
+```
+
+``` shell
+$ dbus-send --print-reply --dest=org.freedesktop.DBus  /org/freedesktop/DBus org.freedesktop.DBus.ListNames | grep -i network
+      string "org.freedesktop.network-manager-applet"
+```
+
 
 ## desktop
 
@@ -11234,6 +11308,27 @@ Device attached successfully
 ``` shell
 env VIRSH_DEBUG=0 LIBVIRT_DEBUG=1 virsh # or any other libvirt tool
 ```
+
+Block device unavailability impacts start of the VM:
+
+``` shell
+# comment inline
+$ sed -n '/09:48:48.853+0000: starting up/,$p' /var/log/libvirt/qemu/s153cl1.log  | sed -n -e '1p' -e '/blockdev.*iscsi/p' -e '/Failed/p' -e '/shutting/p'
+2023-01-13 09:48:48.853+0000: starting up libvirt version: 8.10.0, qemu version: 7.1.0openSUSE Tumbleweed, kernel: 6.1.4-1.g4b9b43c-default, hostname: t14s
+-blockdev '{"driver":"iscsi","portal":"192.168.0.1:3260","target":"iqn.2022-06.com.example.t14s:san1","lun":0,"transport":"tcp","initiator-name":"iqn.2022-06.com.example.s153cl1:eth0","node-name":"libvirt-9-storage","cache":{"direct":true,"no-flush":false},"auto-read-only":true,"discard":"unmap"}' \
+                                       ^---+--- iSCSI target on this IP is not available
+-blockdev '{"driver":"iscsi","portal":"192.168.122.1:3260","target":"iqn.2022-06.com.example.t14s:san1","lun":1,"transport":"tcp","initiator-name":"iqn.2022-06.com.example.s153cl1:eth0","node-name":"libvirt-8-storage","cache":{"direct":true,"no-flush":false},"auto-read-only":true,"discard":"unmap"}' \
+-blockdev '{"driver":"iscsi","portal":"192.168.123.1:3261","target":"iqn.2022-06.com.example.t14s:san1","lun":0,"transport":"tcp","initiator-name":"iqn.2022-06.com.example.s153cl1:eth1","node-name":"libvirt-7-storage","cache":{"direct":true,"no-flush":false},"auto-read-only":true,"discard":"unmap"}' \
+-blockdev '{"driver":"iscsi","portal":"192.168.123.1:3261","target":"iqn.2022-06.com.example.t14s:san1","lun":1,"transport":"tcp","initiator-name":"iqn.2022-06.com.example.s153cl1:eth1","node-name":"libvirt-6-storage","cache":{"direct":true,"no-flush":false},"auto-read-only":true,"discard":"unmap"}' \
+-blockdev '{"driver":"iscsi","portal":"192.168.122.1:3261","target":"iqn.2022-06.com.example.t14s:san2","lun":0,"transport":"tcp","initiator-name":"iqn.2022-06.com.example.s153cl1:eth0","node-name":"libvirt-5-storage","cache":{"direct":true,"no-flush":false},"auto-read-only":true,"discard":"unmap"}' \
+-blockdev '{"driver":"iscsi","portal":"192.168.122.1:3261","target":"iqn.2022-06.com.example.t14s:san2","lun":1,"transport":"tcp","initiator-name":"iqn.2022-06.com.example.s153cl1:eth0","node-name":"libvirt-4-storage","cache":{"direct":true,"no-flush":false},"auto-read-only":true,"discard":"unmap"}' \
+-blockdev '{"driver":"iscsi","portal":"192.168.123.1:3260","target":"iqn.2022-06.com.example.t14s:san2","lun":0,"transport":"tcp","initiator-name":"iqn.2022-06.com.example.s153cl1:eth1","node-name":"libvirt-3-storage","cache":{"direct":true,"no-flush":false},"auto-read-only":true,"discard":"unmap"}' \
+-blockdev '{"driver":"iscsi","portal":"192.168.123.1:3260","target":"iqn.2022-06.com.example.t14s:san2","lun":1,"transport":"tcp","initiator-name":"iqn.2022-06.com.example.s153cl1:eth1","node-name":"libvirt-2-storage","cache":{"direct":true,"no-flush":false},"auto-read-only":true,"discard":"unmap"}' \
+2023-01-13T09:50:58.764202Z qemu-system-x86_64: -blockdev {"driver":"iscsi","portal":"192.168.0.1:3260","target":"iqn.2022-06.com.example.t14s:san1","lun":0,"transport":"tcp","initiator-name":"iqn.2022-06.com.example.s153cl1:eth0","node-name":"libvirt-9-storage","cache":{"direct":true,"no-flush":false},"auto-read-only":true,"discard":"unmap"}: iSCSI: Failed to connect to LUN : iscsi_service failed with : iscsi_service_reconnect_if_loggedin. Can not reconnect right now.
+2023-01-13T09:50:58.764202Z qemu-system-x86_64: -blockdev {"driver":"iscsi","portal":"192.168.0.1:3260","target":"iqn.2022-06.com.example.t14s:san1","lun":0,"transport":"tcp","initiator-name":"iqn.2022-06.com.example.s153cl1:eth0","node-name":"libvirt-9-storage","cache":{"direct":true,"no-flush":false},"auto-read-only":true,"discard":"unmap"}: iSCSI: Failed to connect to LUN : iscsi_service failed with : iscsi_service_reconnect_if_loggedin. Can not reconnect right now.
+2023-01-13 09:50:59.021+0000: shutting down, reason=failed
+```
+
 
 ### openvswitch
 
