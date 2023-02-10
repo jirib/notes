@@ -2641,37 +2641,6 @@ WantedBy=sockets.target
 csync2 -xv
 ```
 
-### drbd
-
-*distributed block device*, ie. replicated local block device over
-network, by default *7789/tcp* and above (till *7799/tcp*) is used.
-
-configs `/etc/drbd.{conf,d/}`
-
-``` shell
-drbdadm [create | up | status] <resource>
-drbdadm new-current-uuid --clear-bitmap <resource>/0
-```
-
-#### drbd in cluster
-
-RA is in *drbd-utils* package on SUSE
-
-```
-primitive p-drbd_<resource> ocf:linbit:drbd \
-  params drbd_resource=<drbd_resource> \
-  op monitor interval=15 role=Master \
-  op monitor interval=30 role=Slave
-
-ms ms-drbd_<resource> \
-  meta master-max=1 \
-    master-node-max=1 \
-    clone-max=2 \
-    clone-node-max=1 \
-    notify=true
-```
-
-…but that is, of course, just the basic of whole cluster setup.
 
 #### troubleshooting
 
@@ -3279,6 +3248,135 @@ automatically triggered btrfs snapshots
 ``` shell
 snapper list
 ```
+
+### drbd
+
+Some notes about drbd design:
+
+- *primary*/*secondary*: primary has r/w, secondary NOT even r/o !!!
+- *single primary mode*: ONLY ONE node has r/w (a fail-over scenario)
+- *dual-primary  mode*:  more  nodes  has r/w  (this  would  require  a
+  filesystem which implements locking, eg. ocfs2)
+- *async replication*: aka 'Protocol A', write is considered completed
+  on primary node(s) if written to local disk and the replication
+  packet placed in local TCP send buffer (thus, when this 'local'
+  machine crashed, no updates on the other node !!!)
+- *sync replicaiton*: aka 'Protocol C', write is considered completed on
+  primary node(s) if local and remote disk writes are confirmed
+- DRBD >= 9 allows multiple nodes replication without 'stacking'
+- *inconsistent* data state: data are partly obsolete, partly updated
+- *suspended replication*: when a replication link is congested, drbd
+  can temporarily suspend replication
+- *online device verification*: an intergrity check, a good candicate
+  for cron job (think about it as *mdraid sync_action*-like action)
+- *split brain*: a situation when both nodes were switched to
+  *primary* while being previosly disconnected (ie. likely two
+  diverging sets of data exist); do NOT confuse with a *cluster
+  partition* !!!
+
+configs `/etc/drbd.{conf,d/*.res}`
+
+``` shell
+drbdadm [create | up | status] <resource>
+drbdadm new-current-uuid --clear-bitmap <resource>/0
+```
+
+
+#### clustered drbd
+
+RA is in *drbd-utils* package on SUSE.
+
+```
+primitive p-drbd_<resource> ocf:linbit:drbd \
+  params drbd_resource=<drbd_resource> \
+  op monitor interval=15 role=Master \
+  op monitor interval=30 role=Slave
+
+ms ms-drbd_<resource> \
+  meta master-max=1 \
+    master-node-max=1 \
+    clone-max=2 \
+    clone-node-max=1 \
+    notify=true
+```
+
+
+#### troubleshooting
+
+On first node, `drbdadm up <res>` is executed (`drbd01` is the resource name here):
+
+```
+2023-02-06T16:43:30.921702+01:00 jb154sapqe01 kernel: [18310.608989][T25362] drbd drbd01: Starting worker thread (from drbdsetup [25362])
+2023-02-06T16:43:30.926543+01:00 jb154sapqe01 kernel: [18310.615090][T25368] drbd drbd01 jb154sapqe02: Starting sender thread (from drbdsetup [25368])
+2023-02-06T16:43:31.002626+01:00 jb154sapqe01 kernel: [18310.688562][T25381] drbd drbd01/0 drbd1: meta-data IO uses: blk-bio
+2023-02-06T16:43:31.002637+01:00 jb154sapqe01 kernel: [18310.689931][T25381] drbd drbd01/0 drbd1: disk( Diskless -> Attaching )
+2023-02-06T16:43:31.002638+01:00 jb154sapqe01 kernel: [18310.691079][T25381] drbd drbd01/0 drbd1: Maximum number of peer devices = 1
+2023-02-06T16:43:31.002639+01:00 jb154sapqe01 kernel: [18310.692308][T25381] drbd drbd01: Method to ensure write ordering: flush
+2023-02-06T16:43:31.006611+01:00 jb154sapqe01 kernel: [18310.693393][T25381] drbd drbd01/0 drbd1: drbd_bm_resize called with capacity == 2097016
+2023-02-06T16:43:31.006621+01:00 jb154sapqe01 kernel: [18310.694739][T25381] drbd drbd01/0 drbd1: resync bitmap: bits=262127 words=4096 pages=8
+2023-02-06T16:43:31.006622+01:00 jb154sapqe01 kernel: [18310.695950][T25381] drbd1: detected capacity change from 0 to 2097016
+2023-02-06T16:43:31.006623+01:00 jb154sapqe01 kernel: [18310.696925][T25381] drbd drbd01/0 drbd1: size = 1024 MB (1048508 KB)
+
+2023-02-06T16:43:31.011445+01:00 jb154sapqe01 kernel: [18310.699910][T25381] drbd drbd01/0 drbd1: recounting of set bits took additional 0ms
+2023-02-06T16:43:31.011454+01:00 jb154sapqe01 kernel: [18310.701195][T25381] drbd drbd01/0 drbd1: disk( Attaching -> Inconsistent )
+2023-02-06T16:43:31.014416+01:00 jb154sapqe01 kernel: [18310.702390][T25381] drbd drbd01/0 drbd1 jb154sapqe02: pdsk( DUnknown -> Outdated )
+2023-02-06T16:43:31.014421+01:00 jb154sapqe01 kernel: [18310.703587][T25381] drbd drbd01/0 drbd1: attached to current UUID: 0000000000000004
+2023-02-06T16:43:31.022032+01:00 jb154sapqe01 kernel: [18310.710893][T25384] drbd drbd01 jb154sapqe02: conn( StandAlone -> Unconnected )
+2023-02-06T16:43:31.025714+01:00 jb154sapqe01 kernel: [18310.713251][T25363] drbd drbd01 jb154sapqe02: Starting receiver thread (from drbd_w_drbd01 [25363])
+2023-02-06T16:43:31.025723+01:00 jb154sapqe01 kernel: [18310.714925][T25388] drbd drbd01 jb154sapqe02: conn( Unconnected -> Connecting )
+```
+
+Then on the second node, `drbdadm up <res>` was executed:
+
+```
+2023-02-06T16:44:25.097928+01:00 jb154sapqe02 kernel: [ 4133.662936][T23971] drbd drbd01: Starting worker thread (from drbdsetup [23971])
+2023-02-06T16:44:25.105031+01:00 jb154sapqe02 kernel: [ 4133.668966][T23977] drbd drbd01 jb154sapqe01: Starting sender thread (from drbdsetup [23977])
+2023-02-06T16:44:25.121096+01:00 jb154sapqe02 systemd[1]: Started Disk encryption utility (cryptctl) - contact key server to unlock disk sys-devices-virtual-block-drbd1 and keep the server informed.
+2023-02-06T16:44:25.157486+01:00 jb154sapqe02 kernel: [ 4133.712273][T23985] drbd drbd01/0 drbd1: meta-data IO uses: blk-bio
+2023-02-06T16:44:25.157517+01:00 jb154sapqe02 kernel: [ 4133.714282][T23985] drbd drbd01/0 drbd1: disk( Diskless -> Attaching )
+2023-02-06T16:44:25.157520+01:00 jb154sapqe02 kernel: [ 4133.716103][T23985] drbd drbd01/0 drbd1: Maximum number of peer devices = 1
+2023-02-06T16:44:25.157522+01:00 jb154sapqe02 kernel: [ 4133.717721][T23985] drbd drbd01: Method to ensure write ordering: flush
+2023-02-06T16:44:25.157522+01:00 jb154sapqe02 kernel: [ 4133.719474][T23985] drbd drbd01/0 drbd1: drbd_bm_resize called with capacity == 2097016
+2023-02-06T16:44:25.157524+01:00 jb154sapqe02 kernel: [ 4133.721096][T23985] drbd drbd01/0 drbd1: resync bitmap: bits=262127 words=4096 pages=8
+2023-02-06T16:44:25.157527+01:00 jb154sapqe02 kernel: [ 4133.722356][T23985] drbd1: detected capacity change from 0 to 2097016
+2023-02-06T16:44:25.157528+01:00 jb154sapqe02 kernel: [ 4133.723414][T23985] drbd drbd01/0 drbd1: size = 1024 MB (1048508 KB)
+2023-02-06T16:44:25.179919+01:00 jb154sapqe02 kernel: [ 4133.739954][T23985] drbd drbd01/0 drbd1: recounting of set bits took additional 0ms
+2023-02-06T16:44:25.179943+01:00 jb154sapqe02 kernel: [ 4133.741308][T23985] drbd drbd01/0 drbd1: disk( Attaching -> Inconsistent )
+2023-02-06T16:44:25.179948+01:00 jb154sapqe02 kernel: [ 4133.742480][T23985] drbd drbd01/0 drbd1 jb154sapqe01: pdsk( DUnknown -> Outdated )
+2023-02-06T16:44:25.179949+01:00 jb154sapqe02 kernel: [ 4133.743973][T23985] drbd drbd01/0 drbd1: attached to current UUID: 0000000000000004
+2023-02-06T16:44:25.206361+01:00 jb154sapqe02 kernel: [ 4133.771504][T24001] drbd drbd01 jb154sapqe01: conn( StandAlone -> Unconnected )
+2023-02-06T16:44:25.209702+01:00 jb154sapqe02 kernel: [ 4133.773775][T23972] drbd drbd01 jb154sapqe01: Starting receiver thread (from drbd_w_drbd01 [23972])
+2023-02-06T16:44:25.213091+01:00 jb154sapqe02 kernel: [ 4133.777431][T24004] drbd drbd01 jb154sapqe01: conn( Unconnected -> Connecting )
+2023-02-06T16:44:25.753573+01:00 jb154sapqe02 kernel: [ 4134.315811][T24004] drbd drbd01 jb154sapqe01: Handshake to peer 0 successful: Agreed network protocol version 120
+2023-02-06T16:44:25.753606+01:00 jb154sapqe02 kernel: [ 4134.317930][T24004] drbd drbd01 jb154sapqe01: Feature flags enabled on protocol level: 0xf TRIM THIN_RESYNC WRITE_SAME WRITE_ZEROES.
+2023-02-06T16:44:25.753620+01:00 jb154sapqe02 kernel: [ 4134.320172][T24004] drbd drbd01 jb154sapqe01: Starting ack_recv thread (from drbd_r_drbd01 [24004])
+2023-02-06T16:44:25.845197+01:00 jb154sapqe02 kernel: [ 4134.406569][T24004] drbd drbd01 jb154sapqe01: Preparing remote state change 639728590
+2023-02-06T16:44:25.863084+01:00 jb154sapqe02 kernel: [ 4134.423659][T24004] drbd drbd01/0 drbd1 jb154sapqe01: drbd_sync_handshake:
+2023-02-06T16:44:25.863102+01:00 jb154sapqe02 kernel: [ 4134.424900][T24004] drbd drbd01/0 drbd1 jb154sapqe01: self 0000000000000004:0000000000000000:0000000000000000:0000000000000000 bits:0 flags:24
+2023-02-06T16:44:25.863105+01:00 jb154sapqe02 kernel: [ 4134.427164][T24004] drbd drbd01/0 drbd1 jb154sapqe01: peer 0000000000000004:0000000000000000:0000000000000000:0000000000000000 bits:0 flags:24
+2023-02-06T16:44:25.863107+01:00 jb154sapqe02 kernel: [ 4134.429441][T24004] drbd drbd01/0 drbd1 jb154sapqe01: uuid_compare()=no-sync by rule=just-created-both
+2023-02-06T16:44:25.873019+01:00 jb154sapqe02 kernel: [ 4134.434324][T24004] drbd drbd01 jb154sapqe01: Committing remote state change 639728590 (primary_nodes=0)
+2023-02-06T16:44:25.873030+01:00 jb154sapqe02 kernel: [ 4134.436028][T24004] drbd drbd01 jb154sapqe01: conn( Connecting -> Connected ) peer( Unknown -> Secondary )
+2023-02-06T16:44:25.873031+01:00 jb154sapqe02 kernel: [ 4134.437557][T24004] drbd drbd01/0 drbd1 jb154sapqe01: pdsk( Outdated -> Inconsistent ) repl( Off -> Established )
+```
+
+And the log on the first node continues...
+
+```
+2023-02-06T16:44:25.754225+01:00 jb154sapqe01 kernel: [18365.439854][T25388] drbd drbd01 jb154sapqe02: Handshake to peer 1 successful: Agreed network protocol version 120
+2023-02-06T16:44:25.754257+01:00 jb154sapqe01 kernel: [18365.441974][T25388] drbd drbd01 jb154sapqe02: Feature flags enabled on protocol level: 0xf TRIM THIN_RESYNC WRITE_SAME WRITE_ZEROES.
+2023-02-06T16:44:25.754263+01:00 jb154sapqe01 kernel: [18365.444465][T25388] drbd drbd01 jb154sapqe02: Starting ack_recv thread (from drbd_r_drbd01 [25388])
+2023-02-06T16:44:25.841754+01:00 jb154sapqe01 kernel: [18365.528511][T25370] drbd drbd01: Preparing cluster-wide state change 639728590 (0->1 499/146)
+2023-02-06T16:44:25.859864+01:00 jb154sapqe01 kernel: [18365.544541][T25388] drbd drbd01/0 drbd1 jb154sapqe02: drbd_sync_handshake:
+2023-02-06T16:44:25.859876+01:00 jb154sapqe01 kernel: [18365.545914][T25388] drbd drbd01/0 drbd1 jb154sapqe02: self 0000000000000004:0000000000000000:0000000000000000:0000000000000000 bits:0 flags:24
+2023-02-06T16:44:25.859879+01:00 jb154sapqe01 kernel: [18365.548222][T25388] drbd drbd01/0 drbd1 jb154sapqe02: peer 0000000000000004:0000000000000000:0000000000000000:0000000000000000 bits:0 flags:24
+2023-02-06T16:44:25.859880+01:00 jb154sapqe01 kernel: [18365.550515][T25388] drbd drbd01/0 drbd1 jb154sapqe02: uuid_compare()=no-sync by rule=just-created-both
+2023-02-06T16:44:25.870707+01:00 jb154sapqe01 kernel: [18365.555374][T25370] drbd drbd01: State change 639728590: primary_nodes=0, weak_nodes=0
+2023-02-06T16:44:25.870717+01:00 jb154sapqe01 kernel: [18365.556749][T25370] drbd drbd01: Committing cluster-wide state change 639728590 (28ms)
+2023-02-06T16:44:25.870718+01:00 jb154sapqe01 kernel: [18365.558110][T25370] drbd drbd01 jb154sapqe02: conn( Connecting -> Connected ) peer( Unknown -> Secondary )
+2023-02-06T16:44:25.870719+01:00 jb154sapqe01 kernel: [18365.559746][T25370] drbd drbd01/0 drbd1 jb154sapqe02: pdsk( Outdated -> Inconsistent ) repl( Off -> Established )
+```
+
 
 ### SMB
 
@@ -5564,6 +5662,70 @@ KDUMP_SSH_IDENTITY=
 for analysis, ... and finally *KDUMP_SAVEDIR* as destination for the
 dump. See `man 5 kdump` for details.
 
+
+### kdump inside cluster
+
+If there would be a crash and kdump would be running to save kernel
+memory image, one does not want that the cluster fences the node
+running kdump collection activity.
+
+``` shell
+$ grep -Pv '(^\s*(#|$)|="")' /etc/sysconfig/kdump
+KDUMP_AUTO_RESIZE="no"
+KDUMP_IMMEDIATE_REBOOT="no"
+KDUMP_SAVEDIR="/var/crash"
+KDUMP_KEEP_OLD_DUMPS="5"
+KDUMP_FREE_DISK_SIZE="64"
+KDUMP_VERBOSE="3"
+KDUMP_DUMPLEVEL="31"
+KDUMP_DUMPFORMAT="lzo"
+KDUMP_CONTINUE_ON_ERROR="true"
+KDUMP_POSTSCRIPT="/usr/lib/fence_kdump_send -v -f ipv4 -i 5 -c 5 jb154sapqe01 jb154sapqe02"
+KDUMP_COPY_KERNEL="yes"
+KDUMP_NETCONFIG="auto"
+KDUMP_NET_TIMEOUT="30
+```
+
+The cluster configuration - it adds `fence_kdump`-based stonith device
+and modifies fencing topology in a way, that if if a message from
+`fence_kdump_send` arrives, then the node wanting to fence the node
+being in kdump activity will give actual fence as it thinks the fence
+already occurred.
+
+```
+primitive stonith-kdump-jb154sapqe01 stonith:fence_kdump \
+        params nodename=jb154sapqe01 \
+        pcmk_host_check=static-list \
+        pcmk_reboot_action=off \
+        pcmk_monitor_action=metadata \
+        pcmk_reboot_retries=1 \
+        timeout=60
+primitive stonith-kdump-jb154sapqe02 stonith:fence_kdump \
+        params nodename=jb154sapqe02 \
+        pcmk_host_check=static-list \
+        pcmk_reboot_action=off \
+        pcmk_monitor_action=metadata \
+        pcmk_reboot_retries=1 \
+        timeout=60
+primitive stonith-sbd stonith:external/sbd \
+        params pcmk_delay_max=30
+location l-stonith-kdump-jb154sapqe01 stonith-kdump-jb154sapqe01 inf: jb154sapqe01
+location l-stonith-kdump-jb154sapqe02 stonith-kdump-jb154sapqe02 inf: jb154sapqe02
+fencing_topology \
+        jb154sapqe01: stonith-kdump-jb154sapqe01 stonith-sbd \
+        jb154sapqe02: stonith-kdump-jb154sapqe02 stonith-sbd
+```
+
+Logged `fence_kdump_send` message causing return value for stonith action to be '0'.
+
+```
+Feb 10 12:13:56 jb154sapqe02 pacemaker-fenced[2566]:  notice: Operation 'reboot' [18940] targeting jb154sapqe01 using stonith-sbd returned 0 (OK)
+Feb 10 12:13:56 jb154sapqe02 pacemaker-fenced[2566]:  notice: Action 'reboot' targeting jb154sapqe01 using stonith-sbd on behalf of pacemaker-controld.2570@jb154sapqe02: OK
+Feb 10 12:13:56 jb154sapqe02 pacemaker-fenced[2566]:  error: Already sent notifications for 'reboot' targeting jb154sapqe01 by jb154sapqe02 for client pacemaker-controld.2570@jb154sapqe02: OK
+Feb 10 12:14:07 jb154sapqe02 pacemaker-fenced[2566]:  notice: Operation 'reboot' [18967] targeting jb154sapqe01 using stonith-sbd returned 0 (OK)
+```
+
+
 ### modules
 
 kernel modules are usually loaded by `udev` based *uevent*, see [udev](#udev).
@@ -7359,6 +7521,96 @@ host $ readlink -f $(readlink -f /sys/class/net/eth4)/../../virtfn*/net/*)
 /sys/devices/pci0000:00/0000:00:1c.0/0000:04:11.0/net/eth22
 /sys/devices/pci0000:00/0000:00:1c.0/0000:04:11.2/net/eth23
 /sys/devices/pci0000:00/0000:00:1c.0/0000:04:11.4/net/eth24
+```
+
+
+### SSH
+
+Capturing SSH handshake.
+
+
+``` shell
+$ tshark -i eth0 -f 'port 22 and not host 192.168.0.1' -Y 'ssh.message_code == 20' -O ssh
+Capturing on 'eth0'
+ ** (tshark:13759) 17:29:25.282458 [Main MESSAGE] -- Capture started.
+ ** (tshark:13759) 17:29:25.282559 [Main MESSAGE] -- File: "/tmp/wireshark_eth0N896Z1.pcapng"
+Frame 8: 1602 bytes on wire (12816 bits), 1602 bytes captured (12816 bits) on interface eth0, id 0
+Ethernet II, Src: RealtekU_3b:d8:6d (52:54:00:3b:d8:6d), Dst: RealtekU_d2:63:30 (52:54:00:d2:63:30)
+Internet Protocol Version 4, Src: 192.168.0.187, Dst: 192.168.0.57
+Transmission Control Protocol, Src Port: 65218, Dst Port: 22, Seq: 22, Ack: 22, Len: 1536
+SSH Protocol
+    SSH Version 2
+        Packet Length: 1532
+        Padding Length: 6
+        Key Exchange
+            Message Code: Key Exchange Init (20)
+            Algorithms
+                Cookie: 2c8b82f936d02ceea31d34643295efe9
+                kex_algorithms length: 269
+                kex_algorithms string [truncated]: curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,di
+                server_host_key_algorithms length: 500
+                server_host_key_algorithms string [truncated]: ssh-ed25519-cert-v01@openssh.com,ssh-ed25519,ecdsa-sha2-nistp256-cert-v01@openssh.com,ecdsa-sha2-nistp384-cert-v01@openssh.com,ecdsa-sha2-nistp521-cert-v01@openssh.com,sk-ecdsa-sha2-nistp256-
+                encryption_algorithms_client_to_server length: 108
+                encryption_algorithms_client_to_server string: chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com
+                encryption_algorithms_server_to_client length: 108
+                encryption_algorithms_server_to_client string: chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com
+                mac_algorithms_client_to_server length: 213
+                mac_algorithms_client_to_server string [truncated]: umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-
+                mac_algorithms_server_to_client length: 213
+                mac_algorithms_server_to_client string [truncated]: umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-
+                compression_algorithms_client_to_server length: 26
+                compression_algorithms_client_to_server string: none,zlib@openssh.com,zlib
+                compression_algorithms_server_to_client length: 26
+                compression_algorithms_server_to_client string: none,zlib@openssh.com,zlib
+                languages_client_to_server length: 0
+                languages_client_to_server string:
+                languages_server_to_client length: 0
+                languages_server_to_client string:
+                First KEX Packet Follows: 0
+                Reserved: 00000000
+                [hasshAlgorithms [truncated]: curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,diffie-h]
+                [hassh: ec7378c1a92f5a8dde7e8b7a1ddf33d1]
+        Padding String: 000000000000
+    [Direction: client-to-server]
+
+Frame 10: 1146 bytes on wire (9168 bits), 1146 bytes captured (9168 bits) on interface eth0, id 0
+Ethernet II, Src: RealtekU_d2:63:30 (52:54:00:d2:63:30), Dst: RealtekU_3b:d8:6d (52:54:00:3b:d8:6d)
+Internet Protocol Version 4, Src: 192.168.0.57, Dst: 192.168.0.187
+Transmission Control Protocol, Src Port: 22, Dst Port: 65218, Seq: 22, Ack: 1558, Len: 1080
+SSH Protocol
+    SSH Version 2
+        Packet Length: 1076
+        Padding Length: 6
+        Key Exchange
+            Message Code: Key Exchange Init (20)
+            Algorithms
+                Cookie: 701e5cdd774938f24c7d07186ceae1a6
+                kex_algorithms length: 258
+                kex_algorithms string [truncated]: curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,di
+                server_host_key_algorithms length: 65
+                server_host_key_algorithms string: rsa-sha2-512,rsa-sha2-256,ssh-rsa,ecdsa-sha2-nistp256,ssh-ed25519
+                encryption_algorithms_client_to_server length: 108
+                encryption_algorithms_client_to_server string: chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com
+                encryption_algorithms_server_to_client length: 108
+                encryption_algorithms_server_to_client string: chacha20-poly1305@openssh.com,aes128-ctr,aes192-ctr,aes256-ctr,aes128-gcm@openssh.com,aes256-gcm@openssh.com
+                mac_algorithms_client_to_server length: 213
+                mac_algorithms_client_to_server string [truncated]: umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-
+                mac_algorithms_server_to_client length: 213
+                mac_algorithms_server_to_client string [truncated]: umac-64-etm@openssh.com,umac-128-etm@openssh.com,hmac-sha2-256-etm@openssh.com,hmac-sha2-512-etm@openssh.com,hmac-sha1-etm@openssh.com,umac-64@openssh.com,umac-128@openssh.com,hmac-sha2-
+                compression_algorithms_client_to_server length: 21
+                compression_algorithms_client_to_server string: none,zlib@openssh.com
+                compression_algorithms_server_to_client length: 21
+                compression_algorithms_server_to_client string: none,zlib@openssh.com
+                languages_client_to_server length: 0
+                languages_client_to_server string:
+                languages_server_to_client length: 0
+                languages_server_to_client string:
+                First KEX Packet Follows: 0
+                Reserved: 00000000
+                [hasshServerAlgorithms [truncated]: curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group-exchange-sha256,diffie-hellman-group16-sha512,diffie-hellman-group18-sha512,di]
+                [hasshServer: b12d2871a1189eff20364cf5333619ee]
+        Padding String: 000000000000
+    [Direction: server-to-client]
 ```
 
 
