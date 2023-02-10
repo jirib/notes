@@ -5725,6 +5725,20 @@ Feb 10 12:13:56 jb154sapqe02 pacemaker-fenced[2566]:  error: Already sent notifi
 Feb 10 12:14:07 jb154sapqe02 pacemaker-fenced[2566]:  notice: Operation 'reboot' [18967] targeting jb154sapqe01 using stonith-sbd returned 0 (OK)
 ```
 
+Network inspection of `fence_kdump_send` messages...
+
+``` shell
+$ tshark -i eth0 -f 'port 7410'
+Running as user "root" and group "root". This could be dangerous.
+Capturing on 'eth0'
+ ** (tshark:18698) 12:12:56.681615 [Main MESSAGE] -- Capture started.
+ ** (tshark:18698) 12:12:56.682024 [Main MESSAGE] -- File: "/tmp/wireshark_eth0UYXD01.pcapng"
+    1 0.000000000 192.168.0.57 → 192.168.0.61 UDP 50 60006 → 7410 Len=8
+    2 5.420996300 192.168.0.57 → 192.168.0.61 UDP 50 60006 → 7410 Len=8
+    3 10.842449536 192.168.0.57 → 192.168.0.61 UDP 50 60006 → 7410 Len=8
+    4 16.267093402 192.168.0.57 → 192.168.0.61 UDP 50 60006 → 7410 Len=8
+
+```
 
 ### modules
 
