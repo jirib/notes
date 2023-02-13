@@ -45,6 +45,152 @@ domains = ldap
 homedir_substring = /home
 ```
 
+
+#### external TLS in 389ds
+
+**WARNING**: not sure if this is the best way to do it!
+
+
+What is the current cert used?
+
+``` shell
+$ : | openssl s_client -connect 127.0.0.1:636 -showcerts 2>/dev/null | \
+    awk -v cmd='openssl x509 -noout -subject -startdate -enddate -ext subjectAltName -noout' '/BEGIN/ {close(cmd)}; { print | cmd }' 2>/dev/null
+subject=C = AU, ST = Queensland, L = 389ds, O = testing, GN = 727d7e30-1141-45f9-87e0-f6cb82d875b8, CN = s153cl1.example.com
+notBefore=Feb 13 08:13:46 2023 GMT
+notAfter=Feb 13 08:13:46 2025 GMT
+X509v3 Subject Alternative Name:
+    DNS:s153cl1.example.com
+subject=C = AU, ST = Queensland, L = 389ds, O = testing, CN = ssca.389ds.example.com
+notBefore=Nov 11 09:39:44 2022 GMT
+notAfter=Nov 11 09:39:44 2024 GMT
+```
+
+Listing current certs in NSS db:
+
+``` shell
+$ certutil -L -d /etc/dirsrv/slapd-TEST/
+
+Certificate Nickname                                         Trust Attributes
+                                                             SSL,S/MIME,JAR/XPI
+
+Self-Signed-CA                                               CT,,
+Server-Cert                                                  u,u,u
+```
+
+Listing current keys in NSS db:
+
+``` shell
+$ certutil -K -d /etc/dirsrv/slapd-TEST/ -f <(awk -F: '{ print $2 }' /etc/dirsrv/slapd-TEST/pin.txt)
+certutil: Checking token "NSS Certificate DB" in slot "NSS User Private Key and Certificate Services"
+< 0> rsa      7d5305c53f112fe3a659570eee6c27b72307610f   NSS Certificate DB:Server-Cert
+```
+
+What is this 'Self-Signed-CA' ?
+
+``` shell
+$ certutil -L -d /etc/dirsrv/slapd-TEST/ -n 'Self-Signed-CA' -a  | openssl x509 -subject -noout
+subject=C = AU, ST = Queensland, L = 389ds, O = testing, CN = ssca.389ds.example.com
+
+s154cl1:~ # dsconf -D 'cn=Directory Manager' ldap://127.0.0.1 security ca-certificate list
+Enter password for cn=Directory Manager on ldap://127.0.0.1:
+Certificate Name: Self-Signed-CA
+Subject DN: CN=ssca.389ds.example.com,O=testing,L=389ds,ST=Queensland,C=AU
+Issuer DN: CN=ssca.389ds.example.com,O=testing,L=389ds,ST=Queensland,C=AU
+Expires: 2024-11-11 09:39:44
+Trust Flags: CT,,
+```
+
+What is the connection between 389DS instance and '*Server-Cert*'"nickname" or alias?
+
+``` shell
+$ grep nsSSLPersonalitySSL /etc/dirsrv/slapd-TEST/dse.ldif
+nsSSLPersonalitySSL: Server-Cert
+```
+
+Importing external CA (a simulation with CloudFlare Origin Server
+CA/cert/key as I don't have real cert signed by a trusted public CA):
+
+``` shell
+$ dsconf -D 'cn=Directory Manager' ldap://127.0.0.1 security ca-certificate add \
+    --file /tmp/origin_ca_rsa_root.pem --name 'CloudFlare Origin SSL Certificate Authority'
+Enter password for cn=Directory Manager on ldap://127.0.0.1:
+Successfully added CA certificate (CloudFlare Origin SSL Certificate Authority)
+```
+
+Listing CA list after the import:
+
+``` shell
+$ certutil -L -d /etc/dirsrv/slapd-TEST/ | grep CloudFlare
+CloudFlare Origin SSL Certificate Authority                  CT,,
+```
+
+Import external cert/key:
+
+``` shell
+$ dsctl TEST tls import-server-key-cert /tmp/cert /tmp/key
+```
+
+Listing 389DS instance tls cert for 'Server-Cert':
+
+``` shell
+$ dsctl TEST tls show-cert 'Server-Cert' | head -n 20
+Certificate:
+    Data:
+        Version: 3 (0x2)
+        Serial Number:
+            4c:b1:6d:60:84:99:82:03:92:6d:60:6a:f3:ee:04:65:
+            8f:0b:f3:71
+        Signature Algorithm: PKCS #1 SHA-256 With RSA Encryption
+        Issuer: "ST=California,L=San Francisco,OU=CloudFlare Origin SSL Certi
+            ficate Authority,O="CloudFlare, Inc.",C=US"
+        Validity:
+            Not Before: Sun Nov 21 17:17:00 2021
+            Not After : Mon Nov 17 17:17:00 2036
+        Subject: "CN=CloudFlare Origin Certificate,OU=CloudFlare Origin CA,O=
+            "CloudFlare, Inc.""
+        Subject Public Key Info:
+            Public Key Algorithm: PKCS #1 RSA Encryption
+            RSA Public Key:
+                Modulus:
+                    c1:4d:96:a9:7a:45:c0:a0:71:52:81:70:a4:01:d0:f3:
+                    03:bb:f5:a1:a3:52:e9:ec:a4:05:e2:c4:6a:71:9b:01:
+```
+
+Let's validate, that it is imported correctly, while "exporting"
+'Server-Cert' form NSS DB and comparing md5 checksum of the key on the
+filesystem:
+
+``` shell
+$ pk12util -o /dev/stdout -n 'Server-Cert' -d /etc/dirsrv/slapd-TEST/ -k <(awk -F: '{ print $2 }' /etc/dirsrv/slapd-TEST/pin.txt) | \
+    openssl pkcs12 -nocerts -nodes | openssl rsa -modulus -noout | openssl md5
+Enter password for PKCS12 file:
+Re-enter password:
+Enter Import Password:
+(stdin)= 062e714d1ad4d90504de051499382782
+
+$ openssl rsa -in /tmp/key -modulus -noout | openssl md5
+(stdin)= 062e714d1ad4d90504de051499382782
+```
+
+Let's restart and validate it (I needed to obfuscate subjectAltName value!):
+
+``` shell
+$ systemctl status dirsrv@TEST.service
+
+$ : | openssl s_client -connect 127.0.0.1:636 -showcerts 2>/dev/null | \
+    awk -v cmd='openssl x509 -noout -subject -startdate -enddate -ext subjectAltName' '/BEGIN/{close(cmd)}; { print | cmd }' 2>/dev/null
+subject=O = "CloudFlare, Inc.", OU = CloudFlare Origin CA, CN = CloudFlare Origin Certificate
+notBefore=Nov 21 17:17:00 2021 GMT
+notAfter=Nov 17 17:17:00 2036 GMT
+X509v3 Subject Alternative Name:
+    DNS:*.XXXXXXXXX.info, DNS:XXXXXXX.info
+subject=C = US, O = "CloudFlare, Inc.", OU = CloudFlare Origin SSL Certificate Authority, L = San Francisco, ST = California
+notBefore=Aug 23 21:08:00 2019 GMT
+notAfter=Aug 15 17:00:00 2029 GMT
+```
+
+
 ### kerberos
 
 #### client
