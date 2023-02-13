@@ -2946,6 +2946,7 @@ exists
 
 A [playgroun](https://jqplay.org/) for `jq`.
 
+
 ### patches / diffs
 
 Patching files from different paths from one diff, that is extracting
@@ -2963,6 +2964,15 @@ s153cl1:/usr/lib/python3.6/site-packages/crmsh # filterdiff -p2 \
 patching file msg.py
 patching file utils.py
 ```
+
+Or more funny example...
+
+``` shell
+$ diff -uNp <(pandoc -f odt -t plain /tmp/orig.odt) \
+    <(pandoc -f odt -t plain /tmp/new.odt) \
+    | filterdiff --lines=171,180
+```
+
 
 ### perl
 
