@@ -11,11 +11,163 @@
 
 ### 389ds
 
+One can create 389 DS instance via:
+
+- a custom config file
+- from a template
+
+But basically `dscreate create-template` just generate a default
+config file, so there's not really a difference which mode you would
+use!
+
+#### 389ds creation from a custome config file
+
 ``` shell
-dsidm localhost client_config sssd.conf | \
-  sed '1d' | \
-  egrep -v '^(\s*[;#]| *$)' | \
-  sed 's!//.*!//<fqdn>:636!'                 # get 389ds configuration for sssd
+$ cat > ${XDG_RUNTIME_DIR}/389ds.inf <<-EOF
+> [general]
+> full_machine_name = jb154sapqe01.example.com
+> start = False
+> strict_host_checking = False
+> [slapd]
+> instance_name = EXAMPLECOM
+> port = 389
+> root_password = <password>
+> self_sign_cert = False
+> [backend-userroot]
+> create_suffix_entry = True
+> sample_entries = yes
+> suffix = dc=example,dc=com
+> EOF
+
+$ dscreate from-file ${XDG_RUNTIME_DIR}/389ds.inf | tee ${XDG_RUNTIME_DIR}/389ds-tmpl.log
+Starting installation ...
+Validate installation settings ...
+Create file system structures ...
+selinux is disabled, will not relabel ports or files.
+Create database backend: dc=example,dc=com ...
+Perform post-installation tasks ...
+Completed installation for instance: slapd-EXAMPLECOM
+
+# I defined it as not autostarted AFTER the installation
+
+$ dsctl EXAMPLECOM status
+Instance "EXAMPLECOM" is not running
+
+$ dsctl EXAMPLECOM start
+Instance "EXAMPLECOM" has been started
+
+$ dsctl EXAMPLECOM status
+Instance "EXAMPLECOM" is running
+
+$ systemctl is-enabled dirsrv@EXAMPLECOM.service
+enabled
+
+$ systemctl is-active dirsrv@EXAMPLECOM.service
+active
+
+# name instances
+
+$ dsctl -l
+slapd-EXAMPLECOM
+
+$ ss -tnlp | grep $(systemctl show -p MainPID --value dirsrv@EXAMPLECOM.service)
+LISTEN 0      128                *:389              *:*    users:(("ns-slapd",pid=17406,fd=7))
+```
+
+
+#### default .dsrc for sysadmins
+
+`.dsrc` is like `ldap.conf(5)`, so it save typing same options all the time.
+
+``` shell
+$ ( umask 066; cat > ~/.dsrc <<EOF
+[EXAMPLECOM]
+uri = ldapi://%%2fvar%%2frun%%2fslapd-EXAMPLECOM.socket
+basedn = dc=example,dc=com
+binddn = cn=Directory Manager
+EOF
+)
+```
+
+But it's probably easier to use `dsctl` tool:
+
+``` shell
+$ dsctl EXAMPLECOM dsrc create \
+  --uri ldapi://%%2fvar%%2frun%%2fslapd-EXAMPLECOM.socket \
+  --basedn dc=example,dc=com \
+  --binddn cn='Directory Manager' \
+  --pwdfile /root/.dspasswd
+```
+
+
+#### 389ds management
+
+- `dsconf`
+- `dsctl`
+
+
+``` shell
+$ dsidm EXAMPLECOM user create \
+  --uid=testovic \
+  --cn="testovic" \
+  --uidNumber=10000 \
+  --gidNumber=10000 \
+  --homeDirectory=/home/EXAMPLECOM/testovic \
+  --displayName='Test Testovic'
+Successfully created testovic
+
+$ dsidm EXAMPLECOM user get testovic
+dn: uid=testovic,ou=people,dc=example,dc=com
+cn: testovic
+displayName: Test Testovic
+gidNumber: 10000
+homeDirectory: /home/EXAMPLECOM/testovic
+objectClass: top
+objectClass: nsPerson
+objectClass: nsAccount
+objectClass: nsOrgPerson
+objectClass: posixAccount
+uid: testovic
+uidNumber: 10000
+
+$ dsidm EXAMPLECOM account reset_password "uid=testovic,ou=People,dc=example,dc=com" testovic123
+reset password for uid=testovic,ou=People,dc=example,dc=com
+```
+
+``` shell
+$ ldapsearch -x uid=testovic
+# extended LDIF
+#
+# LDAPv3
+# base <dc=example,dc=com> (default) with scope subtree
+# filter: uid=testovic
+# requesting: ALL
+#
+
+# testovic, people, example.com
+dn: uid=testovic,ou=people,dc=example,dc=com
+objectClass: top
+objectClass: nsPerson
+objectClass: nsAccount
+objectClass: nsOrgPerson
+objectClass: posixAccount
+uid: testovic
+cn: testovic
+displayName: Test Testovic
+uidNumber: 10000
+gidNumber: 10000
+homeDirectory: /home/EXAMPLECOM/testovic
+
+# search result
+search: 2
+result: 0 Success
+
+# numResponses: 2
+# numEntries: 1
+```
+
+``` shell
+$ dsidm EXAMPLECOM client_config sssd.conf | grep -Pv '^\s*($|#)'
 [domain/ldap]
 cache_credentials = True
 id_provider = ldap
@@ -24,7 +176,7 @@ access_provider = ldap
 chpass_provider = ldap
 ldap_schema = rfc2307
 ldap_search_base = dc=example,dc=com
-ldap_uri = ldapi://<fqdn>:636
+ldap_uri = ldapi://%2fvar%2frun%2fslapd-EXAMPLECOM.socket
 ldap_tls_reqcert = demand
 ldap_tls_cacertdir = /etc/openldap/certs
 enumerate = false
