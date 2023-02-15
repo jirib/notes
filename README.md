@@ -10842,9 +10842,9 @@ cat audit.log | \
 > type=SYSTEM_BOOT msg=audit(Wed Jun 16 03:04:31 2021.348:7): pid=3962 uid=0 auid=4294967295 ses=4294967295 msg=' comm="systemd-update-utmp" exe="/usr/lib/systemd/systemd-update-utmp" hostname=? addr=? terminal=? res=success'
 ```
 
-### ssh login example
+#### ssh login example
 
-#### logging in
+##### logging in
 
 ``` shell
 # record about crypto key identifier used for crypto purposes
@@ -10901,7 +10901,7 @@ type=USER_LOGIN msg=audit(1623924437.853:228): pid=1801 uid=0 auid=1000 ses=5 su
 type=USER_START msg=audit(1623924437.853:229): pid=1801 uid=0 auid=1000 ses=5 subj=system_u:system_r:sshd_t:s0-s0:c0.c1023 msg='op=login id=1000 exe="/usr/sbin/sshd" hostname=t14s.home.arpa addr=192.168.122.1 terminal=/dev/pts/1 res=success'
 ```
 
-#### logging out
+##### logging out
 
 ``` shell
 # record about crypto key identifier used for crypto purposes
@@ -10927,7 +10927,7 @@ type=CRYPTO_KEY_USER msg=audit(1623924440.133:238): pid=1801 uid=0 auid=1000 ses
 type=CRYPTO_KEY_USER msg=audit(1623924440.133:239): pid=1801 uid=0 auid=1000 ses=5 subj=system_u:system_r:sshd_t:s0-s0:c0.c1023 msg='op=destroy kind=server fp=SHA256:63:42:8b:7b:d5:ff:b1:e2:91:09:51:8d:35:dd:79:7a:0a:29:b0:5e:86:90:1e:17:f1:c8:dc:f9:fc:e6:cc:3d direction=? spid=1801 suid=0  exe="/usr/sbin/sshd" hostname=? addr=? terminal=? res=success'
 ```
 
-#### passwords
+### passwords
 
 to generate encrypted/salted password use `mkpasswd`
 
@@ -10938,6 +10938,164 @@ $6$AOYSAh/LyR4A.Dz.$A/HSpublK0yEObt9h7MQVOMOp7AKTrA0QxYjHfH/fIM27Zv0yIT1bxoIxPSZ
 python3 -c 'import crypt; print(crypt.crypt("pass123", crypt.mksalt(crypt.METHOD_SHA512)))'
 $6$zyuGj55qkPCh/zht$PDk60osb/mzE6xCvJx/X3uDWtU/8jGRefSQHIjCDdYsDEiKcZE3XmX/0dW7Eyz6VUIujn5aJLVslsbywA7su0.
 ```
+
+
+### pgp / gnupg
+
+
+### generating a new key
+
+``` shell
+$ gpg --full-gen-key
+```
+
+
+#### revoketing a key
+
+``` shell
+$ gpg --list-secret-keys | grep -B 1 '<email>'
+      40F509939F782D3AE9BCA37DB970A976D18403BF
+uid           [ultimate] XXXX XXXX <email>
+
+$ gpg --output ~/tmp/revoke-<email> --gen-revoke 40F509939F782D3AE9BCA37DB970A976D18403BF
+
+sec  ed25519/B970A976D18403BF 2021-12-28 XXXX XXXX <email>
+
+Create a revocation certificate for this key? (y/N) y
+Please select the reason for the revocation:
+  0 = No reason specified
+  1 = Key has been compromised
+  2 = Key is superseded
+  3 = Key is no longer used
+  Q = Cancel
+(Probably you want to select 1 here)
+Your decision? 3
+Enter an optional description; end it with an empty line:
+>
+Reason for revocation: Key is no longer used
+(No description given)
+Is this okay? (y/N) y
+ASCII armored output forced.
+Revocation certificate created.
+
+Please move it to a medium which you can hide away; if Mallory gets
+access to this certificate he can use it to make your key unusable.
+It is smart to print this certificate and store it away, just in case
+your media become unreadable.  But have some caution:  The print system of
+your machine might store the data and make it available to others!
+
+$ file revoke-<email>
+revoke-<email>: PGP public key block Signature (old)
+
+$ gpg --import revoke-<email>
+gpg: key B970A976D18403BF: "XXXX XXXX <email>" revocation certificate imported
+gpg: Total number processed: 1
+gpg:    new key revocations: 1
+gpg: public key of ultimately trusted key D4FB86F50CE03FD3 not found
+gpg: marginals needed: 3  completes needed: 1  trust model: pgp
+gpg: depth: 0  valid:   4  signed:   0  trust: 0-, 0q, 0n, 0m, 0f, 4u
+gpg: next trustdb check due at 2023-09-17
+
+$ gpg --list-key <email>
+pub   ed25519 2021-12-28 [SC] [revoked: 2023-02-15]
+      40F509939F782D3AE9BCA37DB970A976D18403BF
+uid           [ revoked] XXXX XXXX <email>
+```
+
+But that does not automatically changes the key on a keyserver!!!
+
+You can use below to download a key without importing into default key DB:
+
+``` shell
+$ export GNUPGHOME=$(mktemp -d)
+
+$ gpg --recv-keys 40F509939F782D3AE9BCA37DB970A976D18403BF
+gpg: keybox '/tmp/tmp.Nx99oojTkK/pubring.kbx' created
+gpg: /tmp/tmp.Nx99oojTkK/trustdb.gpg: trustdb created
+gpg: key B970A976D18403BF: public key "XXXX XXXX <email>" imported
+gpg: Total number processed: 1
+gpg:               imported: 1
+
+$ gpg --list-keys
+/tmp/tmp.Nx99oojTkK/pubring.kbx
+-------------------------------
+pub   ed25519 2021-12-28 [SC] [expires: 2023-12-28]
+      40F509939F782D3AE9BCA37DB970A976D18403BF
+uid           [ unknown] XXXX XXXX <email>
+sub   cv25519 2021-12-28 [E] [expires: 2023-12-28]
+```
+
+Thus, sending the key again.
+
+``` shell
+$ gpg --send-keys 40F509939F782D3AE9BCA37DB970A976D18403BF
+gpg: sending key 40F509939F782D3AE9BCA37DB970A976D18403BF to hkp://keyserver.ubuntu.com
+```
+
+Validation that the keyserver has the revoked key:
+
+``` shell
+$ export GNUPGHOME=$(mktemp -d)
+
+$ gpg --verbose --search-keys 40F509939F782D3AE9BCA37DB970A976D18403BF
+gpg: keybox '/tmp/tmp.e5QpFUYpgq/pubring.kbx' created
+gpg: no running dirmngr - starting '/usr/bin/dirmngr'
+gpg: waiting for the dirmngr to come up ... (5s)
+gpg: connection to the dirmngr established
+gpg: data source: https://162.213.33.8:443
+(1)     XXXX XXXX <email>
+          263 bit EDDSA key B970A976D18403BF, created: 2021-12-28
+Keys 1-1 of 1 for "40F509939F782D3AE9BCA37DB970A976D18403BF".  Enter number(s), N)ext, or Q)uit > 1
+gpg: data source: https://162.213.33.8:443
+gpg: armor header: Comment: Hostname:
+gpg: armor header: Version: Hockeypuck 2.1.0-189-g15ebf24
+gpg: pub  ed25519/B970A976D18403BF 2021-12-28  XXXX XXXX <email>
+gpg: Note: signature key B970A976D18403BF has been revoked
+gpg: Note: signature key B970A976D18403BF has been revoked
+gpg: Note: signature key B970A976D18403BF has been revoked
+gpg: Note: signature key B970A976D18403BF has been revoked
+gpg: Note: signature key B970A976D18403BF has been revoked
+gpg: Note: signature key B970A976D18403BF has been revoked
+gpg: Note: signature key B970A976D18403BF has been revoked
+gpg: Note: signature key B970A976D18403BF has been revoked
+gpg: Note: signature key B970A976D18403BF has been revoked
+gpg: Note: signature key B970A976D18403BF has been revoked
+gpg: Note: signature key B970A976D18403BF has been revoked
+gpg: /tmp/tmp.e5QpFUYpgq/trustdb.gpg: trustdb created
+gpg: using pgp trust model
+gpg: key B970A976D18403BF: public key "XXXX XXXX <email>" imported
+gpg: no running gpg-agent - starting '/usr/bin/gpg-agent'
+gpg: waiting for the agent to come up ... (5s)
+gpg: connection to the agent established
+gpg: Total number processed: 1
+gpg:               imported: 1
+
+$ gpg --list-keys
+/tmp/tmp.e5QpFUYpgq/pubring.kbx
+-------------------------------
+pub   ed25519 2021-12-28 [SC] [revoked: 2023-02-15]
+      40F509939F782D3AE9BCA37DB970A976D18403BF
+uid           [ revoked] XXXX XXXX <email>
+```
+
+
+#### gnupg tips
+
+``` shell
+$ gpg --list-keys
+
+$ gpg --verbose --search-keys <value>
+
+$ gpg --recv-keys <value>
+
+# public key
+
+$ gpg --armor --export
+
+# secret key
+$ gpg --export-secret-keys <value>
+```
+
 
 ### sudo
 
