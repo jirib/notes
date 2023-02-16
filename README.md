@@ -11122,12 +11122,10 @@ $ docker-compose up -d
  ⠿ Container devel-hockeypuck-1  Started                                                                                                                                                                                                 1.1s
 
 $ gpg --verbose --keyserver hkp://127.0.0.1:11371 --search-keys <email>
-gpg: data source: http://127.0.0.1:11371
+gpg: searching for "<email>" from hkp server 127.0.0.1
 (1)     XXXX XXXX <email>
-          263 bit EDDSA key E5B7D78BB970380F, created: 2023-02-15
-Keys 1-1 of 1 for "<email>".  Enter number(s), N)ext, or Q)uit > Q
-gpg: error searching keyserver: Operation cancelled
-gpg: keyserver search failed: Operation cancelled
+          263 bit unknown key B970380F, created: 2023-02-15
+Keys 1-1 of 1 for "<email>".  Enter number(s), N)ext, or Q)uit >
 ```
 
 Voila!
