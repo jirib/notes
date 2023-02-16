@@ -11099,8 +11099,9 @@ $ gpg --export-secret-keys <value>
 #### hockeypuck PGP server
 
 It's written in Golang, for a test purpose (after cloning the repo);
-they tell you to mirror keydump pgp files, it was 33GB, so I gave
-up. Here is a workaround:
+[they tell you to mirror keydump pgp
+files](https://github.com/hockeypuck/hockeypuck#quick-start-with-docker-compose-for-testing),
+it was 33GB, so I gave up. Here is a workaround:
 
 How does it start?
 
