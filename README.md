@@ -11096,6 +11096,42 @@ $ gpg --armor --export
 $ gpg --export-secret-keys <value>
 ```
 
+#### hockeypuck PGP server
+
+It's written in Golang, for a test purpose (after cloning the repo);
+they tell you to mirror keydump pgp files, it was 33GB, so I gave
+up. Here is a workaround:
+
+How does it start?
+
+``` shell
+$ cd ~/tmp/hockeypuck/contrib/docker-compose/devel
+$  docker run --rm -t -i --entrypoint=/bin/cat devel-hockeypuck /hockeypuck/bin/startup.sh | grep pgp
+  if ! ls $keydump/*.pgp >/dev/null 2>&1
+    $bin/hockeypuck-load -config $config $keydump/\*.pgp || exit 1
+  find $keydump -name "*.pgp" -newer $timestamp -print0 | \
+```
+
+So it wants a PGP file there:
+
+``` shell
+$ gpg --export 1F3FF65CAACE78999CFE4510E5B7D78BB970380F > keydump/<email>.pgp
+$ docker-compose up -d
+[+] Running 2/2
+ ⠿ Container devel-postgres-1    Started                                                                                                                                                                                                 0.5s
+ ⠿ Container devel-hockeypuck-1  Started                                                                                                                                                                                                 1.1s
+
+$ gpg --verbose --keyserver hkp://127.0.0.1:11371 --search-keys <email>
+gpg: data source: http://127.0.0.1:11371
+(1)     XXXX XXXX <email>
+          263 bit EDDSA key E5B7D78BB970380F, created: 2023-02-15
+Keys 1-1 of 1 for "<email>".  Enter number(s), N)ext, or Q)uit > Q
+gpg: error searching keyserver: Operation cancelled
+gpg: keyserver search failed: Operation cancelled
+```
+
+Voila!
+
 
 ### sudo
 
