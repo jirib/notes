@@ -4221,6 +4221,8 @@ Server](https://wiki.samba.org/index.php/Configuring_Logging_on_a_Samba_Server).
 
 Note difference in domain and realm concepts. The correct user name formats are
 `DOMAIN\user` or `user@REALM`.
+
+
 ##### ad member
 
 ``` shell
@@ -4291,6 +4293,13 @@ $ # wbinfo --authenticate 'HOME\testovic%linux' #
 plaintext password authentication succeeded
 challenge/response password authentication succeeded
 ```
+
+Leaving an AD domain:
+
+``` shell
+$ net ads leave -U <user>%<password>
+```
+
 
 ###### identity mapping
 
