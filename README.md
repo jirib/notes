@@ -343,6 +343,136 @@ notAfter=Aug 15 17:00:00 2029 GMT
 ```
 
 
+#### plugins
+
+``` shell
+$ dsconf EXAMPLECOM plugin list | grep -i memberof
+MemberOf Plugin
+
+$ dsconf EXAMPLECOM plugin memberof status
+Plugin 'MemberOf Plugin' is disabled
+
+$ dsconf EXAMPLECOM plugin memberof show
+dn: cn=MemberOf Plugin,cn=plugins,cn=config
+cn: MemberOf Plugin
+memberofattr: memberOf
+memberofgroupattr: member
+nsslapd-plugin-depends-on-type: database
+nsslapd-pluginDescription: none
+nsslapd-pluginEnabled: off
+nsslapd-pluginId: none
+nsslapd-pluginInitfunc: memberof_postop_init
+nsslapd-pluginPath: libmemberof-plugin
+nsslapd-pluginType: betxnpostoperation
+nsslapd-pluginVendor: none
+nsslapd-pluginVersion: none
+objectClass: top
+objectClass: nsSlapdPlugin
+objectClass: extensibleObject
+
+$ dsconf EXAMPLECOM plugin memberof enable
+
+$ dsctl EXAMPLECOM restart
+```
+
+
+#### user, group management
+
+``` shell
+$ dsidm EXAMPLECOM user create \
+   --cn mrnobody \
+   --uid mrnobody \
+   --displayName 'Mr. Nobody' \
+   --uidNumber 100002 \
+   --gidNumber 100002 \
+   --homeDirectory /home/EXAMPLECOM/mrnobody
+Successfully created mrnobody
+
+$ dsidm EXAMPLECOM user get mrnobody
+dn: uid=mrnobody,ou=people,dc=example,dc=com
+cn: mrnobody
+displayName: Mr. Nobody
+gidNumber: 100002
+homeDirectory: /home/EXAMPLECOM/mrnobody
+objectClass: top
+objectClass: nsPerson
+objectClass: nsAccount
+objectClass: nsOrgPerson
+objectClass: posixAccount
+uid: mrnobody
+uidNumber: 100002
+
+$ dsidm EXAMPLECOM account reset_password "uid=mrnobody,ou=people,dc=example,dc=com"
+Enter new password for uid=mrnobody,ou=people,dc=example,dc=com :
+CONFIRM - Enter new password for uid=mrnobody,ou=people,dc=example,dc=com :
+
+$ dsidm EXAMPLECOM user get mrnobody
+dn: uid=mrnobody,ou=people,dc=example,dc=com
+cn: mrnobody
+displayName: Mr. Nobody
+gidNumber: 100002
+homeDirectory: /home/EXAMPLECOM/mrnobody
+objectClass: top
+objectClass: nsPerson
+objectClass: nsAccount
+objectClass: nsOrgPerson
+objectClass: posixAccount
+uid: mrnobody
+uidNumber: 100002
+userPassword: {PBKDF2-SHA512}10000$klQ+Mn4ELp6EB+OXKcf3GdaLAKM20fAn$PTHGTkDcDl7HVNncBbnK4yClkmgo20DnUXBmLOAiE2eJCabncwbFotLmvTjhkA5LmcE7ZGjR42/uY+KpApzl8w==
+
+$ dsidm EXAMPLECOM account entry-status uid=mrnobody,ou=people,dc=example,dc=com
+Entry DN: uid=mrnobody,ou=people,dc=example,dc=com
+Entry Creation Date: 20230217141918Z (2023-02-17 14:19:18)
+Entry Modification Date: 20230217142024Z (2023-02-17 14:20:24)
+Entry State: activated
+
+$ getent passwd mrnobody
+mrnobody:*:100002:100002:mrnobody:/home/EXAMPLECOM/mrnobody:
+```
+
+``` shell
+# memberof plugin enabled!
+
+$ dsidm EXAMPLECOM group add_member demo_group uid=testovic,ou=people,dc=example,dc=com
+added member: uid=testovic,ou=people,dc=example,dc=com
+
+$ dsidm EXAMPLECOM group members demo_group
+dn: uid=testovic,ou=people,dc=example,dc=com
+
+$ dsidm EXAMPLECOM user get testovic
+dn: uid=testovic,ou=people,dc=example,dc=com
+cn: testovic
+displayName: Test Testovic
+gidNumber: 10000
+homeDirectory: /home/EXAMPLECOM/testovic
+memberOf: cn=demo_group,ou=groups,dc=example,dc=com
+objectClass: top
+objectClass: nsPerson
+objectClass: nsAccount
+objectClass: nsOrgPerson
+objectClass: posixAccount
+objectClass: nsMemberOf
+uid: testovic
+uidNumber: 10000
+userPassword: {PBKDF2-SHA512}10000$EQa9p3SvFDtNj4VoELi2NwGQHezdMxyE$JBM84cj1kBNGPjW01QzAuv1DOUpSlkClJD9UJqdcw19wiYZ+IOMStDtRHiOnbZoGmaBYaacsrYsYxG7SwTG9Eg==
+
+$ ldapsearch -d 0 -LLL -x uid=testovic memberOf
+dn: uid=testovic,ou=people,dc=example,dc=com
+memberOf: cn=demo_group,ou=groups,dc=example,dc=com
+```
+
+Now we can test SSSD `ldap_access_filter`:
+
+``` shell
+$ grep -P '^ldap_access_filter' /etc/sssd/sssd.conf
+ldap_access_filter = (memberOf=cn=demo_group,ou=groups,dc=example,dc=com)
+
+$ ldapsearch -d 0 -LLL -x '(&(memberOf=cn=demo_group,ou=groups,dc=example,dc=com)(uid=testovic))' uid
+dn: uid=testovic,ou=people,dc=example,dc=com
+uid: testovic
+```
+
 ### kerberos
 
 #### client
@@ -1285,6 +1415,37 @@ LDAP server not reachable:
 (2022-10-04 14:27:04): [be[LDAP]] [sssd_async_socket_init_done] (0x0020): [RID#6] sdap_async_sys_connect request failed: [111]: Connection refused.   *  ... skipping repetitive backtrace ...
 (2022-10-04 14:27:04): [be[LDAP]] [sss_ldap_init_sys_connect_done] (0x0020): [RID#6] sssd_async_socket_init request failed: [111]: Connection refused.
 ```
+
+Not maching `ldap_access_filter` (note that with default debug level
+you won't be able to figure out it!, use higher debug leve, eg. '6' l!!!):
+
+```
+(2023-02-17 15:36:56): [be[ldap]] [dp_get_options] (0x0400): Option ldap_access_filter has value (memberOf=cn=nonexistent,ou=groups,dc=example,dc=com)
+...
+(2023-02-17 15:37:05): [be[ldap]] [sdap_access_filter_send] (0x0400): [RID#8] Performing access filter check for user [testovic@ldap]
+(2023-02-17 15:37:05): [be[ldap]] [sdap_access_filter_send] (0x0400): [RID#8] Checking filter against LDAP
+(2023-02-17 15:37:05): [be[ldap]] [sdap_get_generic_ext_step] (0x0400): [RID#8] calling ldap_search_ext with [(&(uid=testovic)(objectclass=posixAccount)(memberOf=cn=nonexistent,ou=groups,dc=example,dc=com))][uid=testovic,ou=people,dc=example,dc=com].
+(2023-02-17 15:37:05): [be[ldap]] [sdap_get_generic_op_finished] (0x0400): [RID#8] Search result: Success(0), no errmsg set
+(2023-02-17 15:37:05): [be[ldap]] [sdap_access_filter_done] (0x0100): [RID#8] User [testovic@ldap] was not found with the specified filter. Denying access.
+(2023-02-17 15:37:05): [be[ldap]] [sdap_access_filter_done] (0x0400): [RID#8] Access denied by online lookup
+(2023-02-17 15:37:05): [be[ldap]] [sysdb_set_entry_attr] (0x0200): [RID#8] Entry [name=testovic@ldap,cn=users,cn=ldap,cn=sysdb] has set [cache, ts_cache] attrs.
+(2023-02-17 15:37:05): [be[ldap]] [sdap_access_done] (0x0400): [RID#8] Access was denied.
+```
+
+and now working example:
+
+```
+(2023-02-17 15:39:58): [be[ldap]] [dp_get_options] (0x0400): Option ldap_access_filter has value (memberOf=cn=demo_group,ou=groups,dc=example,dc=com)
+...
+(2023-02-17 15:40:04): [be[ldap]] [sdap_access_filter_send] (0x0400): [RID#9] Performing access filter check for user [testovic@ldap]
+(2023-02-17 15:40:04): [be[ldap]] [sdap_access_filter_send] (0x0400): [RID#9] Checking filter against LDAP
+(2023-02-17 15:40:04): [be[ldap]] [sdap_get_generic_ext_step] (0x0400): [RID#9] calling ldap_search_ext with [(&(uid=testovic)(objectclass=posixAccount)(memberOf=cn=demo_group,ou=groups,dc=example,dc=com))][uid=testovic,ou=people,dc=example,dc=com].
+(2023-02-17 15:40:04): [be[ldap]] [sdap_get_generic_op_finished] (0x0400): [RID#9] Search result: Success(0), no errmsg set
+(2023-02-17 15:40:04): [be[ldap]] [sdap_access_filter_done] (0x0400): [RID#9] Access granted by online lookup
+(2023-02-17 15:40:04): [be[ldap]] [sysdb_set_entry_attr] (0x0200): [RID#9] Entry [name=testovic@ldap,cn=users,cn=ldap,cn=sysdb] has set [cache, ts_cache] attrs.
+(2023-02-17 15:40:04): [be[ldap]] [sdap_account_expired_rhds] (0x0400): [RID#9] Performing RHDS access check for user [testovic@ldap]
+```
+
 
 - `sss_cache -E` invalidate all cached entries, with the exception of sudo rules
 - `sss_cache -u <username>`, invalidate a specific user entries
