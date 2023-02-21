@@ -11219,17 +11219,28 @@ pki/          pki          pki_65e37d8e          hashiCorpVaultCA <---+--- !!!
 sys/          system       system_0378cabc       system endpoints used for control, policy and debugging
 ```
 
+Importing existing CA cert and key into Vault:
+
 ``` shell
 $ jq -n --arg v "$(cat ca.crt ca.key)" '{"pem_bundle": $v }' > payload.json
 
 $ curl -s -H "X-Vault-Token: <token>" -X POST --data "@payload.json" https://avocado.example.com:8200/v1/pki/config/ca
 ```
 
+Creating a role which allows issuing of certs:
+
 ``` shell
 $ vault write pki/roles/example-dot-com allowed_domains="*example.com" allow_glob_domains=true allow_subdomains=true     max_ttl=72h
 Success! Data written to: pki/roles/example-dot-com
+```
 
-$ vault write pki/issue/example-dot-com common_name=jb154sapqe01.example.com alt_names="jb154sapqe01.example.com,example.com,*.example.com"
+Issue/request a cert (note that role should be linked to a user/group
+in production).
+
+``` shell
+$ vault write pki/issue/example-dot-com \
+  common_name=jb154sapqe01.example.com \
+  alt_names="jb154sapqe01.example.com,example.com,*.example.com"
 WARNING! The following warnings were returned from Vault:
 
   * TTL "768h0m0s" is longer than permitted maxTTL "72h0m0s", so maxTTL is
@@ -11368,12 +11379,18 @@ serial_number       69:e0:ea:29:95:76:24:fc:3d:38:12:ea:c1:d8:03:f0:f6:a6:70:35
 
 **NEVER** leak private key, the above is just a test!!!
 
+Same can be done via `curl`:
+
 ``` shell
 $ curl -s -H "X-Vault-Token: <token>" -X POST \
   -d '{"common_name": "jb154sapqe01.example.com", "alt_names": "jb154sapqe01.example.com,example.com,*.example.com"}' \
   https://avocado.example.com:8200/v1/pki/issue/example-dot-com | \
   jq '.'
+```
 
+And parsing output from `curl` to make things easier:
+
+``` shell
 $ curl -s -H "X-Vault-Token: <token>"  -X POST \
   -d '{ "common_name": "jb154sapqe01.example.com", "alt_names": "jb154sapqe01.example.com,example.com,*.example.com"}' \
   https://avocado.example.com:8200/v1/pki/issue/example-dot-com | \
@@ -11383,6 +11400,11 @@ $ file *.pem
 cert.pem:    PEM certificate
 chained.pem: PEM certificate
 key.pem:     PEM RSA private key
+
+$ openssl x509 -in cert.pem -subject -ext subjectAltName -noout
+subject=CN = jb154sapqe01.example.com
+X509v3 Subject Alternative Name:
+    DNS:*.example.com, DNS:example.com, DNS:jb154sapqe01.example.com
 ```
 
 
