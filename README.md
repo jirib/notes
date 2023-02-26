@@ -13343,3 +13343,24 @@ Install all drivers, eg. virtio-win drivers.
 > %windir%\system32\sysprep\sysprep.exe /?
 > %windir%\system32\sysprep\sysprep.exe /generalize /shutdown
 ```
+
+### WinPE
+
+Download [ADK for
+Windows](https://learn.microsoft.com/en-us/windows-hardware/get-started/adk-install)
+plus *Windows PE add-on*. Then run as an admin user *Deployment and
+Imaging Tools Environment* from menu.
+
+``` shell
+$ copype amd64 C:\winpe
+$ MakeWinPEMedia /ISO C:\winpe <output iso>
+```
+
+Putting files into WinPE could be done (more details at [burp
+wiki](https://github.com/grke/burp/wiki/Windows-disaster-recovery-with-WinPE-and-burp):
+
+``` shell
+$ Dism /Mount-Image /ImageFile:"C:\winpe\media\sources\boot.wim" /index:1 /MountDir:"C:\winpe\mount"
+...
+$ Dism /Unmount-Image /MountDir:"C:\winpe\mount" /commit
+```
