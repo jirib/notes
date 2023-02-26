@@ -2014,7 +2014,76 @@ better modify `pxelinux.0` binary.
 And copy `pxelinux.0` to your TFTP directory.
 
 
+### syslinux
+
+An example how to make WinPE for non-UEFI system.
+
+NOTE: I'm not a Windows sysadmin, so could be wrong in some assumptions!
+
+WinPE ISO looks like this:
+
+``` shell
+$ ls -1d ./{Boot,EFI,bootmgr*}
+./Boot
+./EFI
+./bootmgr
+./bootmgr.efi
+
+# a winpe iso
+
+$ fdisk -l winpe.iso
+Disk winpe.iso: 308.69 MiB, 323686400 bytes, 632200 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+# an debian iso for comparison
+
+$ fdisk -l debian-11.5.0-amd64-netinst.iso
+Disk debian-11.5.0-amd64-netinst.iso: 382 MiB, 400556032 bytes, 782336 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disklabel type: dos
+Disk identifier: 0x5004a58b
+
+Device                           Boot Start    End Sectors  Size Id Type
+debian-11.5.0-amd64-netinst.iso1 *        0 782335  782336  382M  0 Empty
+debian-11.5.0-amd64-netinst.iso2       4064   9247    5184  2.5M ef EFI (FAT-12/16/32)
+```
+
+The ISO does not have a partition table, I could not make it boot on non-EFI system. Thus,
+workaround via `syslinux`:
+
+- create a MBR based block device
+- create FAT32 bootable partition
+- format the partition
+
+``` shell
+$ mount /dev/sda1 /mnt
+$ (cd /mnt && isoinfo -i winpe.iso -X)
+
+$ mkdir /mnt/syslinux
+
+# not all c32 are needed but copying all of them anyway...
+$ cp /usr/share/syslinux/*.c32 /mnt/syslinux/
+
+$ cat > /mnt/syslinux/syslinux.cfg <<EOF
+DEFAULT winpe
+LABEL winpe
+        COM32 /syslinux/chain.c32
+        APPEND fs ntldr=/BOOTMG
+EOF
+
+$ umount /mnt
+
+$ dd bs=440 count=1 conv=notrunc if=/usr/share/syslinux/mbr.bin of=/dev/sda
+$ syslinux -d syslinux -i /dev/sda1
+```
+
+
 ## cloud
+
 
 ### azure
 
