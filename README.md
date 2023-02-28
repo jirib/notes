@@ -12792,6 +12792,20 @@ keys](https://www.kernel.org/doc/html/latest/admin-guide/sysrq.html)
 virsh <domain> send-key 1 KEY_LEFTALT KEY_SYSRQ KEY_C # sysrq crash
 ```
 
+Updating VM/domain memory online:
+
+``` shell
+$ virsh dominfo s154qb01 | grep memory
+Max memory:     4194304 KiB
+Used memory:    1048576 KiB
+
+$ virsh virsh setmem s154qb01 4194304
+
+$ virsh dominfo s154qb01 | grep memory
+Max memory:     4194304 KiB
+Used memory:    4194304 KiB
+```
+
 #### virt-install
 
 manual installation from CentOS mirror
@@ -13211,7 +13225,9 @@ EOF
 virsh define /tmp/esxi
 ```
 
+
 ### Xen
+
 
 #### Xen on KVM
 
@@ -13233,6 +13249,8 @@ $ virsh dumpxml s153qu01 | xmllint --xpath '//*/cpu' -
 <cpu mode="host-passthrough" check="none" migratable="on"/>
 ```
 
+TODO: This needs some modifications!
+
 ``` shell
 # Xen virthost
 
@@ -13244,6 +13262,29 @@ GRUB_CMDLINE_LINUX="console=ttyS0,115200n console=tty0"
 GRUB_CMDLINE_LINUX_DEFAULT="noresume splash=none mitigations=auto"
 GRUB_CMDLINE_LINUX_XEN_REPLACE="noresume splash=none mitigations=auto console=xvc0,115200,8n1 console=hvc0 earlyprintk=xen"
 GRUB_CMDLINE_XEN_DEFAULT="loglvl=all guest_loglvl=all com1=115200,8n1 console=com1,vga"
+```
+
+Autostarting VMs on Xen/libvirt host:
+
+``` shell
+$ find /etc/libvirt/libxl/ -ls
+   517551      0 drwxr-xr-x   1 root     root           44 Feb 28 18:26 /etc/libvirt/libxl/
+   517561      0 drwxr-xr-x   1 root     root           26 Feb 28 18:26 /etc/libvirt/libxl/autostart
+   517562      4 lrwxrwxrwx   1 root     root           32 Feb 28 18:26 /etc/libvirt/libxl/autostart/alp317-01.xml -> /etc/libvirt/libxl/alp317-01.xml
+   517563      4 -rw-------   1 root     root         2261 Feb 28 18:26 /etc/libvirt/libxl/alp317-01.xml
+
+
+$ virsh list
+ Id   Name        State
+---------------------------
+ 0    Domain-0    running
+ 2    alp317-01   running
+
+$ virsh version
+Compiled against library: libvirt 8.0.0
+Using library: libvirt 8.0.0
+Using API: Xen 8.0.0
+Running hypervisor: Xen 4.16.0
 ```
 
 
