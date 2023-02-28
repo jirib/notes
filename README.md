@@ -3454,6 +3454,19 @@ xdg-mime query default <mime_type> # returns desktop file
 ```
 
 
+### syncthing
+
+Excluding all but a directory (see
+https://docs.syncthing.net/users/ignoring.html for details):
+
+```
+!/directory-to-include
+// Ignore everything else:
+*
+```
+
+
+
 ## development
 
 
