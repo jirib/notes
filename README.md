@@ -10538,7 +10538,30 @@ matched: 8515 pci:v00008086d00002723sv*sd*bc*sc*i* iwlwifi
 
 ## systemd / journald
 
+
 ### systemd
+
+`systemd` as `init` mounts some filesystem itself by defualt in
+initramfs, see
+[`mount.c`](https://github.com/openSUSE/systemd/blob/SLE15-SP4/src/shared/mount-setup.c#L64)
+for example:
+
+``` shell
+$ curl -sL https://raw.githubusercontent.com/openSUSE/systemd/SLE15-SP4/src/shared/mount-setup.c | grep -A 10 -m 1 mount_table
+static const MountPoint mount_table[] = {
+        { "proc",        "/proc",                     "proc",       NULL,                                      MS_NOSUID|MS_NOEXEC|MS_NODEV,
+          NULL,          MNT_FATAL|MNT_IN_CONTAINER|MNT_FOLLOW_SYMLINK },
+        { "sysfs",       "/sys",                      "sysfs",      NULL,                                      MS_NOSUID|MS_NOEXEC|MS_NODEV,
+          NULL,          MNT_FATAL|MNT_IN_CONTAINER },
+        { "devtmpfs",    "/dev",                      "devtmpfs",   "mode=755" TMPFS_LIMITS_DEV,               MS_NOSUID|MS_STRICTATIME,
+          NULL,          MNT_FATAL|MNT_IN_CONTAINER },
+        { "securityfs",  "/sys/kernel/security",      "securityfs", NULL,                                      MS_NOSUID|MS_NOEXEC|MS_NODEV,
+          NULL,          MNT_NONE                   },
+#if ENABLE_SMACK
+        { "smackfs",     "/sys/fs/smackfs",           "smackfs",    "smackfsdef=*",                            MS_NOSUID|MS_NOEXEC|MS_NODEV,
+```
+
+Some basic commands:
 
 ``` shell
 systemctl get-default # default target, similar to runlevel
