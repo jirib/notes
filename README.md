@@ -3408,6 +3408,205 @@ $ desktop-file-edit --set-key=Exec --set-value='myremote-viewer %u' ~/.local/sha
 
 and write your `myremote-viewer` wrapper (eg. to force some options).
 
+
+### dot-files management
+
+
+#### yadm
+
+[`yadm`](https://yadm.io/) is a wrapper around `git` which also can
+encrypt some files.
+
+As it is a wrapper, one can use `git` sub-commands, here listing
+plain-text files managed by `yadm`:
+
+``` shell
+$ yadm ls-files
+.Xresources
+.ansible.cfg
+.bash_profile
+.bashrc
+.config/gtk-3.0/bookmarks
+.config/gtk-3.0/settings.ini
+.config/i3/config
+.config/mc/ini
+.config/mc/mc.ext
+.config/redshift/redshift.conf
+.config/user-dirs.conf
+.config/user-dirs.dirs
+.config/yadm/bootstrap
+.config/yadm/encrypt
+.gitconfig
+.gitmodules
+.gnupg/gpg.conf
+.gtkrc-2.0
+.lftp/rc
+.local/share/yadm/archive
+.python3.lst
+.ssh/config
+.xinitrc
+.xprofile
+bin/booklet
+bin/selscrot
+
+# and with git directly
+
+$ git --no-pager --git-dir .local/share/yadm/repo.git/ ls-files
+.Xresources
+.ansible.cfg
+.bash_profile
+.bashrc
+.config/gtk-3.0/bookmarks
+.config/gtk-3.0/settings.ini
+.config/i3/config
+.config/mc/ini
+.config/mc/mc.ext
+.config/redshift/redshift.conf
+.config/user-dirs.conf
+.config/user-dirs.dirs
+.config/yadm/bootstrap
+.config/yadm/encrypt
+.gitconfig
+.gitmodules
+.gnupg/gpg.conf
+.gtkrc-2.0
+.lftp/rc
+.local/share/yadm/archive
+.python3.lst
+.ssh/config
+.xinitrc
+.xprofile
+bin/booklet
+bin/selscrot
+```
+
+A definition for files to be encrypted can be something like this:
+
+``` shell
+$ cat .config/yadm/encrypt
+.aws/config
+.aws/credentials
+.claws-mail/*rc
+.claws-mail/addrbook
+.claws-mail/certs
+.claws-mail/templates
+.config/keepassxc/keepassxc.ini
+.config/rclone/rclone.conf
+.config/syncthing/config.xml
+.gnupg/*.gpg
+.mbsyncrc
+.msmtprc
+.muttrc
+.ssh/authorized_keys
+.ssh/config-home
+.ssh/config-local
+.ssh/config-webhost
+.ssh/config-work
+.ssh/id_*
+.ssh/known_hosts
+.weechat/irc.conf
+sync/**/*.kdbx
+```
+
+Encryption:
+
+``` shell
+# overriding default 'gpg' to use 'openssl'
+
+$ cat .config/yadm/config
+[yadm]
+        cipher = openssl
+
+$ yadm encrypt
+Encrypting the following files:
+...
+enter AES-256-CBC encryption password:
+Verifying - enter AES-256-CBC encryption password:
+Wrote new file: /home/jiri/.local/share/yadm/archive
+
+# no miracle format, one can validate with openssl command!
+
+$ openssl enc -d -aes-256-cbc -pbkdf2 -iter 100000 -md sha512 \
+  -in /home/jiri/.local/share/yadm/archive -out /tmp/archive
+enter AES-256-CBC decryption password:
+
+$ file /tmp/archive
+/tmp/archive: POSIX tar archive
+```
+
+`yadm` also support bootstrap script (`$HOME/.config/yadm/bootstrap`), an example:
+
+``` shell
+# not to mess with existing files and local repo changing 'yadm-repo'
+# and 'work-dir' path
+
+$ yadm --yadm-repo /tmp/yadm-repo clone git@gitlab.com:jirib79/dotfiles.git -w /tmp/jiri-home --bootstrap -f                                                                                                             [246/1915]
+Cloning into 'repo.git'...
+remote: Enumerating objects: 223, done.
+remote: Counting objects: 100% (223/223), done.
+remote: Compressing objects: 100% (132/132), done.
+remote: Total 223 (delta 82), reused 140 (delta 47), pack-reused 0
+Receiving objects: 100% (223/223), 2.06 MiB | 7.62 MiB/s, done.
+Resolving deltas: 100% (82/82), done.
+**NOTE**
+  Local files with content that differs from the ones just
+  cloned were found in /tmp/jiri-home. They have been left
+  unmodified.
+
+  Please review and resolve any differences appropriately.
+  If you know what you're doing, and want to overwrite the
+  tracked files, consider 'yadm checkout "/tmp/jiri-home"'.
+
+Executing /home/jiri/.config/yadm/bootstrap
++ set -o pipefail
++ [[ -d /home/jiri/bin ]]
++ lsb_release -d
++ grep -q 'openSUSE Tumbleweed'
++ opensuse_setup
++ sudo zypper -n -q ar -f -p 90 https://ftp.gwdg.de/pub/linux/misc/packman/suse/openSUSE_Tumbleweed/ packman
+Repository named 'packman' already exists. Please use another alias.
++ true
++ sudo zypper -n -q ar -f https://dl.google.com/linux/chrome/rpm/stable/x86_64 google-chrome
+Repository named 'google-chrome' already exists. Please use another alias.
++ true
++ sudo zypper --gpg-auto-import-keys ref
+Retrieving repository 'NEXT version of GNOME (unstable) (openSUSE_Factory)' metadata ...................................................................................................................................................[done]
+Building repository 'NEXT version of GNOME (unstable) (openSUSE_Factory)' cache ........................................................................................................................................................[done]
+Repository 'Kernel builds for branch stable (standard)' is up to date.
+Repository 'SUSE_CA' is up to date.
+Retrieving repository 'The Go Programming Language (openSUSE_Factory)' metadata ........................................................................................................................................................[done]
+Building repository 'The Go Programming Language (openSUSE_Factory)' cache .............................................................................................................................................................[done]
+Retrieving repository 'OCaml (openSUSE_Tumbleweed)' metadata ...........................................................................................................................................................................[done]
+Building repository 'OCaml (openSUSE_Tumbleweed)' cache ................................................................................................................................................................................[done]
+Retrieving repository 'Perl and perl modules (openSUSE_Tumbleweed)' metadata ...........................................................................................................................................................[done]
+Building repository 'Perl and perl modules (openSUSE_Tumbleweed)' cache ................................................................................................................................................................[done]
+Repository 'google-chrome' is up to date.
+Repository 'home:tmuntan1 (openSUSE_Tumbleweed)' is up to date.
+Repository 'packman' is up to date.
+Repository 'repo-non-oss' is up to date.
+Repository 'repo-oss' is up to date.
+Repository 'repo-update' is up to date.
+Repository 'Official repository for the snapd package (snap package manager) (openSUSE_Tumbleweed)' is up to date.
+Retrieving repository 'vscode' metadata ................................................................................................................................................................................................[done]
+Building repository 'vscode' cache .....................................................................................................................................................................................................[done]
+All repositories have been refreshed.
+++ opensuse_pkgs
+++ local _pkgs
+++ read -r -d '' _pkgs
+++ :
++++ sed -r 's/#\S+//g'
+++ _pkgs='7zip
+         NetworkManager-applet
+         NetworkManager-openconnect-gnome
+         NetworkManager-openvpn-gnome
+         bc
+         blueman
+         borgbackup
+         bsdtar
+...
+```
+
+
 ### gtk
 
 #### file-chrooser
@@ -3868,7 +4067,31 @@ zone example.com/IN: loaded serial 2
 OK
 ```
 
+A stub zone forwarding, note `dns-enable` was deprected and removed
+recently, thus [bind to consul
+forwarding](https://developer.hashicorp.com/consul/tutorials/networking/dns-forwarding#bind-setup)
+may not work in some bind versions:
+
+```
+options {
+    ...
+    # depends on your environment
+    # dnssec-validation no;
+    ...
+};
+
+zone "example.net" IN {
+     type forward;
+     forward only;
+     forwarders {
+          127.0.0.1 port 53533;
+     };
+};
+```
+
+
 ### dnsmasq
+
 
 #### dnsmasq as authoritative dns server
 
