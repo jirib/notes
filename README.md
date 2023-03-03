@@ -3397,6 +3397,25 @@ $ dbus-send --print-reply --dest=org.freedesktop.DBus  /org/freedesktop/DBus org
 
 ## desktop
 
+
+### brave-browser
+
+For using multiple profiles I used these wrappers:
+
+``` shell
+$ grep -H '' ~/bin/{foobarbrave,brave-browser}
+/home/jiri/bin/foobarbrave:#!/bin/bash
+/home/jiri/bin/foobarbrave:exec /usr/bin/brave-browser --profile-directory="Profile 1" $@
+/home/jiri/bin/brave-browser:#!/bin/bash
+/home/jiri/bin/brave-browser:exec /usr/bin/brave-browser --profile-directory="Default" $@
+
+# the name of the profile itself is defined in JSON file
+
+$ jq -r '.profile.name' '/home/jiri/.config/BraveSoftware/Brave-Browser/Default/Preferences'
+jiri
+```
+
+
 ### desktop files
 
 To override *exec* like for an `.desktop` file.
@@ -3616,6 +3635,79 @@ dconf write /org/gtk/settings/file-chooser/sort-directories-first true # dirs fi
 cat  ~/.config/gtk-3.0/bookmarks # output: file://<absolute_path> <label>
 ```
 
+
+### java iceadtea-web
+
+An old Supermicro IPMI issue:
+
+```
+...
+App already has trusted publisher: false
+netx: Initialization Error: Could not initialize application. (Fatal: Application Error: Cannot grant permissions to unsigned jars. Application requested security permissions, but jars are not signed.)
+net.sourceforge.jnlp.LaunchException: Fatal: Initialization Error: Could not initialize application. The application has not been initialized, for more information execute javaws from the command line.
+        at java.desktop/net.sourceforge.jnlp.Launcher.createApplication(Launcher.java:823)
+        at java.desktop/net.sourceforge.jnlp.Launcher.launchApplication(Launcher.java:531)
+        at java.desktop/net.sourceforge.jnlp.Launcher$TgThread.run(Launcher.java:946)
+Caused by: net.sourceforge.jnlp.LaunchException: Fatal: Application Error: Cannot grant permissions to unsigned jars. Application requested security permissions, but jars are not signed.
+        at java.desktop/net.sourceforge.jnlp.runtime.JNLPClassLoader$SecurityDelegateImpl.getClassLoaderSecurity(JNLPClassLoader.java:2488)
+        at java.desktop/net.sourceforge.jnlp.runtime.JNLPClassLoader.setSecurity(JNLPClassLoader.java:384)
+        at java.desktop/net.sourceforge.jnlp.runtime.JNLPClassLoader.initializeResources(JNLPClassLoader.java:807)
+        at java.desktop/net.sourceforge.jnlp.runtime.JNLPClassLoader.<init>(JNLPClassLoader.java:337)
+        at java.desktop/net.sourceforge.jnlp.runtime.JNLPClassLoader.createInstance(JNLPClassLoader.java:420)
+        at java.desktop/net.sourceforge.jnlp.runtime.JNLPClassLoader.getInstance(JNLPClassLoader.java:494)
+        at java.desktop/net.sourceforge.jnlp.runtime.JNLPClassLoader.getInstance(JNLPClassLoader.java:467)
+        at java.desktop/net.sourceforge.jnlp.Launcher.createApplication(Launcher.java:815)
+        ... 2 more
+```
+
+``` shell
+$ rpm -qf $(readlink -f `which jarsigner`)
+java-11-openjdk-devel-11.0.17.0-2.1.x86_64
+
+$ find /home/jiri/.cache/icedtea-web/ -type f -name '*.jar'
+/home/jiri/.cache/icedtea-web/cache/2/http/192.168.200.100/80/iKVM__V1.69.21.0x0.jar
+/home/jiri/.cache/icedtea-web/cache/3/http/192.168.200.100/80/liblinux_x86_64__V1.0.5.jar
+
+$ jarsigner -verify -verbose /home/jiri/.cache/icedtea-web/cache/3/http/192.168.200.100/80/liblinux_x86_64__V1.0.5.jar
+
+         309 Mon Jun 30 19:28:14 CEST 2014 META-INF/MANIFEST.MF
+         331 Mon Jun 30 19:28:14 CEST 2014 META-INF/SMCCERT.SF
+        5348 Mon Jun 30 19:28:14 CEST 2014 META-INF/SMCCERT.RSA
+           0 Mon Jun 30 19:28:14 CEST 2014 META-INF/
+ m  ? 261688 Wed Jun 25 11:53:44 CEST 2014 libSharedLibrary64.so
+ m  ? 204592 Wed Jun 25 11:53:44 CEST 2014 libiKVM64.so
+
+  s = signature was verified
+  m = entry is listed in manifest
+  k = at least one certificate was found in keystore
+  ? = unsigned entry
+
+- Signed by "CN="Super Micro Computer, Inc", OU="Super Micro Computer, Inc", OU=Digital ID Class 3 - Java Object Signing, O="Super Micro Computer, Inc", L=San Jose, ST=California, C=US"
+    Digest algorithm: SHA1 (disabled)
+    Signature algorithm: SHA1withRSA (disabled), 2048-bit key
+
+WARNING: The jar will be treated as unsigned, because it is signed with a weak algorithm that is now disabled by the security property:
+
+  jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024, DSA keySize < 1024, SHA1 denyAfter 2019-01-01, include jdk.disabled.namedCurves
+
+$ grep -IRP -C 5 '^jdk.jar.disabledAlgorithms' $(dirname $(readlink -f $(which java)))/../
+/usr/lib64/jvm/java-11-openjdk-11/bin/../conf/security/java.security-# implementation. It is not guaranteed to be examined and used by other
+/usr/lib64/jvm/java-11-openjdk-11/bin/../conf/security/java.security-# implementations.
+/usr/lib64/jvm/java-11-openjdk-11/bin/../conf/security/java.security-#
+/usr/lib64/jvm/java-11-openjdk-11/bin/../conf/security/java.security-# See "jdk.certpath.disabledAlgorithms" for syntax descriptions.
+/usr/lib64/jvm/java-11-openjdk-11/bin/../conf/security/java.security-#
+/usr/lib64/jvm/java-11-openjdk-11/bin/../conf/security/java.security:jdk.jar.disabledAlgorithms=MD2, MD5, RSA keySize < 1024, \
+/usr/lib64/jvm/java-11-openjdk-11/bin/../conf/security/java.security-      DSA keySize < 1024, SHA1 denyAfter 2019-01-01, \
+/usr/lib64/jvm/java-11-openjdk-11/bin/../conf/security/java.security-      include jdk.disabled.namedCurves
+/usr/lib64/jvm/java-11-openjdk-11/bin/../conf/security/java.security-
+/usr/lib64/jvm/java-11-openjdk-11/bin/../conf/security/java.security-#
+/usr/lib64/jvm/java-11-openjdk-11/bin/../conf/security/java.security-# Algorithm restrictions for Secure Socket Layer/Transport Layer Security
+and commenting the line which causes "problems" made it working again (edited)
+```
+
+and overriding the option which causes "problems" made it working again.
+
+
 ### monitors
 
 ``` shell
@@ -3805,6 +3897,26 @@ $ php8 -t / -S 127.0.0.1:8888 /tmp/index.php
 ```
 
 ...and open in a web browser.
+
+Testing `php-fpm` without whole web stack,
+cf. https://maxchadwick.xyz/blog/getting-the-php-fpm-status-from-the-command-line.
+An example (apparmor not taken into account here!):
+
+``` shell
+$ cat > /tmp/phptest.php <<EOF
+<?php echo("Hello World!\n"); ?>
+EOF
+
+$ /usr/sbin/php-fpm --nodaemonize --fpm-config /etc/php8/fpm/php-fpm.conf -R
+
+# other terminal
+
+$ SCRIPT_NAME=/tmp/phptest.php SCRIPT_FILENAME=/tmp/phptest.php REQUEST_METHOD=GET QUERY_STRING=full cgi-fcgi -bind -connect 127.0.0.1:9000
+X-Powered-By: PHP/8.1.7
+Content-type: text/html; charset=UTF-8
+
+Hello World!
+```
 
 
 #### pecl
@@ -6454,6 +6566,29 @@ kernel.sysrq = 184
 enable remount read-only (32) plus enable sync command (16) plus
 enable debugging dumps of processes etc. (8), see above link for details.
 
+*corename* format is as follows:
+
+```
+* corename format specifiers::
+
+        %<NUL>  '%' is dropped
+        %%      output one '%'
+        %p      pid
+        %P      global pid (init PID namespace)
+        %i      tid
+        %I      global tid (init PID namespace)
+        %u      uid (in initial user namespace)
+        %g      gid (in initial user namespace)
+        %d      dump mode, matches PR_SET_DUMPABLE and
+                /proc/sys/fs/suid_dumpable
+        %s      signal number
+        %t      UNIX time of dump
+        %h      hostname
+        %e      executable filename (may be shortened)
+        %E      executable path
+        %<OTHER> both are dropped
+```
+
 
 ### analysis
 
@@ -6714,6 +6849,39 @@ KDUMP_SSH_IDENTITY=
 *KDUMP_DUMPLEVEL* to know if to strip pages that may not be necessary
 for analysis, ... and finally *KDUMP_SAVEDIR* as destination for the
 dump. See `man 5 kdump` for details.
+
+
+Troubleshooting could be done with `KDUMP_IMMEDIATE_REBOOT=no` and
+with serial console enabled:
+
+``` shell
+...
+         Starting save kernel crash dump...
+Cannot blink LEDs: Unable to ioctl(KDSETLED) -- are you not on the console? (Inappropriate ioctl for device)Extracting dmesg
+-------------------------------------------------------------------------------
+.
+
+The dmesg log is saved to /kdump/mnt1/var/crash/2023-02-10-11:00/dmesg.txt.
+
+makedumpfile Completed.
+-------------------------------------------------------------------------------
+Saving dump using makedumpfile
+-------------------------------------------------------------------------------
+Copying data                                      : [100.0 %] |           eta: 0s
+
+The dumpfile is saved to /kdump/mnt1/var/crash/2023-02-10-11:00/vmcore.
+
+makedumpfile Completed.
+-------------------------------------------------------------------------------
+Generating README              Finished.
+Copying System.map             Finished.
+Copying kernel                 Finished.
+
+Dump saving completed.
+Type 'reboot -f' to reboot the system or 'exit' to
+resume the boot process.
+sh-4.4#
+```
 
 
 ### kdump inside cluster
@@ -11216,7 +11384,17 @@ awk '/^#==\[ Command \]=+#$/ {getline;print NR,$0}' sysfs.txt
 ...
 ```
 
+
 #### zypper
+
+
+#### installing
+
+To run `zypper` non-interactively do:
+
+``` shell
+$ zypper --non-interactive install --auto-agree-with-licenses -y <package>
+```
 
 ##### repos
 
@@ -11230,6 +11408,18 @@ $ zypper mr -e --all # enable all repos
 $ zypper -v --plus-content SUSE-PackageHub-15-SP3-Backports-Pool install tmate
 ```
 
+To add a repo non-interactively do:
+
+``` shell
+$ zypper -n -q ar -f [-p <prio>] <url> <name>
+
+# or import rpm gpg key manually, an example:
+# rpm --import https://brave-browser-rpm-release.s3.brave.com/brave-core.asc
+
+$ zypper --gpg-auto-import-keys ref
+```
+
+
 ##### patterns
 
 ``` shell
@@ -11241,6 +11431,7 @@ zypper in -t pattern <pattern_name>
 ``` shell
 zypper search --provides --type package -x view
 ```
+
 
 ##### packages
 
@@ -11256,6 +11447,7 @@ S | Name          | Summary                                     | Type
 i | libopenssl1_1 | Secure Sockets and Transport Layer Security | package
 ```
 
+
 ##### patches
 
 ``` shell
@@ -11264,7 +11456,9 @@ zypper pchk
 zypper patch # updates only affected/vulnerable packages
 ```
 
+
 ## printing
+
 
 ### cups
 
