@@ -3828,6 +3828,14 @@ exists
 - Get GH PR as raw diff/patch, an example:
   https://github.com/weppos/whois/pull/90.diff
   https://github.com/weppos/whois/pull/90.patch
+- Search commit diffs which introduce or remove a pattern:
+  ``` shell
+  $ git log -S <pattern>
+  ```
+- Working with bare repository:
+  ``` shell
+  $ git --no-pager --git-dir /path/to/bar/repo.git show branch:path/to/file.txt
+  ```
 
 
 ### json
@@ -8243,6 +8251,34 @@ Link Layer Discovery Protocol
         0000 000. .... .... = TLV Type: End of LLDPDU (0)
         .... ...0 0000 0000 = TLV Length: 0
 ```
+
+##### tips and tricks
+
+To recreate a packet from a captured PCAP file for issue reproduction in Wireshark, do:
+
+- select packet to recreate
+- right-click, select "Copy" > "Bytes" > "Hex Stream"; and save into a file
+
+Or, it seems one can use `tshark -x -r <pcap> frame.number == 2593 > <out file>`.
+
+TODO: The following is very generic, the MAC addresses etc. should be changed.
+
+``` shell
+#!/usr/bin/env python3
+
+from scapy.all import *
+
+# Load the hex stream file into a string
+with open("/tmp/input-packet.txt", "r") as f:
+    hex_stream = f.read().strip()
+
+# Convert the hex stream string into a Scapy packet
+packet = Raw(hex_stream))
+
+# Send the packet
+send(packet)
+```
+
 
 ### firewall
 
@@ -12683,6 +12719,7 @@ EOD
         SSLCertificateChainFile /etc/apache2/ssl.csr/example.com.txt
     </VirtualHost>
 ```
+
 
 ### bash
 
