@@ -1321,7 +1321,15 @@ $ getent passwd gwcarter
 gwcarter:*:1010:1010:Gerald W. Carter:/home/gwcarter:/bin/bash
 ```
 
+
+### OpenSSH
+
+How SCP protocol works, in [WaybackMachine
+archive](https://web.archive.org/web/20170215184048/https://blogs.oracle.com/janp/entry/how_the_scp_protocol_works).
+
+
 ### sssd
+
 
 #### LDAP
 
@@ -1452,6 +1460,14 @@ and now working example:
 - `systemctl stop sssd; rm -rf /var/lib/sss/db/*; systemctl restart sssd`
 
 Note that *sssd* caches, so do not run `nscd` caching `passwd` and `group` DBs.
+
+
+### sudo
+
+WARNING: Wildcares, take care, see [Dangerous Sudoers Entries – PART
+4:
+Wildcards](https://blog.compass-security.com/2012/10/dangerous-sudoers-entries-part-4-wildcards/).
+
 
 ## backup
 
@@ -9616,37 +9632,53 @@ dst <dst_ip> dport = <dst_port>` to kill an existing TCP session
 (surprisinly after deleting the portal, the session still works).
 
 
-###### resizing luns
+##### tips and tricks
+
+Mapping between target settings and initiator details for a lun.
 
 ``` shell
-$ targetcli /iscsi/iqn.2021-12.com.example:cl0/tpg1/luns/lun2 info
-alias: 8ae1d462e7
-alua_tg_pt_gp_name: default_tg_pt_gp
-index: 2
-storage_object: /backstores/fileio/testresize
+# on an initiator (comments inline)
 
-$ targetcli /backstores/fileio/testresize info
+$  lsscsi -w | grep /dev/sdf
+[7:0:0:1]    disk    LIO-ORG  s154qe01-01      4.0   0x60014051e87fd39d65042cfb937fd  /dev/sdf
+                              ^^^---+--- name of the lun
+                                                              ^^^---+--- wwn of the lun
+$ udevadm info -n /dev/sdf | grep -iP 'scsi_ident_.*(serial|naa|t10|port_name)'
+E: SCSI_IDENT_SERIAL=1e87fd39-d650-42cf-b937-fdfa02481ed6     <---+--- wwn of the lun
+E: SCSI_IDENT_LUN_NAA_REGEXT=60014051e87fd39d65042cfb937fdfa0 <---+--- wwn of the lun
+E: SCSI_IDENT_LUN_T10=LIO-ORG_s154qe01-01:1e87fd39-d650-42cf-b937-fdfa02481ed6
+E: SCSI_IDENT_PORT_NAME=iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.a47196ca0aac,t,0x0001
+```
+
+``` shell
+# on a target
+
+$ grep -H '' /sys/kernel/config/target/core/fileio_*/s154qe01-01/wwn/*
+/sys/kernel/config/target/core/fileio_10/s154qe01-01/wwn/company_id:0x001405
+/sys/kernel/config/target/core/fileio_10/s154qe01-01/wwn/product_id:s154qe01-01
+/sys/kernel/config/target/core/fileio_10/s154qe01-01/wwn/revision:4.0
+/sys/kernel/config/target/core/fileio_10/s154qe01-01/wwn/vendor_id:LIO-ORG
+/sys/kernel/config/target/core/fileio_10/s154qe01-01/wwn/vpd_unit_serial:T10 VPD Unit Serial Number: 1e87fd39-d650-42cf-b937-fdfa02481ed6
+
+$ readlink /sys/kernel/config/target/iscsi/iqn.2003-01.org.linux-iscsi.t14s.x8664\:sn.a47196ca0aac/tpgt_1/lun/lun_1/2bb7f3e6c6
+../../../../../../target/core/fileio_10/s154qe01-01
+
+$ targetcli /backstores/fileio/s154qe01-01 info
 aio: False
-dev: /suse/vms/testresize.raw
-name: testresize
+dev: /home/vms/iscsi-s154qe01-01
+name: s154qe01-01
 plugin: fileio
-size: 4194304
+size: 1073741824
 write_back: True
-wwn: 4e06ac05-b742-4f7f-b391-368fba4ba080
+wwn: 1e87fd39-d650-42cf-b937-fdfa02481ed6
 
-$  cat /sys/kernel/config/target/core/fileio_*/testresize/info
-Status: ACTIVATED  Max Queue Depth: 0  SectorSize: 512  HwMaxSectors: 16384
-        TCM FILEIO ID: 0        File: /suse/vms/testresize.raw  Size: 4194304  Mode: Buffered-WCE Async: 0
+$ targetcli /iscsi/iqn.2003-01.org.linux-iscsi.t14s.x8664:sn.a47196ca0aac/tpg1/luns/lun1 info
+alias: 2bb7f3e6c6
+alua_tg_pt_gp_name: default_tg_pt_gp
+index: 1
+storage_object: /backstores/fileio/s154qe01-01
 ```
 
-``` shell
-$  lsscsi -is 0:0:0:2
-[0:0:0:2]    disk    LIO-ORG  testresize       4.0   /dev/sdb   360014054e06ac05b7424f7fb391368fb  4.19MB
-```
-
-``` shell
-$ truncate -s +6M testresize.raw
-```
 
 ### mdraid
 
@@ -12886,6 +12918,33 @@ ctyri
 pet
 ```
 
+Replacing multiple blank lines with just one:
+
+``` shell
+$ sed '/^$/N;/^\n$/D' << EOF
+> one
+> two
+>
+> three
+>
+>
+> four
+>
+>
+>
+> five
+> EOF
+one
+two
+
+three
+
+four
+
+five
+```
+
+
 ### tricks
 
 Prepending each line with a timestamp can be done nicely with moreutils's `ts`.
@@ -12928,6 +12987,20 @@ set -g tmate-server-port "23"
 # fingerprints in MD5 format for tmate 2.2.* (as in Leap 15.2)
 set -g tmate-server-rsa-fingerprint "91:cf:4f:cd:45:6b:c5:e0:9a:54:2e:90:7e:61:62:e2"
 ```
+
+
+## system troubleshooting and performance
+
+What is attached to my network interface?
+
+``` shell
+$ grep ^iff: /proc/*/fdinfo/* 2>/dev/null
+/proc/26241/fdinfo/7:iff:       tun0
+
+$ ps -eo user,pid,comm | grep '[2]6241'
+nm-open+ 26241 openvpn
+```
+
 
 ## tftp
 
