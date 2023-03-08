@@ -927,7 +927,8 @@ $ : > /etc/sysconfig/sbd /etc/csync2/csync2.cfg /var/log/messages
 $ export 'Y2DEBUG=1' > /etc/environment
 $ export Y2DEBUG=1
 
-$ { umask=077; /usr/bin/openssl ecparam -genkey -name secp384r1 -out /etc/csync2/csync2_ssl_key.pem; cat << EOF | /usr/bin/openssl req -new -key /etc/csync2/csync2_ssl_key.pem -x509 -days 3000 -out /etc/csync2/csync2_ssl_cert.pem;
+$ { umask=077; /usr/bin/openssl ecparam -genkey -name secp384r1 -out /etc/csync2/csync2_ssl_key.pem; cat << EOF | \
+ /usr/bin/openssl req -new -key /etc/csync2/csync2_ssl_key.pem -x509 -days 3000 -out /etc/csync2/csync2_ssl_cert.pem;
 > --
 > SomeState
 > SomeCity
