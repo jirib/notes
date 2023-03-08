@@ -846,3 +846,104 @@ $ tar xOJf /var/log/scc_oldhanae2_220511_1147.txz \
 # /bin/grep -E -i 'saphana|SAPDatabase|SAPInstance|SAPStartsrv|sapcontrol|saphostctrl|sap_suse_cluster_connector' /var/log/messages | tail -1000
 # /bin/grep -E -i 'saphana|SAPDatabase|SAPInstance|SAPStartsrv|sapcontrol|saphostctrl' /var/log/pacemaker.log | tail -1000
 ```
+
+
+### breaking replication
+
+Cf. https://help.sap.com/docs/SAP_HANA_PLATFORM/4e9b18c116aa42fc84c7dbfd02111aba/9a4a4cdcda454663ba0c75d180c7ed11.html?version=2.0.04&locale=en-US
+
+1. on primary node, HDB must be running
+2. do on the other node
+   ``` shell
+   # check if replication is setup
+   $ hdbnsutil -sr_stateConfiguration
+
+   $ echo $TINSTANCE; sapcontrol -nr $TINSTANCE -function StopSystem HDB
+   20
+
+   08.03.2023 14:41:54
+   StopSystem
+   OK
+
+   $ hdbnsutil -sr_unregister --id=JB154SAPQE02
+
+   # HDB must be started after that again
+   $ HDB start
+   ```
+3. back on primary node
+   ``` shell
+   $ hdbnsutil -sr_disable
+   # check replication again
+   $ hdbnsutil -sr_stateConfiguration
+   ```
+
+
+
+
+## SAP cluster integration
+
+
+### sap_suse_cluster_connector
+
+[`sap_suse_cluster_connector`](https://www.suse.com/c/sap-netweaver-suse-cluster-integration-new-sap_suse_cluster_connector-version-3-0-0/)
+is a software tool which sits between SAP start and control framework
+for SAP NetWeaver or S/4 HANA instances and the SUSE cluster component
+pacemaker.
+
+With `sap_suse_cluster_connector` (it is a RPM package), one can
+inform cluster from SAP tools about maintenance and can also see
+instance status inside SAP mgmt tools.
+
+TODO: confirm the section below
+
+***
+- host_profile ???
+- restart sapstartsrv
+- logs of sapstartsrv process ??
+- sapcontrol -nr <nr> -function HAGetFailoverconfig
+
+new comments for sapcontrol:
+- HAGetFailoverconfig
+- HACheckconfig
+- HACheckFailoverconfig
+- HAFailoverToNode
+***
+
+### yast2-sap-ha testing
+
+1. install instance
+2. ensure ssh works between nodes
+3. `cdglo ; ls -1 security/rsecssfs/*/*` - keys present on second node
+
+``` shell
+# if not already backup present then...
+$ hdbsql -u SYSTEM -d SYSTEMDB -i $TINSTANCE "BACKUP DATA FOR FULL SYSTEM USING FILE ('backup')"
+
+$ systemctl stop pacemaker
+$ systemctl preset sbd pacemaker
+
+$ find /var/lib/pacemaker/ /var/log/YaST2/ /var/log/pacemaker/ /var/log/messages-* -type f -delete
+$ : > /etc/sysconfig/sbd /etc/csync2/csync2.cfg /var/log/messages
+$ export 'Y2DEBUG=1' > /etc/environment
+$ export Y2DEBUG=1
+
+$ { umask=077; /usr/bin/openssl ecparam -genkey -name secp384r1 -out /etc/csync2/csync2_ssl_key.pem; cat << EOF | /usr/bin/openssl req -new -key /etc/csync2/csync2_ssl_key.pem -x509 -days 3000 -out /etc/csync2/csync2_ssl_cert.pem;
+> --
+> SomeState
+> SomeCity
+> SomeOrganization
+> SomeOrganization
+> SomeName
+> name@example.com
+> EOF
+> }
+
+$ hdbsql -i $TINSTANCE -u SYSTEM -p <password>
+
+Welcome to the SAP HANA Database interactive terminal.
+
+Type:  \h for help with commands
+       \q to quit
+
+hdbsql RHP=>
+```
