@@ -848,12 +848,30 @@ $ tar xOJf /var/log/scc_oldhanae2_220511_1147.txz \
 ```
 
 
-### breaking replication
+### redoing replication deployment
 
 Cf. https://help.sap.com/docs/SAP_HANA_PLATFORM/4e9b18c116aa42fc84c7dbfd02111aba/9a4a4cdcda454663ba0c75d180c7ed11.html?version=2.0.04&locale=en-US
 
-1. on primary node, HDB must be running
-2. do on the other node
+1. `cdglo ; ls -1 security/rsecssfs/*/*` -
+   [keys](https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-sr-guide-costopt-15/#id-1.9.8.4)
+   present on second node
+2. [backup](https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-sr-guide-costopt-15/#id-1.9.6.3):
+   ``` shell
+   # if not already backup present then...
+   $ hdbsql -u SYSTEM -d SYSTEMDB -i $TINSTANCE "BACKUP DATA FOR FULL SYSTEM USING FILE ('backup')"
+   ```
+   backup can use also database user
+   [key](https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-sr-guide-costopt-15/#id-create-a-database-user-key-in-sidadms-keystore)
+   (in YaST)
+3. SSH works between nodes; `sudo`
+   [rules](https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-sr-guide-costopt-15/#id-allowing-sidadm-to-access-the-cluster)
+   are present
+   ```
+   # SAPHanaSR-ScaleUp entries for writing srHook cluster attribute
+   <sid>adm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_<sid>_site_srHook_*
+   ```
+3. on primary node, HDB must be running
+4. do on the other node
    ``` shell
    # check if replication is setup
    $ hdbnsutil -sr_stateConfiguration
@@ -876,8 +894,40 @@ Cf. https://help.sap.com/docs/SAP_HANA_PLATFORM/4e9b18c116aa42fc84c7dbfd02111aba
    # check replication again
    $ hdbnsutil -sr_stateConfiguration
    ```
+4. clear cluster configuration
+   ``` shell
+   $ systemctl stop pacemaker
+   $ systemctl preset sbd pacemaker
 
+   $ find /var/lib/pacemaker/ /var/log/YaST2/ /var/log/pacemaker/ /var/log/messages-* -type f -delete
+   $ : > /etc/sysconfig/sbd /etc/csync2/csync2.cfg /var/log/messages
+   $ export 'Y2DEBUG=1' > /etc/environment
+   $ export Y2DEBUG=1
 
+   $ { umask=077; /usr/bin/openssl ecparam -genkey -name secp384r1 -out /etc/csync2/csync2_ssl_key.pem; cat << EOF | \
+       /usr/bin/openssl req -new -key /etc/csync2/csync2_ssl_key.pem -x509 -days 3000 -out /etc/csync2/csync2_ssl_cert.pem;
+   > --
+   > SomeState
+   > SomeCity
+   > SomeOrganization
+   > SomeOrganization
+   > SomeName
+   > name@example.com
+   > EOF
+   > }
+   ```
+5. check DB passwords
+   ``` shell
+   $ hdbsql -i $TINSTANCE -u SYSTEM -p <password>
+
+   Welcome to the SAP HANA Database interactive terminal.
+
+   Type:  \h for help with commands
+     \q to quit
+
+   hdbsql RHP=>
+   ```
+6. ...
 
 
 ## SAP cluster integration
@@ -908,43 +958,3 @@ new comments for sapcontrol:
 - HACheckFailoverconfig
 - HAFailoverToNode
 ***
-
-### yast2-sap-ha testing
-
-1. install instance
-2. ensure ssh works between nodes
-3. `cdglo ; ls -1 security/rsecssfs/*/*` - keys present on second node
-
-``` shell
-# if not already backup present then...
-$ hdbsql -u SYSTEM -d SYSTEMDB -i $TINSTANCE "BACKUP DATA FOR FULL SYSTEM USING FILE ('backup')"
-
-$ systemctl stop pacemaker
-$ systemctl preset sbd pacemaker
-
-$ find /var/lib/pacemaker/ /var/log/YaST2/ /var/log/pacemaker/ /var/log/messages-* -type f -delete
-$ : > /etc/sysconfig/sbd /etc/csync2/csync2.cfg /var/log/messages
-$ export 'Y2DEBUG=1' > /etc/environment
-$ export Y2DEBUG=1
-
-$ { umask=077; /usr/bin/openssl ecparam -genkey -name secp384r1 -out /etc/csync2/csync2_ssl_key.pem; cat << EOF | \
- /usr/bin/openssl req -new -key /etc/csync2/csync2_ssl_key.pem -x509 -days 3000 -out /etc/csync2/csync2_ssl_cert.pem;
-> --
-> SomeState
-> SomeCity
-> SomeOrganization
-> SomeOrganization
-> SomeName
-> name@example.com
-> EOF
-> }
-
-$ hdbsql -i $TINSTANCE -u SYSTEM -p <password>
-
-Welcome to the SAP HANA Database interactive terminal.
-
-Type:  \h for help with commands
-       \q to quit
-
-hdbsql RHP=>
-```
