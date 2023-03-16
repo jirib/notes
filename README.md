@@ -4137,6 +4137,25 @@ local:
             root
 ```
 
+
+### pillars
+
+Pillar is a feature of Salt to provide a minion some data, for example
+various variables used in SaLt States (SLS) files.
+
+For example in Ansible's [Alternative directory
+layout](https://docs.ansible.com/ansible/latest/tips_tricks/sample_setup.html#alternative-directory-layout),
+one would in inventories define data/variables for hosts, groups... Similar could be done with *pillar*.
+
+
+``` shell
+$ grep -Pv '^\s*(#|$)' /etc/salt/master | sed -n '/^pillar/,/^[a-z]/p'
+pillar_roots:
+  base:
+    - /srv/pillar
+
+```
+
 ## dns
 
 
