@@ -3971,6 +3971,28 @@ $ pecl uninstall mcrypt
 ```
 
 
+### python
+
+
+#### jinja
+
+`jinja-cli` is nice tools to validate Jinja templates/syntax:
+
+``` shell
+# here testing overload of apache_httpd_package variable
+
+$ printf '%s\n%s\n' '{% set _pkg = apache_httpd_package | default("apache2", true) %}' '{{- _pkg }}' | \
+    jinja
+apache2
+
+# ...simulating the overload, eg. for a distro which has different package name
+
+$ printf '%s\n%s\n' '{% set _pkg = apache_httpd_package | default("apache2", true) %}' '{{- _pkg }}' | \
+    jinja -D apache_httpd_package httpd
+httpd
+```
+
+
 ## devops
 
 
