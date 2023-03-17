@@ -4057,6 +4057,31 @@ tcp   LISTEN 0      1000          0.0.0.0:4505                0.0.0.0:*    users
 
 Salt PKI is RSA private PEM key and its public key.
 
+``` shell
+$ openssl rsa -in /etc/salt/pki/minion/minion.pem -pubout
+writing RSA key
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxTK4hk0QXfbE0yuLrLVl
+Dq8lH4you5fvO6H20PLkig3/+YWgUyxVt7MaxW/45PvV3sEAPFDWWWYRCgkUzzdI
+NaKv8unUj3wDt7lduWr8zmOLwnznzjziakoDti2vwnx2P1zlFphCA4mxAc3F3+0x
+0d6Y4JgrSm1Y6BGPrgC21VaArk4S6BjxPnd9xeS+DP2Q2r3g072WKn4oheuDWmqL
+bYnQAdMcBeX7dx2jIUT0PZItKqiE+MMW/+m5h0i2PPRcvZzQdAZYOW+7xqdZ9n0m
+yE3dlntn6NYtMxu6Zk9mnQ2ZR2t2C0/KJ/UruBNKfmCCG0NQvtGTbxYUFmx6D8uC
+EwIDAQAB
+-----END PUBLIC KEY-----
+
+$ cat /etc/salt/pki/minion/minion.pub
+-----BEGIN PUBLIC KEY-----
+MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAxTK4hk0QXfbE0yuLrLVl
+Dq8lH4you5fvO6H20PLkig3/+YWgUyxVt7MaxW/45PvV3sEAPFDWWWYRCgkUzzdI
+NaKv8unUj3wDt7lduWr8zmOLwnznzjziakoDti2vwnx2P1zlFphCA4mxAc3F3+0x
+0d6Y4JgrSm1Y6BGPrgC21VaArk4S6BjxPnd9xeS+DP2Q2r3g072WKn4oheuDWmqL
+bYnQAdMcBeX7dx2jIUT0PZItKqiE+MMW/+m5h0i2PPRcvZzQdAZYOW+7xqdZ9n0m
+yE3dlntn6NYtMxu6Zk9mnQ2ZR2t2C0/KJ/UruBNKfmCCG0NQvtGTbxYUFmx6D8uC
+EwIDAQAB
+-----END PUBLIC KEY-----
+```
+
 `salt-minion` needs first to establish a connection to a master to
 generate its key, it's *ID* is generated based on:
 
