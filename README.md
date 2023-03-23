@@ -11299,9 +11299,19 @@ ConditionPathExists=/path/to/needed_file
 - `systemctl show -p LogLevel` - get current logging level
 - `kill -SIGRTMIN+22 1` - sets systemd loglevel to debug, see `systemd(1)`
 - `kill -SIGRTMIN+23 1` - sets systemd loglevel back to info
+  If *SIGRTMIN+22/23* does not exist, just use number, ie. *SIGRTMIN* =
+  *34* plus required number.
+- *ctrl-alt-del* - how does *systemd* handles *ctrl-alt-del*?
+  ``` shell
+  $ grep -H '' /proc/sys/kernel/ctrl-alt-del
+  /proc/sys/kernel/ctrl-alt-del:0
+  ```
+  Thus,
+  [kernel.html](https://www.kernel.org/doc/html/latest/admin-guide/sysctl/kernel.html#ctrl-alt-del)
+  states when the value is '0', then it is "forwarded" to `init`
+  (*systemd*) to handle it; non-zero value means immediate reboot
+  without syncing its dirty buffers.
 
-If *SIGRTMIN+22/23* does not exist, just use number, ie. *SIGRTMIN* =
-*34* plus required number.
 
 ### journald
 
