@@ -4487,6 +4487,7 @@ grep '\bbtrfs\b.*nodatacow' /etc/fstab # check if cow disabled in /etc/fstab
 lsattr -d /var                         # check if cow disabled via attributes
 ```
 
+
 #### snapper
 
 automatically triggered btrfs snapshots
@@ -4494,6 +4495,90 @@ automatically triggered btrfs snapshots
 ``` shell
 snapper list
 ```
+
+
+#### troubleshooting
+
+Understanding space occupation in BTRFS:
+
+``` shell
+# btrfs is also a kind of volume manager, but here only one volume/device
+# is used
+
+$ btrfs fi show --mbytes /
+Label: none  uuid: 3230dffb-e7eb-4bb3-a30e-e168c7b90197
+        Total devices 1 FS bytes used 34807.12MiB
+        devid    1 size 51200.00MiB used 51199.00MiB path /dev/mapper/system-root
+
+$ btrfs fi df -m /
+Data, single: total=48859.00MiB, used=33585.86MiB
+System, single: total=32.00MiB, used=0.02MiB
+Metadata, single: total=2308.00MiB, used=1221.25MiB
+GlobalReserve, single: total=141.77MiB, used=0.00MiB
+
+$ echo $((48859+32+2308))
+51199
+```
+
+The point here is that space was *allocated*, the *used* is smaller
+but is it NOT *free/unallocated* space. The next command makes it more
+clear:
+
+``` shell
+$ btrfs fi usage --mbytes /
+Overall:
+    Device size:                       51200.00MiB
+    Device allocated:                  51199.00MiB
+    Device unallocated:                    1.00MiB
+    Device missing:                        0.00MiB
+    Device slack:                          0.00MiB
+    Used:                              34807.66MiB
+    Free (estimated):                  15272.60MiB      (min: 15272.60MiB)
+    Free (statfs, df):                 15272.60MiB
+    Data ratio:                               1.00
+    Metadata ratio:                           1.00
+    Global reserve:                      141.77MiB      (used: 0.00MiB)
+    Multiple profiles:                          no
+
+Data,single: Size:48859.00MiB, Used:33586.40MiB (68.74%)
+   /dev/mapper/system-root      48859.00MiB
+
+Metadata,single: Size:2308.00MiB, Used:1221.25MiB (52.91%)
+   /dev/mapper/system-root      2308.00MiB
+
+System,single: Size:32.00MiB, Used:0.02MiB (0.05%)
+   /dev/mapper/system-root        32.00MiB
+
+Unallocated:
+   /dev/mapper/system-root         1.00MiB
+```
+
+``` shell
+$ btrfs balance start -dusage=70 /
+btrfs filesystem usage -m -T /
+Overall:
+    Device size:                       51200.00MiB
+    Device allocated:                  41983.00MiB
+    Device unallocated:                 9217.00MiB
+    Device missing:                        0.00MiB
+    Device slack:                          0.00MiB
+    Used:                              35847.59MiB
+    Free (estimated):                  14261.38MiB      (min: 14261.38MiB)
+    Free (statfs, df):                 14260.38MiB
+    Data ratio:                               1.00
+    Metadata ratio:                           1.00
+    Global reserve:                      124.05MiB      (used: 0.00MiB)
+    Multiple profiles:                          no
+
+                           Data        Metadata   System
+Id Path                    single      single     single   Unallocated Total       Slack
+-- ----------------------- ----------- ---------- -------- ----------- ----------- -------
+ 1 /dev/mapper/system-root 39643.00MiB 2308.00MiB 32.00MiB  9217.00MiB 51200.00MiB       -
+-- ----------------------- ----------- ---------- -------- ----------- ----------- -------
+   Total                   39643.00MiB 2308.00MiB 32.00MiB  9217.00MiB 51200.00MiB 0.00MiB
+   Used                    34598.62MiB 1248.95MiB  0.02MiB
+```
+
 
 ### drbd
 
@@ -13434,6 +13519,64 @@ $ virsh dominfo s154qb01 | grep memory
 Max memory:     4194304 KiB
 Used memory:    4194304 KiB
 ```
+
+`virsh` also allows to do [backup](https://libvirt.org/kbase/live_full_disk_backup.html) of libvirt domain's block devices.
+
+``` shell
+$  cat > /tmp/in <<EOF
+> <domainbackup mode='push'>
+>   <disks>
+>     <disk name='vda' type='file' backupmode='full'>
+>       <driver type='qcow2'/>
+>       <target file='/var/lib/libvirt/images/s125qb01.qcow2.testbackup'/>
+>     </disk>
+>   </disks>
+> </domainbackup>
+> EOF
+
+$ virsh backup-begin s125qb01 --backupxml /tmp/in
+Backup started
+
+$ virsh domjobinfo s125qb01
+Job type:         Unbounded
+Operation:        Backup
+Time elapsed:     31905        ms
+File processed:   2.007 GiB
+File remaining:   18.993 GiB
+File total:       21.000 GiB
+```
+
+``` shell
+$ virt-xml-validate - domainbackup <<EOF
+> <domainbackup mode='push'>
+>   <disks>
+>     <disk name='vda' backup='yes' type='file' backupmode='full' index='3'>
+>       <driver type='qcow2'/>
+>       <target file='/var/lib/libvirt/images/s125qb01.qcow2.foo'/>
+>     </disk>
+>   </disks>
+> </domainbackup>
+> EOF
+Relax-NG validity error : Extra element disks in interleave
+-:2: element disks: Relax-NG validity error : Element domainbackup failed to validate content
+- fails to validate
+
+$ virt-xml-validate - domainbackup <<EOF
+> <domainbackup mode='push'>
+>   <disks>
+>     <disk name='vda' backup='yes' type='file' backupmode='full'>
+>       <driver type='qcow2'/>
+>       <target file='/var/lib/libvirt/images/s125qb01.qcow2.foo'/>
+>     </disk>
+>   </disks>
+> </domainbackup>
+> EOF
+- validates
+
+$ grep -c index /usr/share/libvirt/schemas/domainbackup.rng
+0
+```
+
 
 #### virt-install
 
