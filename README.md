@@ -2236,7 +2236,10 @@ https://stackoverflow.com/questions/6475374/how-do-i-make-cloud-init-startup-scr
   # for openvswitch
   ovs-vsctl list bridge | grep mcast_snooping_enable
   ```
-- *unicast*, usually better
+  It usually does NOT work in clouds.
+- *unicast*, usually better; clouds needs higher token (eg. 30000) and
+  consensus (eg. 36000); see [Corosync Communication
+  Failure](https://www.suse.com/support/kb/doc/?id=000020407)
 
 **NOTE:**
 - corosync time values is in miliseconds!
@@ -3026,6 +3029,7 @@ crm configure < <backup_file>
 ```
 
 #### resource agents
+
 
 ``` shell
 crm ra classes # list RA classes
@@ -4493,7 +4497,55 @@ lsattr -d /var                         # check if cow disabled via attributes
 automatically triggered btrfs snapshots
 
 ``` shell
-snapper list
+$ snapper list
+ # | Type   | Pre # | Date                     | User | Used Space | Cleanup | Description           | Userdata
+---+--------+-------+--------------------------+------+------------+---------+-----------------------+---------
+0  | single |       |                          | root |            |         | current               |
+1* | single |       | Mon May  3 10:38:56 2021 | root |  28.12 GiB |         | first root filesystem |
+```
+
+Snapshot '0' is only a virtual snapshot pointing to the real
+snapshot. So you will always have snapshot '0' and a second snapshot.
+
+``` shell
+$ snapper create
+$ snapper list
+ # | Type   | Pre # | Date                     | User | Used Space | Cleanup | Description           | Userdata
+---+--------+-------+--------------------------+------+------------+---------+-----------------------+---------
+0  | single |       |                          | root |            |         | current               |
+1* | single |       | Mon May  3 10:38:56 2021 | root | 718.64 MiB |         | first root filesystem |
+2  | single |       | Thu Mar 23 12:45:24 2023 | root |   2.00 MiB |         |                       |
+
+$ echo 'Hello snapper' > /etc/testsnapper
+
+$ diff -uNpr /.snapshots/2/snapshot/etc/ /.snapshots/1/snapshot/etc/ 2>/dev/null
+diff -uNpr /.snapshots/2/snapshot/etc/testsnapper /.snapshots/1/snapshot/etc/testsnapper
+--- /.snapshots/2/snapshot/etc/testsnapper      1970-01-01 01:00:00.000000000 +0100
++++ /.snapshots/1/snapshot/etc/testsnapper      2023-03-23 12:46:56.719176895 +0100
+@@ -0,0 +1 @@
++Hello snapper
+
+$ snapper diff 2..1
+--- /.snapshots/2/snapshot/etc/testsnapper      1970-01-01 01:00:00.000000000 +0100
++++ /.snapshots/1/snapshot/etc/testsnapper      2023-03-23 12:46:56.719176895 +0100
+@@ -0,0 +1 @@
++Hello snapper
+```
+
+``` shell
+# comparing the latest snapshot with current filesystem ('1' is current filesystem).
+
+$ snapper diff 2..1
+--- /.snapshots/2/snapshot/etc/testsnapper      1970-01-01 01:00:00.000000000 +0100
++++ /.snapshots/1/snapshot/etc/testsnapper      2023-03-23 15:57:03.381353110 +0100
+@@ -0,0 +1 @@
++foo
+
+$ snapper undochange 2..1 /etc/testsnapper
+create:0 modify:0 delete:1
+
+$ ls -l /etc/testsnapper
+ls: cannot access '/etc/testsnapper': No such file or directory
 ```
 
 
@@ -7185,6 +7237,29 @@ systool -vm iwlwifi | awk '/^\s*Parameters:/{p=1}/^ *$/{p=0}p' # a module params
     swcrypto            = "0"
     uapsd_disable       = "3"
 ```
+
+If multiple modules with same name exists, the priority can be defined
+with `depmod.d(5)`. An example:
+
+``` shell
+$ rpm -qlp hpsa-kmp-default-3.4.20-208.sles12sp5.x86_64.rpm
+warning: hpsa-kmp-default-3.4.20-208.sles12sp5.x86_64.rpm: Header V3 RSA/SHA256 Signature, key ID 26c2b797: NOKEY
+/lib/modules/4.12.14-120-default
+/lib/modules/4.12.14-120-default/updates
+/lib/modules/4.12.14-120-default/updates/hpsa.ko
+/usr/share/smartupdate/hpsa-kmp-default/component.xml
+
+$ whatis depmod.d
+depmod.d (5)         - Configuration directory for depmod
+
+$ grep -Pv '^\s*(#|$)' /lib/depmod.d/*.conf
+search updates extra weak-updates kgraft built-in
+make_map_files no
+```
+
+So, it's clear what modules in 'update' have precedence over "classic"
+in-tree modules.
+
 
 ### panic
 
