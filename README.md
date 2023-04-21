@@ -2499,6 +2499,28 @@ And when a node or nodes disappear...
 2022-04-04T19:52:24.516287+01:00 T3PRPDB011 corosync[28003]:   [QUORUM] Members[1]: 3
 ```
 
+A non-tuned corosync in virtualized environment could be detected this way:
+
+``` shell
+2023-04-11T16:07:28.761850+02:00 node2 corosync[38932]: [MAIN ] Corosync main process was not scheduled (@1681222048760) for 7917.4106 ms (threshold is 800.0000 ms). Consider token timeout increase.
+
+```
+
+The above line demonstrates:
+- that token is: 1000ms
+- 80 % of the token timeout reached should be *max scheduling timeout*
+
+During *Live partition migration* (Power) or *vMotion* (VMware) a
+short pause of the LPAR/VM occurs, so final memory changes could be
+migrated; this may have an impact of the LPAR/VM applications, namely
+HA stack. There is no other way how the "migration" could work
+considering both hosts do not share memory as one big hardware system.
+
+See [](https://www.suse.com/support/kb/doc/?id=000019795) or how
+[`corosync.conf`](https://learn.microsoft.com/en-us/azure/sap/workloads/high-availability-guide-suse-pacemaker)
+looks like in Azure documentation.
+
+
 *corosync* can be also observed on network layer (although there's probably
 and [issue](https://bugzilla.suse.com/show_bug.cgi?id=1195394)):
 
