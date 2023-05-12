@@ -2198,20 +2198,24 @@ https://stackoverflow.com/questions/6475374/how-do-i-make-cloud-init-startup-scr
 
 - *corosync* - messaging and membership layer (can replicate data across
   cluster?)
-- *CRM* - `crmd`/`pacemaker-controld`, cluster resource manager, CRM, part of
-  resource allocation layer, `crmd` is main process
-- *CIB* - `cib`/`pacemaker-based`, cluster information base, configuration,
-  current status,
-  pacemaker, part of resource allocation layer; shared copy of state, versioned
-- *DC* - designated coordinator, in-memory state, member managing the master
+- *CRM* - `crmd`/`pacemaker-controld`, cluster resource manager, CRM,
+  part of resource allocation layer, `crmd` is main process; maintains
+  a consistent view of the cluster membership and orchestrates all the
+  other components
+- *CIB* - `cib`/`pacemaker-based`, cluster information base,
+  configuration, current status, synchronized the CIB across the
+  cluster and handles requests to modify it pacemaker, part of
+  resource allocation layer; shared copy of state, versioned
+- *DC* - designated controller, in-memory state, member managing the master
   copy of the *CIB*, so-called master node, communicate changes of the CIB copy
   to other nodes via CRM
-- *PE* - `pegnine`/`pacemaker-schedulerd`, policy engine, running on DC, the
-  brain of the cluster,
-  monitors CIB and calculates changes required to align with desired
-  state, informs CRM
+- *PE* - `pegnine`/`pacemaker-schedulerd`, policy engine, running on
+  DC, the brain of the cluster; the scheduler determines which actions
+  are necessary to achieve the desired state of the cluster; the input
+  is a snapshot of the CIB monitors CIB and calculates changes
+  required to align with desired state, informs CRM
 - *LRM* - `lrm`/`pacemaker-exec`, local resource manager, instructed from CRM
-  what to do
+  what to do, local executor
 - *RA* - resource agent, logic to start/stop/monitor a resource,
   called from LRM and return values are passed to the CRM, ideally
   OCF, LSB, systemd service units or STONITH
@@ -2221,6 +2225,10 @@ https://stackoverflow.com/questions/6475374/how-do-i-make-cloud-init-startup-scr
 - *DLM* - distributed lock manager, cluster wide locking (`ocf:pacemaker:controld`)
 - *CLVM* - cluster logical volume manager, `lvmlockd`, protects LVM
   metadata on shared storage
+- *pacemaker-attrd* - attribute manager, maintains a database of
+  attributes for all the cluster nodes; the attributes are
+  synchronized across the cluster; the attributes are *usually*
+  recorded in the CIB (ie. not all!)
 
 
 #### corosync
