@@ -3037,6 +3037,49 @@ hb_report-Wed-11-Jan-2023/example01/pengine/pe-input-349.bz2 Wed Jan 11 12:13:14
 hb_report-Wed-11-Jan-2023/example01/pengine/pe-input-350.bz2 Wed Jan 11 12:14:52 CET 2023
 ```
 
+A node is "back" _online_:
+
+```
+May 17 15:51:01 [4234] node1       crmd:     info: peer_update_callback: Client node1/peer now has status [online] (DC=true, changed=4000000)
+```
+
+What is going to be executed for a transition in details?
+
+``` shell
+$ crm_simulate -S -x /tmp/pe-input-3902.bz2 | sed -n '/^Transition Summary/,/^Using the/p'
+Transition Summary:
+  * Start      rsc_ip_db2ptr_EWP        (                 node2 )  blocked
+  * Start      rsc_nc_db2ptr_EWP        (                 node2 )  blocked
+  * Promote    rsc_Db2_db2ptr_EWP:0     ( Slave -> Master node2 )
+
+Executing Cluster Transition:
+  * Pseudo action:   msl_Db2_db2ptr_EWP_pre_notify_promote_0
+  * Resource action: rsc_Db2_db2ptr_EWP notify on node2
+  * Pseudo action:   msl_Db2_db2ptr_EWP_confirmed-pre_notify_promote_0
+  * Pseudo action:   msl_Db2_db2ptr_EWP_promote_0
+  * Resource action: rsc_Db2_db2ptr_EWP promote on node2
+  * Pseudo action:   msl_Db2_db2ptr_EWP_promoted_0
+  * Pseudo action:   msl_Db2_db2ptr_EWP_post_notify_promoted_0
+  * Resource action: rsc_Db2_db2ptr_EWP notify on node2
+  * Pseudo action:   msl_Db2_db2ptr_EWP_confirmed-post_notify_promoted_0
+  * Pseudo action:   g_ip_db2ptr_EWP_start_0
+  * Resource action: rsc_Db2_db2ptr_EWP monitor=31000 on node2
+Using the original execution date of: 2023-05-17 07:50:58Z
+
+$ crm_simulate -VVVVVV -S -x /tmp/pe-input-3902.bz2 2>&1 | grep log_synapse_action
+(log_synapse_action)    debug: [Action   19]: Pending pseudo op g_ip_db2ptr_EWP_start_0          (priority: 0, waiting: 44)
+(log_synapse_action)    debug: [Action   58]: Pending resource op rsc_Db2_db2ptr_EWP_post_notify_promote_0 on node2 (priority: 1000000, waiting: 43)
+(log_synapse_action)    debug: [Action   57]: Pending resource op rsc_Db2_db2ptr_EWP_pre_notify_promote_0 on node2 (priority: 0, waiting: 41)
+(log_synapse_action)    debug: [Action   26]: Pending resource op rsc_Db2_db2ptr_EWP_monitor_31000 on node2 (priority: 0, waiting: 25 44)
+(log_synapse_action)    debug: [Action   25]: Pending resource op rsc_Db2_db2ptr_EWP_promote_0   on node2 (priority: 0, waiting: 39)
+(log_synapse_action)    debug: [Action   44]: Pending pseudo op msl_Db2_db2ptr_EWP_confirmed-post_notify_promoted_0 (priority: 1000000, waiting: 43 58)
+(log_synapse_action)    debug: [Action   43]: Pending pseudo op msl_Db2_db2ptr_EWP_post_notify_promoted_0 (priority: 1000000, waiting: 40 42)
+(log_synapse_action)    debug: [Action   42]: Pending pseudo op msl_Db2_db2ptr_EWP_confirmed-pre_notify_promote_0 (priority: 0, waiting: 41 57)
+(log_synapse_action)    debug: [Action   41]: Pending pseudo op msl_Db2_db2ptr_EWP_pre_notify_promote_0 (priority: 0, waiting: none)
+(log_synapse_action)    debug: [Action   40]: Pending pseudo op msl_Db2_db2ptr_EWP_promoted_0    (priority: 1000000, waiting: 25)
+(log_synapse_action)    debug: [Action   39]: Pending pseudo op msl_Db2_db2ptr_EWP_promote_0     (priority: 0, waiting: 42)
+```
+
 logs must be gathered from all nodes
 
 ``` shell
