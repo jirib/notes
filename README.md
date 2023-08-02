@@ -4016,6 +4016,16 @@ See https://www.perl.com/pub/2004/08/09/commandline.html/.
 #### regex
 
 - `(?:pattern)` - non-capturing group
+- `(.*?)` - non-greedy pattern, see an example:
+  ``` shell
+  $ tr '\n' '\0' < src/http.c | grep -aPo '\s+proxyauth = NULL;\0\s+\}\0(.*?\0){4}' | tr '\0' '\n'
+              proxyauth = NULL;
+            }
+          /* Examples in rfc2817 use the Host header in CONNECT
+             requests.  I don't see how that gains anything, given
+             that the contents of Host would be exactly the same as
+             the contents of CONNECT.  */
+  ```
 
 
 ### php
@@ -7821,6 +7831,7 @@ Since 8.2108.0, one should be able to define TLS settings in _omfwd_ module dire
 
 #### rsyslog & SLES
 
+``` shell
 $ systemctl stop rsyslog.service syslog.socket
 $ ls -l /dev/log
 lrwxrwxrwx 1 root root 28 Nov 30 15:47 /dev/log -> /run/systemd/journal/dev-log
@@ -7834,6 +7845,8 @@ $ rsyslogd -iNONE -d -n 2>&1 | tee /tmp/rsyslogd.out.txt
 $ lsof -np $(pgrep rsyslogd) | grep -P 'unix\b.*DGRAM'
 rsyslogd 27268 root    4u  unix 0xffff997cf9256a80      0t0      63700 /run/systemd/journal/syslog type=DGRAM
 rsyslogd 27268 root    6u  unix 0xffff997cf9257740      0t0      63702 type=DGRAM
+```
+
 
 ### vector
 
