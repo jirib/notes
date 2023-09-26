@@ -1362,6 +1362,19 @@ How SCP protocol works, in [WaybackMachine
 archive](https://web.archive.org/web/20170215184048/https://blogs.oracle.com/janp/entry/how_the_scp_protocol_works).
 
 
+### PAM
+
+An example of tracing a user login with expired password, see `pam_sm_acct_mgmt(3)`.
+
+``` shell
+$ ltrace -ft -x '*@pam_unix.so' -L /usr/sbin/sshd -p 2222 -D
+[pid 9562] 09:30:16 --- Called exec() ---
+[pid 9564] 09:30:17 pam_sm_authenticate@pam_unix.so(0x5610d5ef2ff0, 1, 1, [ "try_first_pass" ]) = SUCCESS
+[pid 9564] 09:30:20 pam_sm_acct_mgmt@pam_unix.so(0x5610d5ef2ff0, 0, 1, [ "try_first_pass" ]) = NEW_AUTHTOK_REQD
+[pid 9564] 09:30:20 pam_sm_chauthtok@pam_unix.so(0x5610d5ef2ff0, 0x4020, 4, 0x5610d5ee22c0
+```
+
+
 ### sssd
 
 
@@ -8289,6 +8302,27 @@ NetBIOS Name Service
                 .11. .... .... .... = ONT: Unknown (3)
             Addr: 192.168.122.11
 ```
+
+Raw data from GELF:
+
+``` shell
+$ tshark -c1 -i eth0 -f 'udp and host 1.2.3.4 and port 12201' -T fields -e data.data 2>/dev/null | tr -d '\n',':' | xxd -r -ps | zcat | jq '.'
+{
+  "version": "1.1",
+  "host": "jb155sapqe02",
+  "short_message": "Hello from Docker!",
+  "timestamp": 1695712531.719,
+  "level": 6,
+  "_command": "/hello",
+  "_container_id": "6b8c8c3beb8b3eb0ad50cd5b303f4295b808257e182f7622f12deb228f56f1f7",
+  "_container_name": "naughty_khorana",
+  "_created": "2023-09-26T07:15:31.306166382Z",
+  "_image_id": "sha256:9c7a54a9a43cca047013b82af109fe963fde787f63f9e016fdc3384500c2823d",
+  "_image_name": "hello-world",
+  "_tag": "6b8c8c3beb8b"
+}
+```
+
 
 ##### lacp
 
