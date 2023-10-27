@@ -5164,6 +5164,29 @@ $ dmesg | grep CIFS:
 [363189.487465] CIFS: VFS: cifs_mount failed w/return code = -13
 ```
 
+Logged issues:
+
+``` shell
+[126347.433310] CIFS: Attempting to mount //t14s/test
+[126347.460616] CIFS: Status code returned 0xc000006d STATUS_LOGON_FAILURE
+[126347.460652] CIFS: VFS: \\t14s Send error in SessSetup = -13
+[126347.460688] CIFS: VFS: cifs_mount failed w/return code = -13
+
+^^^ here bad password was used
+
+[126519.696342] CIFS: Attempting to mount //t14s/testt
+[126519.719473] CIFS: VFS:  BAD_NETWORK_NAME: \\t14s\testt
+[126521.736215] CIFS: VFS: cifs_mount failed w/return code = -2
+
+^^ here bad share name 'testt' instead of 'test'
+
+[126593.988846] CIFS: Attempting to mount //t14s/test
+[126594.010417] CIFS: VFS:  BAD_NETWORK_NAME: \\t14s\test
+[126596.032531] CIFS: VFS: cifs_mount failed w/return code = -2
+
+^^ here a backing directory of the 'test' share did not exit
+```
+
 #### samba
 
 A text from `samba(7)`:
