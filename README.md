@@ -4839,7 +4839,7 @@ $ grep -P '(Linux version|unfence)' /var/log/messages | tail -n3
 2023-05-22T13:48:19.311670+02:00 node01 kernel: [    0.000000][    T0] Linux version 5.14.21-150400.24.21-default (geeko@buildhost) (gcc (SUSE Linux) 7.5.0, GNU ld (GNU Binutils; SUSE Linux Enterprise 15) 2.37.20211103-150100.7.37) #1 SMP PREEMPT_DYNAMIC Wed Sep 7 06:51:18 UTC 2022 (974d0aa)
 2023-05-22T13:52:46.024106+02:00 node01 crm-unfence-peer.9.sh[3681]: DRBD_BACKING_DEV=/dev/sdb DRBD_CONF=/etc/drbd.conf DRBD_CSTATE=Connected DRBD_LL_DISK=/dev/sdb DRBD_MINOR=0 DRBD_MY_ADDRESS=10.40.40.41 DRBD_MY_AF=ipv4 DRBD_MY_NODE_ID=0 DRBD_NODE_ID_0=node01 DRBD_NODE_ID_1=node02 DRBD_PEER_ADDRESS=10.40.40.42 DRBD_PEER_AF=ipv4 DRBD_PEER_NODE_ID=1 DRBD_RESOURCE=r0 DRBD_VOLUME=0 UP_TO_DATE_NODES='' /usr/lib/drbd/crm-unfence-peer.9.sh
 2023-05-22T13:52:46.179836+02:00 node01 crm-unfence-peer.9.sh[3681]: INFO Removed constraint 'drbd-fence-by-handler-r0-ms-p-drbd-r0'
-
+```
 
 #### troubleshooting
 
