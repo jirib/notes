@@ -3555,6 +3555,38 @@ $ jq -r '.profile.name' '/home/jiri/.config/BraveSoftware/Brave-Browser/Default/
 jiri
 ```
 
+#### browserpass
+
+If a distro does not have a system package, then:
+
+``` shell
+$ make BIN=browserpass-linux64 PREFIX=$HOME/.local DESTDIR= configure
+$ make BIN=browserpass-linux64 PREFIX=$HOME/.local DESTDIR=~/.local/stow/browserpass-linux64-3.1.0 install
+$ mv ~/.local/stow/browserpass-linux64-3.1.0/home/jiri/.local ~/.local/stow/browserpass-linux64-3.1.0/
+$ rm -rf ~/.local/stow/browserpass-linux64-3.1.0/home
+$ stow -d ~/.local/share/stow/ -t ~/ -vvv browserpass-linux64-3.1.0
+$ cd ~/.local/lib/browserpass/
+$ make BIN=browserpass-linux64 PREFIX=.local DESTDIR=/home/jiri hosts-brave-user # creates symlink
+$ make BIN=browserpass-linux64 PREFIX=.local DESTDIR=/home/jiri policies-brave-user # creates symlink
+
+$ grep -H '' /home/jiri/.local/lib/browserpass/{hosts,policies}/chromium/com.github.browserpass.native.json
+/home/jiri/.local/lib/browserpass/hosts/chromium/com.github.browserpass.native.json:{
+/home/jiri/.local/lib/browserpass/hosts/chromium/com.github.browserpass.native.json:    "name": "com.github.browserpass.native",
+/home/jiri/.local/lib/browserpass/hosts/chromium/com.github.browserpass.native.json:    "description": "Browserpass native component for the Chromium extension",
+/home/jiri/.local/lib/browserpass/hosts/chromium/com.github.browserpass.native.json:    "path": "/home/jiri/.local/bin/browserpass-linux64",
+/home/jiri/.local/lib/browserpass/hosts/chromium/com.github.browserpass.native.json:    "type": "stdio",
+/home/jiri/.local/lib/browserpass/hosts/chromium/com.github.browserpass.native.json:    "allowed_origins": [
+/home/jiri/.local/lib/browserpass/hosts/chromium/com.github.browserpass.native.json:        "chrome-extension://naepdomgkenhinolocfifgehidddafch/",
+/home/jiri/.local/lib/browserpass/hosts/chromium/com.github.browserpass.native.json:        "chrome-extension://pjmbgaakjkbhpopmakjoedenlfdmcdgm/",
+/home/jiri/.local/lib/browserpass/hosts/chromium/com.github.browserpass.native.json:        "chrome-extension://klfoddkbhleoaabpmiigbmpbjfljimgb/"
+/home/jiri/.local/lib/browserpass/hosts/chromium/com.github.browserpass.native.json:    ]
+/home/jiri/.local/lib/browserpass/hosts/chromium/com.github.browserpass.native.json:}
+/home/jiri/.local/lib/browserpass/policies/chromium/com.github.browserpass.native.json:{
+/home/jiri/.local/lib/browserpass/policies/chromium/com.github.browserpass.native.json:    "ExtensionInstallForcelist": [
+/home/jiri/.local/lib/browserpass/policies/chromium/com.github.browserpass.native.json:        "naepdomgkenhinolocfifgehidddafch;https://clients2.google.com/service/update2/crx"
+/home/jiri/.local/lib/browserpass/policies/chromium/com.github.browserpass.native.json:    ]
+/home/jiri/.local/lib/browserpass/policies/chromium/com.github.browserpass.native.json:}
+```
 
 ### desktop files
 
@@ -3922,6 +3954,23 @@ To extract hunks from a diff, see https://stackoverflow.com/questions/1990498/ho
 ### git
 
 
+#### attributes
+
+How to make a custom `diff` for a binary file?
+
+``` shell
+$ tail -n3 .git/config
+[diff "docx"]
+    binary = true
+    textconv = /home/jiri/bin/docx-3rd-column.py
+
+$ tail -n1 .gitattributes
+*.docx diff=docx
+```
+
+So, now `git diff` will use above _textconv_ script... Voila!
+
+
 #### cloning
 
 cloning a huge repo could take ages because of its history, adding `--depth 1`
@@ -3930,6 +3979,50 @@ will copy only the latest revision of everything in the repository.
 ``` shell
 $ git clone --depth 1 git@github.com:torvalds/linux.git
 ```
+
+
+#### git-lfs
+
+`git-lfs` is used to efficiently manage big binary files in a git repo.
+
+``` shell
+$ echo $GIT_DIR
+$ /home/jiri/www/.git
+
+$ git lfs env
+git-lfs/3.4.1 (GitHub; linux amd64; go 1.21.5)
+git version 2.43.0
+
+LocalWorkingDir=/home/jiri/www/data-202312290103
+LocalGitDir=/home/jiri/www/.git
+LocalGitStorageDir=/home/jiri/www/.git
+LocalMediaDir=/home/jiri/www/.git/lfs/objects
+LocalReferenceDirs=
+TempDir=/home/jiri/www/.git/lfs/tmp
+ConcurrentTransfers=8
+TusTransfers=false
+BasicTransfersOnly=false
+SkipDownloadErrors=false
+FetchRecentAlways=false
+FetchRecentRefsDays=7
+FetchRecentCommitsDays=0
+FetchRecentRefsIncludeRemotes=true
+PruneOffsetDays=3
+PruneVerifyRemoteAlways=false
+PruneRemoteName=origin
+LfsStorageDir=/home/jiri/www/.git/lfs
+AccessDownload=none
+AccessUpload=none
+DownloadTransfers=basic,lfs-standalone-file,ssh
+UploadTransfers=basic,lfs-standalone-file,ssh
+GIT_DIR=/home/jiri/www/.git
+GIT_EXEC_PATH=/usr/lib/git-core
+git config filter.lfs.process = "git-lfs filter-process"
+git config filter.lfs.smudge = "git-lfs smudge -- %f"
+git config filter.lfs.clean = "git-lfs clean -- %f"
+```
+
+See above `LfsStorageDir`.
 
 #### SSH
 
