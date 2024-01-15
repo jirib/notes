@@ -11670,8 +11670,8 @@ starts a custom target/service.
 .config/systemd/user/thinkpad-usb-c-displays.service:
 .config/systemd/user/thinkpad-usb-c-displays.service:[Service]
 .config/systemd/user/thinkpad-usb-c-displays.service:Type=oneshot
-.config/systemd/user/thinkpad-usb-c-displays.service:ExecStart=/home/jiri/bin/thinkpad-usb-c-displays start
-.config/systemd/user/thinkpad-usb-c-displays.service:ExecStop=/home/jiri/bin/thinkpad-usb-c-displays stop
+.config/systemd/user/thinkpad-usb-c-displays.service:ExecStart=%h/bin/thinkpad-usb-c-displays start
+.config/systemd/user/thinkpad-usb-c-displays.service:ExecStop=%h/bin/thinkpad-usb-c-displays stop
 .config/systemd/user/thinkpad-usb-c-displays.service:RemainAfterExit=true
 .config/systemd/user/thinkpad-usb-c-displays.service:
 .config/systemd/user/thinkpad-usb-c-displays.service:[Install]
