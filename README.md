@@ -9054,6 +9054,44 @@ Data (32 bytes)
 1 packet captured
 ```
 
+
+### NetworkManager
+
+NetworkManager with _dnsmasq_ and _dnscrypt-proxy_:
+
+``` shell
+$ grep -H '' /etc/NetworkManager/conf.d/dns.conf /usr/lib/systemd/system/dnscrypt-proxy.socket
+/etc/NetworkManager/conf.d/dns.conf:[main]
+/etc/NetworkManager/conf.d/dns.conf:dns=dnsmasq
+/etc/NetworkManager/conf.d/dns.conf:
+/etc/NetworkManager/conf.d/dns.conf:[global-dns-domain-*]
+/etc/NetworkManager/conf.d/dns.conf:servers=127.0.2.1
+/usr/lib/systemd/system/dnscrypt-proxy.socket:[Unit]
+/usr/lib/systemd/system/dnscrypt-proxy.socket:Description=dnscrypt-proxy listening socket
+/usr/lib/systemd/system/dnscrypt-proxy.socket:Documentation=https://github.com/DNSCrypt/dnscrypt-proxy/wiki
+/usr/lib/systemd/system/dnscrypt-proxy.socket:Before=nss-lookup.target
+/usr/lib/systemd/system/dnscrypt-proxy.socket:Wants=nss-lookup.target
+/usr/lib/systemd/system/dnscrypt-proxy.socket:Wants=dnscrypt-proxy-resolvconf.service
+/usr/lib/systemd/system/dnscrypt-proxy.socket:
+/usr/lib/systemd/system/dnscrypt-proxy.socket:[Socket]
+/usr/lib/systemd/system/dnscrypt-proxy.socket:ListenStream=127.0.2.1:53
+/usr/lib/systemd/system/dnscrypt-proxy.socket:ListenDatagram=127.0.2.1:53
+/usr/lib/systemd/system/dnscrypt-proxy.socket:NoDelay=true
+/usr/lib/systemd/system/dnscrypt-proxy.socket:DeferAcceptSec=1
+/usr/lib/systemd/system/dnscrypt-proxy.socket:
+/usr/lib/systemd/system/dnscrypt-proxy.socket:[Install]
+/usr/lib/systemd/system/dnscrypt-proxy.socket:WantedBy=sockets.targe
+
+# `pkill -USR1 -f dnsmasq' will show in the journal
+Jan 12 13:28:17 hostname dnsmasq[439980]: time 1705062497
+Jan 12 13:28:17 hostname dnsmasq[439980]: cache size 1000, 0/32 cache insertions re-used unexpired cache entries.
+Jan 12 13:28:17 hostname dnsmasq[439980]: queries forwarded 16, queries answered locally 20
+Jan 12 13:28:17 hostname dnsmasq[439980]: queries for authoritative zones 0
+Jan 12 13:28:17 hostname dnsmasq[439980]: pool memory in use 3024, max 4416, allocated 48000
+Jan 12 13:28:17 hostname dnsmasq[439980]: server 127.0.2.1#53: queries sent 31, retried 0, failed 0, nxdomain replies 0, avg. latency 123ms
+
+```
+
 ### SR-IOV
 
 ``` shell
@@ -11605,6 +11643,92 @@ echo 'HandleLidSwitch=ignore' >> \
   /etc/systemd/logind.conf.d/lid.conf
 systemctl restart systemd-logind # does not work on SUSE
 ```
+
+A hack, resetting X11 displays output when using USB-C dock - since
+the dock has an ethernet interface, it depends on it's presence and
+starts a custom target/service.
+
+
+``` shell
+.config/systemd/user/sys-subsystem-net-devices-enx482ae39a7885.device.wants/thinkpad-usb-c-dock.target:[Unit]
+.config/systemd/user/sys-subsystem-net-devices-enx482ae39a7885.device.wants/thinkpad-usb-c-dock.target:Description=Lenovo ThinkPad USB-C Dock
+.config/systemd/user/sys-subsystem-net-devices-enx482ae39a7885.device.wants/thinkpad-usb-c-dock.target:Requisite=sys-subsystem-net-devices-enx482ae39a7885.device
+.config/systemd/user/sys-subsystem-net-devices-enx482ae39a7885.device.wants/thinkpad-usb-c-dock.target:BindsTo=sys-subsystem-net-devices-enx482ae39a7885.device
+.config/systemd/user/sys-subsystem-net-devices-enx482ae39a7885.device.wants/thinkpad-usb-c-dock.target:After=sys-subsystem-net-devices-enx482ae39a7885.device
+.config/systemd/user/sys-subsystem-net-devices-enx482ae39a7885.device.wants/thinkpad-usb-c-dock.target:JobTimeoutSec=5
+.config/systemd/user/sys-subsystem-net-devices-enx482ae39a7885.device.wants/thinkpad-usb-c-dock.target:
+.config/systemd/user/sys-subsystem-net-devices-enx482ae39a7885.device.wants/thinkpad-usb-c-dock.target:[Install]
+.config/systemd/user/sys-subsystem-net-devices-enx482ae39a7885.device.wants/thinkpad-usb-c-dock.target:WantedBy=sys-subsystem-net-devices-enx482ae39a7885.device
+.config/systemd/user/thinkpad-usb-c-displays.service:[Unit]
+.config/systemd/user/thinkpad-usb-c-displays.service:Description=displays connected to Lenovo ThinkPad USB-C Dock
+.config/systemd/user/thinkpad-usb-c-displays.service:Requisite=thinkpad-usb-c-dock.target
+.config/systemd/user/thinkpad-usb-c-displays.service:After=thinkpad-usb-c-dock.target
+.config/systemd/user/thinkpad-usb-c-displays.service:PartOf=thinkpad-usb-c-dock.target
+.config/systemd/user/thinkpad-usb-c-displays.service:Conflicts=sleep.target
+.config/systemd/user/thinkpad-usb-c-displays.service:Before=sleep.target
+.config/systemd/user/thinkpad-usb-c-displays.service:StopWhenUnneeded=yes
+.config/systemd/user/thinkpad-usb-c-displays.service:
+.config/systemd/user/thinkpad-usb-c-displays.service:[Service]
+.config/systemd/user/thinkpad-usb-c-displays.service:Type=oneshot
+.config/systemd/user/thinkpad-usb-c-displays.service:ExecStart=/home/jiri/bin/thinkpad-usb-c-displays start
+.config/systemd/user/thinkpad-usb-c-displays.service:ExecStop=/home/jiri/bin/thinkpad-usb-c-displays stop
+.config/systemd/user/thinkpad-usb-c-displays.service:RemainAfterExit=true
+.config/systemd/user/thinkpad-usb-c-displays.service:
+.config/systemd/user/thinkpad-usb-c-displays.service:[Install]
+.config/systemd/user/thinkpad-usb-c-displays.service:WantedBy=thinkpad-usb-c-dock.target
+.config/systemd/user/thinkpad-usb-c-dock.target:[Unit]
+.config/systemd/user/thinkpad-usb-c-dock.target:Description=Lenovo ThinkPad USB-C Dock
+.config/systemd/user/thinkpad-usb-c-dock.target:Requisite=sys-subsystem-net-devices-enx482ae39a7885.device
+.config/systemd/user/thinkpad-usb-c-dock.target:BindsTo=sys-subsystem-net-devices-enx482ae39a7885.device
+.config/systemd/user/thinkpad-usb-c-dock.target:After=sys-subsystem-net-devices-enx482ae39a7885.device
+.config/systemd/user/thinkpad-usb-c-dock.target:JobTimeoutSec=5
+.config/systemd/user/thinkpad-usb-c-dock.target:
+.config/systemd/user/thinkpad-usb-c-dock.target:[Install]
+.config/systemd/user/thinkpad-usb-c-dock.target:WantedBy=sys-subsystem-net-devices-enx482ae39a7885.device
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:[Unit]
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:Description=displays connected to Lenovo ThinkPad USB-C Dock
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:Requisite=thinkpad-usb-c-dock.target
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:After=thinkpad-usb-c-dock.target
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:PartOf=thinkpad-usb-c-dock.target
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:Conflicts=sleep.target
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:Before=sleep.target
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:StopWhenUnneeded=yes
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:[Service]
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:Type=oneshot
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:ExecStart=%h/bin/thinkpad-usb-c-displays start
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:ExecStop=%h/bin/thinkpad-usb-c-displays stop
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:RemainAfterExit=true
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:[Install]
+.config/systemd/user/thinkpad-usb-c-dock.target.wants/thinkpad-usb-c-displays.service:WantedBy=thinkpad-usb-c-dock.target
+```
+
+``` shell
+#!/bin/bash
+
+# https://unix.stackexchange.com/questions/429092/what-is-the-best-way-to-find-the-current-display-and-xauthority-in-non-interacti
+eval $(systemctl --user show-environment | \
+           grep -P '(DBUS|DISPLAY|XAUTHORITY|XDG_RUNTIME_DIR)' | \
+           sed 's/^/export /')
+
+case "$1" in
+    start)
+        read -r D1 D2 < <(xrandr | tail -n +3 | \
+                              grep -Po '^(\S+)(?=.* connected)' | tr '\n' ' ')
+        xrandr --output ${D1} --primary --auto \
+               --output ${D2} --auto --left-of ${D1} \
+               --output eDP --off
+        ;;
+    stop)
+        xrandr --output eDP --primary --auto
+        eval 'xrandr' \
+             $(printf -- '--output %s --off ' \
+                      $(xrandr | tail -n +3 | grep -Po '^\S+'))
+        ;;
+esac
+```
+
 
 #### unit files location
 
