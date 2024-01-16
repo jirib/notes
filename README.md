@@ -11719,7 +11719,8 @@ function displays() {
     local left
     local right
 
-    outputs=$(xrandr --listmonitors | tail -n +2 | awk '!/eDP/ { print $NF }')
+    outputs=$(xrandr | tail -n +2 | grep -Po '^(\S+)(?=.* connected.*)' \
+                  | grep -v eDP)
     for i in $outputs; do
         out=$(~/bin/filter_edid $i | edid-decode)
         grep -q $lserial <<< "${out}" && left=$i
