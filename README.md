@@ -11707,17 +11707,32 @@ starts a custom target/service.
 ``` shell
 #!/bin/bash
 
-# https://unix.stackexchange.com/questions/429092/what-is-the-best-way-to-find-the-current-display-and-xauthority-in-non-interacti
 eval $(systemctl --user show-environment | \
            grep -P '(DBUS|DISPLAY|XAUTHORITY|XDG_RUNTIME_DIR)' | \
            sed 's/^/export /')
 
+function displays() {
+    # serials taken from `edid-decode'`
+    local lserial='H4ZN903596'
+    local rserial='H4ZN903767'
+    local outputs
+    local left
+    local right
+
+    outputs=$(xrandr --listmonitors | tail -n +2 | awk '!/eDP/ { print $NF }')
+    for i in $outputs; do
+        out=$(~/bin/filter_edid $i | edid-decode)
+        grep -q $lserial <<< "${out}" && left=$i
+        grep -q $rserial <<< "${out}" && right=$i
+    done
+    echo $left $right
+}
+
 case "$1" in
     start)
-        read -r D1 D2 < <(xrandr | tail -n +3 | \
-                              grep -Po '^(\S+)(?=.* connected)' | tr '\n' ' ')
-        xrandr --output ${D1} --primary --auto \
-               --output ${D2} --auto --left-of ${D1} \
+        read -r LEFT RIGHT < <(displays)
+        xrandr --output ${LEFT} --auto \
+               --output ${RIGHT} --primary --auto --right-of ${LEFT} \
                --output eDP --off
         ;;
     stop)
