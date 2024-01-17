@@ -3538,6 +3538,18 @@ $ dbus-send --print-reply --dest=org.freedesktop.DBus  /org/freedesktop/DBus org
 ## desktop
 
 
+### i3wm
+
+To make tray on primary display, do:
+
+``` shell
+bar {
+    status_command i3status
+    tray_output primary
+}
+```
+
+
 ### brave-browser
 
 For using multiple profiles I used these wrappers:
