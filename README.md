@@ -9101,8 +9101,30 @@ Jan 12 13:28:17 hostname dnsmasq[439980]: queries forwarded 16, queries answered
 Jan 12 13:28:17 hostname dnsmasq[439980]: queries for authoritative zones 0
 Jan 12 13:28:17 hostname dnsmasq[439980]: pool memory in use 3024, max 4416, allocated 48000
 Jan 12 13:28:17 hostname dnsmasq[439980]: server 127.0.2.1#53: queries sent 31, retried 0, failed 0, nxdomain replies 0, avg. latency 123ms
-
 ```
+
+#### network-manager-openvpn
+
+OpenVPN is under NM slice:
+
+``` shell
+$ systemd-cgls --no-pager -a -l -u NetworkManager.service
+Unit NetworkManager.service (/system.slice/NetworkManager.service):
+├─11603 /usr/libexec/nm-openvpn-service --debug
+├─19797 /usr/sbin/NetworkManager --no-daemon
+├─19969 /usr/sbin/openvpn --remote gate1.example.com 1194 udp --remote gate2.example.com 1194 udp --remote gate1.example.com 443 tcp-client --remote gate2.example.com 443 tcp-client --allow-compression no --ping 10 --ping-restart 30 --connect-timeout 20 --nobind --dev exampleovpn --dev-type tun --cipher AES-256-CBC --data-ciphers AES-256-CBC --auth SHA512 --auth-nocache --tls-auth /home/jiri/.cert/nm-openvpn/EXAMPLE-OpenVPN-tls-auth.pem 1 --remote-cert-tls server --reneg-sec 0 --verb 1 --syslog nm-openvpn --script-security 2 --up /usr/libexec/nm-openvpn-service-openvpn-helper --debug 0 11603 --bus-name org.freedesktop.NetworkManager.openvpn --tun -- --up-restart --persist-key --persist-tun --management /var/run/NetworkManager/nm-openvpn-f8cc0539-cb3d-4f95-b9f7-17c86f6b05fc unix --management-client-user root --management-client-group root --management-query-passwords --auth-retry interact --route-noexec --ifconfig-noexec --client --ca /home/jiri/.cert/nm-openvpn/EXAMPLE-OpenVPN-ca.pem --cert /home/jiri/.cert/nm-openvpn/EXAMPLE-OpenVPN-cert.pem --key /home/jiri/.cert/nm-openvpn/EXAMPLE-OpenVPN-key.pem --auth-user-pass --user nm-openvpn --group nm-openvpn
+└─20002 /usr/sbin/dnsmasq --no-resolv --keep-in-foreground --no-hosts --bind-interfaces --pid-file=/run/NetworkManager/dnsmasq.pid --listen-address=127.0.0.1 --cache-size=400 --clear-on-reload --conf-file=/dev/null --enable-dbus=org.freedesktop.NetworkManager.dnsmasq --conf-dir=/etc/NetworkManager/dnsmasq.d
+```
+
+And it uses OpenVPN management channel to talk to OpenVPN:
+
+``` shell
+$ ss -xnlp | grep 19969
+u_str LISTEN 0      1      /var/run/NetworkManager/nm-openvpn-f8cc0539-cb3d-4f95-b9f7-17c86f6b05fc 313720            * 0    users:(("openvpn",pid=19969,fd=4))
+$ nmcli c s | grep f8cc
+EXAMPLE-OpenVPN        f8cc0539-cb3d-4f95-b9f7-17c86f6b05fc  vpn       wlp3s0
+```
+
 
 ### SR-IOV
 
