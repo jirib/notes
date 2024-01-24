@@ -7041,6 +7041,44 @@ KRB5_TRACE=/dev/stdout kinit <args> # to get debug from any gssapi/krb library
 
 - `/proc/config.gz`
 
+
+### console
+
+``` shell
+$ udevadm info /dev/fb0 | grep -Po 'DEVPATH=\K(.*)' | xargs -I '{}' bash -c "grep -H '' /sys{}/* 2>/dev/null"
+/sys/devices/pci0000:00/0000:00:1c.5/0000:02:00.0/0000:03:00.0/graphics/fb0/bits_per_pixel:32
+/sys/devices/pci0000:00/0000:00:1c.5/0000:02:00.0/0000:03:00.0/graphics/fb0/dev:29:0
+/sys/devices/pci0000:00/0000:00:1c.5/0000:02:00.0/0000:03:00.0/graphics/fb0/modes:U:1024x768p-0
+/sys/devices/pci0000:00/0000:00:1c.5/0000:02:00.0/0000:03:00.0/graphics/fb0/name:astdrmfb
+/sys/devices/pci0000:00/0000:00:1c.5/0000:02:00.0/0000:03:00.0/graphics/fb0/pan:0,0
+/sys/devices/pci0000:00/0000:00:1c.5/0000:02:00.0/0000:03:00.0/graphics/fb0/rotate:0
+/sys/devices/pci0000:00/0000:00:1c.5/0000:02:00.0/0000:03:00.0/graphics/fb0/state:0
+/sys/devices/pci0000:00/0000:00:1c.5/0000:02:00.0/0000:03:00.0/graphics/fb0/stride:4096
+/sys/devices/pci0000:00/0000:00:1c.5/0000:02:00.0/0000:03:00.0/graphics/fb0/uevent:MAJOR=29
+/sys/devices/pci0000:00/0000:00:1c.5/0000:02:00.0/0000:03:00.0/graphics/fb0/uevent:MINOR=0
+/sys/devices/pci0000:00/0000:00:1c.5/0000:02:00.0/0000:03:00.0/graphics/fb0/uevent:DEVNAME=fb0
+/sys/devices/pci0000:00/0000:00:1c.5/0000:02:00.0/0000:03:00.0/graphics/fb0/virtual_size:1024,768
+```
+
+``` shell
+$ showconsolefont -C /dev/tty0 -iv
+Character count: 256
+Font width     : 8
+Font height    : 16
+```
+
+Kernel boot param might be `fbcon=font:TER16x32`, see https://docs.kernel.org/fb/fbcon.html.
+
+Change of font in virtual console can be done via `setfont <font>` or `/etc/vconsole.conf`.
+
+Devices which are system consoles can be queried via:
+
+``` shell
+$ cat /sys/devices/virtual/tty/console/active
+ttyS1 tty0
+```
+
+
 ### crash
 
 Kernel panic means a kernel crash which is controlled with following settings:
