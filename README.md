@@ -3538,6 +3538,30 @@ $ dbus-send --print-reply --dest=org.freedesktop.DBus  /org/freedesktop/DBus org
 ## desktop
 
 
+### ffmpeg
+
+How to record a region of X11 screen?
+
+``` shell
+$ ffmpeg -f x11grab -y -framerate 20 \
+    $(slop -f "-grab_x %x -grab_y %y -s %wx%h") \
+    -i :0.0 -c:v libx264 -preset superfast -crf 21
+    /tmp/"$(date +'%Y-%m-%d_%H-%M-%S').mp4"
+```
+
+And converting to GIF:
+
+``` shell
+$ ffmpeg -i <video> \
+    -vf "fps=10,scale=640:-1:flags=lanczos,split[s0][s1];[s0]palettegen[p];[s1][p]paletteuse" \
+    -loop 0 <output>.gif
+```
+
+``` shell
+$  mogrify -layers optimize -fuzz 10% <output>gif
+```
+
+
 ### i3wm
 
 To make tray on primary display, do:
@@ -7059,6 +7083,68 @@ $ udevadm info /dev/fb0 | grep -Po 'DEVPATH=\K(.*)' | xargs -I '{}' bash -c "gre
 /sys/devices/pci0000:00/0000:00:1c.5/0000:02:00.0/0000:03:00.0/graphics/fb0/uevent:DEVNAME=fb0
 /sys/devices/pci0000:00/0000:00:1c.5/0000:02:00.0/0000:03:00.0/graphics/fb0/virtual_size:1024,768
 ```
+
+Resolution was changed via kernel boot param `video=2560x1600`:
+
+``` shell
+$ udevadm info /dev/fb0 | grep -Po 'DEVPATH=\K(.*)' | xargs -I '{}' bash -c "grep -H '' /sys{}/* 2>/dev/null"
+/sys/devices/pci0000:00/0000:00:01.0/graphics/fb0/bits_per_pixel:32
+/sys/devices/pci0000:00/0000:00:01.0/graphics/fb0/dev:29:0
+/sys/devices/pci0000:00/0000:00:01.0/graphics/fb0/modes:U:2560x1600p-0
+/sys/devices/pci0000:00/0000:00:01.0/graphics/fb0/name:qxldrmfb
+/sys/devices/pci0000:00/0000:00:01.0/graphics/fb0/pan:0,0
+/sys/devices/pci0000:00/0000:00:01.0/graphics/fb0/rotate:0
+/sys/devices/pci0000:00/0000:00:01.0/graphics/fb0/state:0
+/sys/devices/pci0000:00/0000:00:01.0/graphics/fb0/stride:10240
+/sys/devices/pci0000:00/0000:00:01.0/graphics/fb0/uevent:MAJOR=29
+/sys/devices/pci0000:00/0000:00:01.0/graphics/fb0/uevent:MINOR=0
+/sys/devices/pci0000:00/0000:00:01.0/graphics/fb0/uevent:DEVNAME=fb0
+/sys/devices/pci0000:00/0000:00:01.0/graphics/fb0/virtual_size:2560,1600
+
+$ grep -H '' /sys/class/drm/*/*Virtual-1/* 2>/dev/null
+/sys/class/drm/card0/card0-Virtual-1/dpms:On
+/sys/class/drm/card0/card0-Virtual-1/enabled:enabled
+/sys/class/drm/card0/card0-Virtual-1/modes:1024x768
+/sys/class/drm/card0/card0-Virtual-1/modes:2560x1600
+/sys/class/drm/card0/card0-Virtual-1/modes:2560x1600
+/sys/class/drm/card0/card0-Virtual-1/modes:1920x1440
+/sys/class/drm/card0/card0-Virtual-1/modes:1856x1392
+/sys/class/drm/card0/card0-Virtual-1/modes:1792x1344
+/sys/class/drm/card0/card0-Virtual-1/modes:2048x1152
+/sys/class/drm/card0/card0-Virtual-1/modes:1920x1200
+/sys/class/drm/card0/card0-Virtual-1/modes:1920x1200
+/sys/class/drm/card0/card0-Virtual-1/modes:1920x1080
+/sys/class/drm/card0/card0-Virtual-1/modes:1600x1200
+/sys/class/drm/card0/card0-Virtual-1/modes:1680x1050
+/sys/class/drm/card0/card0-Virtual-1/modes:1680x1050
+/sys/class/drm/card0/card0-Virtual-1/modes:1400x1050
+/sys/class/drm/card0/card0-Virtual-1/modes:1400x1050
+/sys/class/drm/card0/card0-Virtual-1/modes:1600x900
+/sys/class/drm/card0/card0-Virtual-1/modes:1280x1024
+/sys/class/drm/card0/card0-Virtual-1/modes:1440x900
+/sys/class/drm/card0/card0-Virtual-1/modes:1440x900
+/sys/class/drm/card0/card0-Virtual-1/modes:1280x960
+/sys/class/drm/card0/card0-Virtual-1/modes:1280x854
+/sys/class/drm/card0/card0-Virtual-1/modes:1366x768
+/sys/class/drm/card0/card0-Virtual-1/modes:1366x768
+/sys/class/drm/card0/card0-Virtual-1/modes:1360x768
+/sys/class/drm/card0/card0-Virtual-1/modes:1280x800
+/sys/class/drm/card0/card0-Virtual-1/modes:1280x800
+/sys/class/drm/card0/card0-Virtual-1/modes:1280x768
+/sys/class/drm/card0/card0-Virtual-1/modes:1280x768
+/sys/class/drm/card0/card0-Virtual-1/modes:1280x720
+/sys/class/drm/card0/card0-Virtual-1/modes:1152x768
+/sys/class/drm/card0/card0-Virtual-1/modes:800x600
+/sys/class/drm/card0/card0-Virtual-1/modes:800x600
+/sys/class/drm/card0/card0-Virtual-1/modes:848x480
+/sys/class/drm/card0/card0-Virtual-1/modes:720x480
+/sys/class/drm/card0/card0-Virtual-1/modes:640x480
+/sys/class/drm/card0/card0-Virtual-1/status:connected
+/sys/class/drm/card0/card0-Virtual-1/uevent:DEVTYPE=drm_connector
+```
+
+Similar output available via `systool -vc drm`.
+
 
 ``` shell
 $ showconsolefont -C /dev/tty0 -iv
