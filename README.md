@@ -2629,6 +2629,267 @@ Totem Single Ring Protocol implemented in Corosync Cluster Engine
         Ring sequence number: 56
 ```
 
+
+#### DLM
+
+``` shell
+$ man dlm_controld | sed -n '/^DESCRIPTION/,/^$/{/^$/q;p}' | fmt -w80
+DESCRIPTION
+       The kernel dlm requires a user daemon to manage lockspace membership.
+       dlm_controld manages lockspace membership using corosync cpg groups,
+       and translates membership changes into dlm kernel recovery events.
+       dlm_controld also manages posix locks for cluster file systems using
+       the dlm.
+```
+
+``` shell
+# see corosync CPG (control process group) exists for DLM
+
+$ corosync-cpgtool -e
+Group Name             PID         Node ID
+dlm:controld
+                      3114               1 (192.168.253.100)
+crmd
+                      3034               1 (192.168.253.100)
+                      1859               2 (192.168.253.101)
+attrd
+                      3032               1 (192.168.253.100)
+                      1857               2 (192.168.253.101)
+stonith-ng
+                      3030               1 (192.168.253.100)
+                      1855               2 (192.168.253.101)
+cib
+                      3029               1 (192.168.253.100)
+                      1854               2 (192.168.253.101)
+sbd:cluster
+                      3018               1 (192.168.253.100)
+                      1842               2 (192.168.253.101)
+```
+
+``` shell
+$ corosync-cfgtool -s
+Printing ring status.
+Local node ID 1
+RING ID 0
+        id      = 192.168.253.100
+        status  = ring 0 active with no faults
+
+$ dlm_tool status
+cluster nodeid 1 quorate 1 ring seq 270 270
+daemon now 5844 fence_pid 0
+node 1 M add 5674 rem 0 fail 0 fence 0 at 0 0
+node 2 M add 5815 rem 0 fail 0 fence 0 at 0 0
+```
+
+If there are lockspace members (for example `lvmlockd` RA), one should see:
+
+``` shell
+# first our RA using the lockspace
+
+$ crm configure show lvmlockd
+primitive lvmlockd lvmlockd \
+        op start timeout=90s interval=0s \
+        op stop timeout=90s interval=0s \
+        op monitor timeout=90s interval=30s
+
+# note: 'clustered' was for old `clvmd'
+
+$ vgs -o vg_name,vg_clustered,vg_lock_type,vg_lock_args
+  VG    Clustered  LockType VLockArgs
+  clvg0            dlm      1.0.0:jb155sapqe
+
+# listing DLM internal lockspace
+
+$ dlm_tool ls
+dlm lockspaces
+name          lvm_clvg0
+id            0x45d1d4f1
+flags         0x00000000
+change        member 1 joined 1 remove 0 failed 0 seq 1,1
+members       1
+
+name          lvm_global
+id            0x12aabd2d
+flags         0x00000000
+change        member 1 joined 1 remove 0 failed 0 seq 1,1
+members       1
+
+# and corosync CPG for lockspace memberships
+
+$ corosync-cpgtool -e | head -n9
+Group Name             PID         Node ID
+dlm:ls:lvm_clvg0
+                      3702               1 (192.168.253.100)
+dlm:ls:lvm_global
+                      3702               1 (192.168.253.100)
+                      2368               2 (192.168.253.101)
+dlm:controld
+                      3702               1 (192.168.253.100)
+                      2368               2 (192.168.253.101)
+
+```
+
+So, what happens on network level when eg. `vgs` is typed?
+
+``` shell
+$  tshark -n -i eth0 -f 'not (udp or stp ) and not (port 22 or port 3260)'
+...
+    1 0.000000000 192.168.253.101 → 192.168.253.100 DLM3 206 options: message: conversion message
+    2 0.000115947 192.168.253.100 → 192.168.253.101 DLM3 222 acknowledge
+    3 0.000344159 192.168.253.101 → 192.168.253.100 DLM3 78 acknowledge
+    4 0.000361827 192.168.253.100 → 192.168.253.101 SCTP 62 SACK (Ack=1, Arwnd=4194288)
+    5 0.008363511 192.168.253.101 → 192.168.253.100 DLM3 206 options: message: conversion message
+    6 0.008479394 192.168.253.100 → 192.168.253.101 DLM3 78 acknowledge
+    7 0.008581370 192.168.253.101 → 192.168.253.100 SCTP 62 SACK (Ack=1, Arwnd=4194288)
+    8 0.209133597 192.168.253.100 → 192.168.253.101 SCTP 62 SACK (Ack=2, Arwnd=4194304)
+    9 6.161107176 192.168.253.100 → 192.168.253.101 SCTP 106 HEARTBEAT
+   10 6.161481187 192.168.253.101 → 192.168.253.100 SCTP 106 HEARTBEAT_ACK
+
+$ ss -Sna | col -b            # `-S' is SCTP, see below
+State    Recv-Q Send-Q        Local Address:Port     Peer Address:Port Process
+LISTEN   0      5           192.168.253.100:21064         0.0.0.0:*
+ESTAB    0      0           192.168.253.100:21064 192.168.253.101:53872
+`- ESTAB 0      0      192.168.253.100%eth0:21064 192.168.253.101:53872
+ESTAB    0      0           192.168.253.100:42013 192.168.253.101:21064
+`- ESTAB 0      0      192.168.253.100%eth0:42013 192.168.253.101:21064
+```
+
+SCTP??? See [Protocols for DLM communication](https://documentation.suse.com/sle-ha/15-SP5/single-html/SLE-HA-administration/#sec-ha-storage-dlm-protocol).
+
+``` shell
+$ dlm_tool dump | grep -P '(rrp_mode|protocol)'
+4244 cmap totem.rrp_mode = 'passive'
+4244 set protocol 1
+4244 receive_protocol 2 max 3.1.1.0 run 0.0.0.0
+4244 receive_protocol 1 max 3.1.1.0 run 3.1.1.0
+4244 run protocol from nodeid 1
+4244 receive_protocol 2 max 3.1.1.0 run 3.1.1.0
+
+$ lsmod | grep ^sctp
+sctp                  434176  10
+
+$ modinfo sctp | head
+filename:       /lib/modules/5.14.21-150500.55.19-default/kernel/net/sctp/sctp.ko.zst
+license:        GPL
+description:    Support for the SCTP protocol (RFC2960)
+author:         Linux Kernel SCTP developers <linux-sctp@vger.kernel.org>
+alias:          net-pf-10-proto-132
+alias:          net-pf-2-proto-132
+suserelease:    SLE15-SP5
+srcversion:     FC2AFAA5AE6D0A503192391
+depends:        udp_tunnel,libcrc32c,ip6_udp_tunnel
+supported:      yes
+```
+
+``` shell
+# if you add a
+# see that we have 'rrp_mode = "passive"', and 'protocol'
+
+$ dlm_tool dump
+5674 config file log_debug = 1 cli_set 0 use 1
+5674 dlm_controld 4.1.0 started
+5674 our_nodeid 1
+5674 node_config 1
+5674 node_config 2
+5674 found /dev/misc/dlm-control minor 124
+5674 found /dev/misc/dlm-monitor minor 123
+5674 found /dev/misc/dlm_plock minor 122
+5674 /sys/kernel/config/dlm/cluster/comms: opendir failed: 2
+5674 /sys/kernel/config/dlm/cluster/spaces: opendir failed: 2
+5674 set log_debug 1
+5674 set mark 0
+5674 cmap totem.rrp_mode = 'passive'
+5674 set protocol 1
+5674 set /proc/sys/net/core/rmem_default 4194304
+5674 set /proc/sys/net/core/rmem_max 4194304
+5674 set recover_callbacks 1
+5674 cmap totem.cluster_name = 'jb155sapqe'
+5674 set cluster_name jb155sapqe
+5674 /dev/misc/dlm-monitor fd 13
+5674 cluster quorum 1 seq 270 nodes 2
+5674 cluster node 1 added seq 270
+5674 set_configfs_node 1 192.168.253.100 local 1 mark 0
+5674 cluster node 2 added seq 270
+5674 set_configfs_node 2 192.168.253.101 local 0 mark 0
+5674 cpg_join dlm:controld ...
+5674 setup_cpg_daemon 15
+5674 dlm:controld conf 1 1 0 memb 1 join 1 left 0
+5674 daemon joined 1
+5674 dlm:controld ring 1:270 2 memb 1 2
+5674 receive_protocol 1 max 3.1.1.0 run 0.0.0.0
+5674 daemon node 1 prot max 0.0.0.0 run 0.0.0.0
+5674 daemon node 1 save max 3.1.1.0 run 0.0.0.0
+5674 set_protocol member_count 1 propose daemon 3.1.1 kernel 1.1.1
+5674 receive_protocol 1 max 3.1.1.0 run 3.1.1.0
+5674 daemon node 1 prot max 3.1.1.0 run 0.0.0.0
+5674 daemon node 1 save max 3.1.1.0 run 3.1.1.0
+5674 run protocol from nodeid 1
+5674 daemon run 3.1.1 max 3.1.1 kernel run 1.1.1 max 1.1.1
+5674 plocks 16
+5674 receive_protocol 1 max 3.1.1.0 run 3.1.1.0
+5674 send_fence_clear 1 fipu
+5674 receive_fence_clear from 1 for 1 result -61 flags 1
+5674 fence_in_progress_unknown 0 all_fipu
+5815 dlm:controld conf 2 1 0 memb 1 2 join 2 left 0
+5815 daemon joined 2
+5815 receive_protocol 2 max 3.1.1.0 run 0.0.0.0
+5815 daemon node 2 prot max 0.0.0.0 run 0.0.0.0
+5815 daemon node 2 save max 3.1.1.0 run 0.0.0.0
+5815 receive_protocol 1 max 3.1.1.0 run 3.1.1.0
+5815 receive_fence_clear from 1 for 2 result 0 flags 6
+5815 receive_protocol 2 max 3.1.1.0 run 3.1.1.0
+5815 daemon node 2 prot max 3.1.1.0 run 0.0.0.0
+5815 daemon node 2 save max 3.1.1.0 run 3.1.1.0
+
+```
+
+For now only `lvmlockd` RA was added, thus 'lvm_clvg0' has only _one_member:
+
+``` shell
+$ dlm_tool ls
+dlm lockspaces
+name          lvm_clvg0
+id            0x45d1d4f1
+flags         0x00000000
+change        member 1 joined 1 remove 0 failed 0 seq 1,1
+members       1
+
+name          lvm_global
+id            0x12aabd2d
+flags         0x00000000
+change        member 2 joined 1 remove 0 failed 0 seq 2,2
+members       1 2
+```
+
+After adding "shared" VG, that is one which is activated on both nodes (eg. for OCFS2),
+this happens:
+
+``` shell
+$ crm configure show clvg0
+primitive clvg0 LVM-activate \
+        params vgname=clvg0 vg_access_mode=lvmlockd activation_mode=shared \
+        op start timeout=90s interval=0 \
+        op stop timeout=90s interval=0 \
+        op monitor interval=90s timeout=90s
+
+# see lvm_clvg0 has two member now!
+
+$ dlm_tool ls
+dlm lockspaces
+name          lvm_clvg0
+id            0x45d1d4f1
+flags         0x00000000
+change        member 2 joined 1 remove 0 failed 0 seq 1,1
+members       1 2
+
+name          lvm_global
+id            0x12aabd2d
+flags         0x00000000
+change        member 2 joined 1 remove 0 failed 0 seq 1,1
+members       1 2
+```
+
+
 #### pacemaker
 
 *pacemaker* is an advanced, scalable High-Availability cluster resource manager.
@@ -3921,6 +4182,26 @@ and overriding the option which causes "problems" made it working again.
 ``` shell
 ls /sys/class/drm/*/edid | \
   xargs -i {} sh -c "echo {}; parse-edid < {}" 2>/dev/null # get info about monitors
+```
+
+
+### pipewire
+
+How to record a sound which is being played.
+
+``` shell
+$ pw-cli list-objects Node | grep -B 8 -iP 'node\.description = .*speaker'
+        id 56, type PipeWire:Interface:Node/3
+                object.serial = "56"
+                object.path = "alsa:pcm:1:hw:Generic_1:playback"
+                factory.id = "18"
+                client.id = "35"
+                device.id = "47"
+                priority.session = "1000"
+                priority.driver = "1000"
+                node.description = "Family 17h/19h HD Audio Controller Speaker + Headphones"
+
+$ pw-record --target 56 /tmp/sound.flac
 ```
 
 ### pulseaudio
