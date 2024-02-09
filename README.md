@@ -2781,8 +2781,55 @@ depends:        udp_tunnel,libcrc32c,ip6_udp_tunnel
 supported:      yes
 ```
 
+
+
+For now only `lvmlockd` RA was added, thus 'lvm_clvg0' has only _one_member:
+
 ``` shell
-# if you add a
+$ dlm_tool ls
+dlm lockspaces
+name          lvm_clvg0
+id            0x45d1d4f1
+flags         0x00000000
+change        member 1 joined 1 remove 0 failed 0 seq 1,1
+members       1
+
+name          lvm_global
+id            0x12aabd2d
+flags         0x00000000
+change        member 2 joined 1 remove 0 failed 0 seq 2,2
+members       1 2
+```
+
+After adding "shared" VG, that is one which is activated on both nodes (eg. for OCFS2),
+this happens:
+
+``` shell
+$ crm configure show clvg0
+primitive clvg0 LVM-activate \
+        params vgname=clvg0 vg_access_mode=lvmlockd activation_mode=shared \
+        op start timeout=90s interval=0 \
+        op stop timeout=90s interval=0 \
+        op monitor interval=90s timeout=90s
+
+# see lvm_clvg0 has two member now!
+
+$ dlm_tool ls
+dlm lockspaces
+name          lvm_clvg0
+id            0x45d1d4f1
+flags         0x00000000
+change        member 2 joined 1 remove 0 failed 0 seq 1,1
+members       1 2
+
+name          lvm_global
+id            0x12aabd2d
+flags         0x00000000
+change        member 2 joined 1 remove 0 failed 0 seq 1,1
+members       1 2
+```
+
+``` shell
 # see that we have 'rrp_mode = "passive"', and 'protocol'
 
 $ dlm_tool dump
@@ -2840,53 +2887,6 @@ $ dlm_tool dump
 5815 receive_protocol 2 max 3.1.1.0 run 3.1.1.0
 5815 daemon node 2 prot max 3.1.1.0 run 0.0.0.0
 5815 daemon node 2 save max 3.1.1.0 run 3.1.1.0
-
-```
-
-For now only `lvmlockd` RA was added, thus 'lvm_clvg0' has only _one_member:
-
-``` shell
-$ dlm_tool ls
-dlm lockspaces
-name          lvm_clvg0
-id            0x45d1d4f1
-flags         0x00000000
-change        member 1 joined 1 remove 0 failed 0 seq 1,1
-members       1
-
-name          lvm_global
-id            0x12aabd2d
-flags         0x00000000
-change        member 2 joined 1 remove 0 failed 0 seq 2,2
-members       1 2
-```
-
-After adding "shared" VG, that is one which is activated on both nodes (eg. for OCFS2),
-this happens:
-
-``` shell
-$ crm configure show clvg0
-primitive clvg0 LVM-activate \
-        params vgname=clvg0 vg_access_mode=lvmlockd activation_mode=shared \
-        op start timeout=90s interval=0 \
-        op stop timeout=90s interval=0 \
-        op monitor interval=90s timeout=90s
-
-# see lvm_clvg0 has two member now!
-
-$ dlm_tool ls
-dlm lockspaces
-name          lvm_clvg0
-id            0x45d1d4f1
-flags         0x00000000
-change        member 2 joined 1 remove 0 failed 0 seq 1,1
-members       1 2
-
-name          lvm_global
-id            0x12aabd2d
-flags         0x00000000
-change        member 2 joined 1 remove 0 failed 0 seq 1,1
-members       1 2
 ```
 
 
