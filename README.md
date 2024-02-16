@@ -3486,16 +3486,84 @@ What is purpose of SBD?
 - fence agent/device (STONITH)
 - self-fence if SBD device can't be read for some time (Shoot myself in the head, SMITH) ??
   https://www.suse.com/support/kb/doc/?id=000017950
--
+- monitor SBD device (if any)
+- monitor Pacemaker CIB
+- monitor corosync health
 
 *SBD_STARTMODE=clean* in `/etc/sysconfig/sdb` (SUSE) to prevent
 starting cluster if non-clean state exists on SBD
+
+SBD sets a used watchdog `timeout` based on `SBD_WATCHDOG_TIMEOUT` on its start.
+
+> SBD_WATCHDOG_TIMEOUT (e.g. in /etc/sysconfig/sbd) is already the
+> timeout the hardware watchdog is configured to by sbd-daemon.
+> sbd-daemon is triggering faster - timeout_loop defaults to 1s but
+> is configurable.
+> Cf. https://lists.clusterlabs.org/pipermail/users/2016-December/021051.html
+
+``` shell
+$ grep -H '' /sys/class/watchdog/watchdog0/{timeout,identity,state} 2>/dev/null
+/sys/class/watchdog/watchdog0/timeout:5
+/sys/class/watchdog/watchdog0/identity:iTCO_wdt
+/sys/class/watchdog/watchdog0/state:active
+
+$ grep -Pv '^\s*(#|$)' /etc/sysconfig/sbd | grep WATCHDOG_TIMEOUT
+SBD_WATCHDOG_TIMEOUT=5
+```
+
+See: https://github.com/ClusterLabs/sbd/blob/8cd0885a48a676dd27f0a9ef1c860990cb4d1307/src/sbd-watchdog.c#L100 .
+
+RH does not support `softdog` based SBDs!
 
 ``` shell
 sbd query-watchdog                                 # check if sbd finds watcdog devices
 sbd -w <watchdog_device> test-watchdog             # test if reset via watchdog works,
                                                    # this RESETS node!
+```
 
+*sbd* watches both *corosync* and *pacemaker*; as for Pacemaker:
+
+> Pacemaker is setting the node unclean which pacemaker-watcher (one
+> of sbd daemons) sees as it is connected to the cib.  This is why the
+> mechanism is working (sort of - see the discussion in my pull
+> request in the sbd-repo) on nodes without stonithd as well
+> (remote-nodes).  If you are running sbd with a block-device there is
+> of course this way of communication as well between pacemaker and
+> sbd.  (e.g. via fence_sbd fence-agent)
+> Cf. https://lists.clusterlabs.org/pipermail/users/2016-December/021074.html
+
+SBD watchers:
+
+``` shell
+$ systemd-cgls -u sbd.service
+Unit sbd.service (/system.slice/sbd.service):
+├─2703 sbd: inquisitor
+├─2704 sbd: watcher: /dev/disk/by-id/scsi-36001405714d7f9602b045ee82274b815 - slot: 5 - uuid: 41e0e03c-5618-459e-b3ea-73ddb98d442a
+├─2705 sbd: watcher: Pacemaker
+└─2706 sbd: watcher: Cluster
+```
+
+- `inquisitor`, a kind of dead-men switch
+- `watcher: /dev/disk/by-id/scsi-36001405714d7f9602b045ee82274b815 -
+  slot: 5 - uuid: 41e0e03c-5618-459e-b3ea-73ddb98d442a`, monitors
+  shared disk device
+- `watcher: Pacemaker`, monitors if the cluster partition the node is
+  in is still quorate according to Pacemaker CIB, and the node itself
+  is still considered online and healthy by Pacemaker
+- `watcher: Cluster`, monitors if the cluster is still quorate
+  according to Corosync's node count
+
+As for corosync watcher, it seems it is "registred" into corosync:
+
+```
+$ corosync-cpgtool | grep -A1 sbd
+sbd:cluster\x00
+                      2706       178438533 (10.162.193.133)
+$ ps auxww | grep '[2]706'
+root      2706  0.0  0.0 135268 39364 ?        SL   Apr21   3:59 sbd: watcher: Cluster
+```
+
+``` shell
 sbd -d /dev/<shared_lun> create                    # prepares shared lun for SBD
 sbd -d /dev/<shared_lun> dump                      # info about SBD
 ```
@@ -3533,45 +3601,6 @@ sbd -d /dev/<shared_lun>  message <node> test      # node's sbd would log the te
 sbd -d <block_dev> message <node> clear # clear sbd state for a node, restart pacemaker!
 ```
 
-*sbd* watches both *corosync* and *pacemaker*:
-
-``` shell
-$ systemd-cgls -u sbd.service
-Unit sbd.service (/system.slice/sbd.service):
-├─2703 sbd: inquisitor
-├─2704 sbd: watcher: /dev/disk/by-id/scsi-36001405714d7f9602b045ee82274b815 - slot: 5 - uuid: 41e0e03c-5618-459e-b3ea-73ddb98d442a
-├─2705 sbd: watcher: Pacemaker
-└─2706 sbd: watcher: Cluster
-```
-
-- `inquisitor`, a kind of dead-men switch
-- `watcher: /dev/disk/by-id/scsi-36001405714d7f9602b045ee82274b815 -
-  slot: 5 - uuid: 41e0e03c-5618-459e-b3ea-73ddb98d442a`, monitors
-  shared disk device
-- `watcher: Pacemaker`, monitors if the cluster partition the node is
-  in is still quorate according to Pacemaker CIB, and the node itself
-  is still considered online and healthy by Pacemaker
-- `watcher: Cluster`, monitors if the cluster is still quorate
-  according to Corosync's node count
-
-As for corosync watcher, it seems it is "registred" into corosync:
-
-```
-$ corosync-cpgtool | grep -A1 sbd
-sbd:cluster\x00
-                      2706       178438533 (10.162.193.133)
-$ ps auxww | grep '[2]706'
-root      2706  0.0  0.0 135268 39364 ?        SL   Apr21   3:59 sbd: watcher: Cluster
-```
-
-As for pacemaker watcher, it seems it uses libs to query the Pacemaker:
-
-``` shell
-$ ldd `which sbd` | grep -Po ' \K(/lib[^ ]+)(?=.*)' | while read f; do
-      rpm --qf '%{NAME}\n' -qf $f | grep pacemaker
-  done | sort -u
-libpacemaker3
-```
 
 Two disks SBD:
 
@@ -10677,6 +10706,14 @@ alias: 2bb7f3e6c6
 alua_tg_pt_gp_name: default_tg_pt_gp
 index: 1
 storage_object: /backstores/fileio/s154qe01-01
+```
+
+Finding LIO target lun details from wwn:
+
+``` shell
+$ grep -RH '' /sys/kernel/config/target/ 2>/dev/null | tr -d '-' | grep -P 'wwn/vp.*'"$( echo 6001405b04d547a91c34546bb46cf597 | cut -c8-)"
+/sys/kernel/config/target/iscsi/iqn.202311.com.example.avocado:jbelka/tpgt_1/lun/lun_0/ef5dcbd51c/wwn/vpd_unit_serial:T10 VPD Unit Serial Number: b04d547a91c34546bb46cf59799cce12
+/sys/kernel/config/target/core/fileio_5/jbelka001/wwn/vpd_unit_serial:T10 VPD Unit Serial Number: b04d547a91c34546bb46cf59799cce12
 ```
 
 
