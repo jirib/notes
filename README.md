@@ -3808,6 +3808,15 @@ Environment=HTTP_PROXY=http://127.0.0.1:8080 HTTPS_PROXY=https://127.0.0.1:8080 
 ```
 
 
+## databases
+
+
+### db2
+
+DB2 requires `bin` user, see https://www.ibm.com/support/pages/db2-luw-product-installation-fails-unix-platform-without-bin-user.
+
+
+
 ## dbus
 
 ``` shell
@@ -12530,6 +12539,10 @@ samba-4.13.13+git.539.fdbc44a8598.x86_64.rpm
 : > /etc/machine-id # machine-id in /var/lib/dbus is symlink
 rm /etc/ssh/{ssh_host*,moduli}
 rm /etc/udev/rules.d/*-persistent-*.rules
+
+# iscsi initiator
+# https://www.suse.com/zh-cn/support/kb/doc/?id=000020752
+rm /etc/iscsi/initiatorname.iscsi
 
 <editor> /etc/default/grub # path to block device
 
