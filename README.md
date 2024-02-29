@@ -1005,6 +1005,34 @@ Guide](https://www.openldap.org/doc/admin25/quickstart.html) for
 details.
 
 
+An example of changing `slapd` configuration with _online_
+(`OPENLDAP_CONFIG_BACKEND="ldap"`) configuration:
+
+``` shell
+$ cat tls.in
+dn: cn=config
+changetype: modify
+replace: olcTLSDHParamFile
+olcTLSDHParamFile: /etc/ssl/private/slapd.dh.params
+
+dn: cn=config
+changetype: modify
+replace: olcTLSProtocolMin
+olcTLSProtocolMin: 3.3
+```
+
+``` shell
+$  ldapmodify -a -Q -Y EXTERNAL -H ldapi:/// -f tls.in
+
+$  ldapsearch -LLL -Y EXTERNAL -H ldapi:/// -b cn=config | grep -P '^olcTLS(ProtocolMin|DHParamFile)'
+SASL/EXTERNAL authentication started
+SASL username: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+SASL SSF: 0
+olcTLSDHParamFile: /etc/ssl/private/slapd.dh.params
+olcTLSProtocolMin: 3.3
+```
+
+
 #### OpenLDAP tools
 
 OpenLDAP utils use `/etc/openldap/ldap.conf` configuration, see `ldap.conf(5)`.
@@ -3815,6 +3843,46 @@ Environment=HTTP_PROXY=http://127.0.0.1:8080 HTTPS_PROXY=https://127.0.0.1:8080 
 
 DB2 requires `bin` user, see https://www.ibm.com/support/pages/db2-luw-product-installation-fails-unix-platform-without-bin-user.
 
+*WIP* !!! https://www.tutorialspoint.com/db2/db2_instance.htm
+          https://community.ibm.com/community/user/datamanagement/discussion/how-to-run-docker-ibmcomdb2-image-as-non-root
+
+
+- ./db2setup to install db2
+
+``` shell
+$ cat > response_file <<EOF
+LIC_AGREEMENT       = ACCEPT
+PROD       = DB2_SERVER_EDITION
+FILE       = /opt/ibm/db2/V11.5
+INSTALL_TYPE       = CUSTOM
+INTERACTIVE               = YES
+COMP       = SQL_PROCEDURES
+COMP       = CONNECT_SUPPORT
+COMP       = BASE_DB2_ENGINE
+COMP       = REPL_CLIENT
+COMP       = JDK
+COMP       = JAVA_SUPPORT
+COMP       = BASE_CLIENT
+COMP       = COMMUNICATION_SUPPORT_TCPIP
+DAS_CONTACT_LIST       = LOCAL
+LANG       = EN
+EOF
+
+$ db2/server_dec/db2setup -r response_file
+```
+
+- users/groups
+
+
+- ./db2icrt ... to create instance
+
+
+
+- disable db2fmd
+- populate data into instance
+- backup / restore
+- hadr
+- pacemaker
 
 
 ## dbus
