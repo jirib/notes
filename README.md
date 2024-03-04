@@ -7086,6 +7086,72 @@ In *NFSv4.0 only* a TCP port has to be opened for callbacks, see
 `callback_tcpport` in `nfs` module. Newer NFSv4 revisions do not need
 this.
 
+NFSv4 can work in Kerberos mode:
+
+``` shell
+$ grep -Pv '^\s*(#|$)' /etc/sysconfig/nfs  | grep NFS_SECURITY_GSS
+NFS_SECURITY_GSS="yes"
+
+$ grep -Pv '^\s*(#|$)' /etc/idmapd.conf
+[General]
+Verbosity = 0
+Pipefs-Directory = /var/lib/nfs/rpc_pipefs
+Domain = example.com
+[Mapping]
+Nobody-User = nobody
+Nobody-Group = nobody
+
+
+```
+
+NFSv$ ACLs are "not visible" as usual UGO or ACLs:
+
+``` shell
+testovic@jb155sapqe01:/home/example.com/testovic> ls -al /mnt/
+total 5
+drwx------  2 nobody domain users   64 Mar  4 19:06 .
+drwxr-xr-x 25 root   root         4096 Mar  4 14:13 ..
+
+testovic@jb155sapqe01:/home/example.com/testovic> getfacl -e /mnt/
+getfacl: Removing leading '/' from absolute path names
+# file: mnt/
+# owner: nobody
+# group: domain\040users
+user::rwx
+group::---
+other::---
+
+testovic@jb155sapqe01:/home/example.com/testovic> nfs4_getfacl /mnt/
+A:fdn:testovic@example.com:rwaDdxtTcCoy
+A:fd:SYSTEM@NT AUTHORITY:rwaDdxtTcCoy
+A:fd:Administrators@BUILTIN:rwaDdxtTcCoy
+A:fd:Users@BUILTIN:rxtcy
+A:d:Users@BUILTIN:a
+A:d:Users@BUILTIN:w
+A:fdi:CREATOR OWNER@:rwaDdxtTcCoy
+
+# and a practical test
+
+testovic@jb155sapqe01:/home/example.com/testovic> echo 'Hello World!' > /mnt/testovic.txt
+
+testovic@jb155sapqe01:/home/example.com/testovic> ls -l /mnt/testovic.txt
+-rw-r--r-- 1 testovic domain users 13 Mar  4 19:12 /mnt/testovic.txt
+
+testovic@jb155sapqe01:/home/example.com/testovic> getfacl /mnt/testovic.txt
+getfacl: Removing leading '/' from absolute path names
+# file: mnt/testovic.txt
+# owner: testovic
+# group: domain\040users
+user::rw-
+group::r--
+other::r--
+
+testovic@jb155sapqe01:/home/example.com/testovic> nfs4_getfacl /mnt/testovic.txt
+A::OWNER@:rwadtTcCoy
+A::GROUP@:rtcy
+A::Everyone@:rtc
+```
+
 
 #### nfsv3
 
