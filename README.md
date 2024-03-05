@@ -6640,7 +6640,9 @@ $ smbclient //<server>/<share> password -W domain -U username \
       create_connection_session_info failed: NT_STATUS_ACCESS_DENIED
     ```
 - kerberos PAC, a part of a Kerberos ticket, the so called Authorization Data.
-  Some details at [Howto/Inspecting the PAC](https://www.freeipa.org/page/Howto/Inspecting_the_PAC).
+  Some details at [Howto/Inspecting the PAC](https://www.freeipa.org/page/Howto/Inspecting_the_PAC),
+  and https://learn.microsoft.com/en-us/openspecs/windows_protocols/ms-pac/166d8064-c863-41e1-9c23-edaaa5f36962
+
   ``` shell
   $ grep -m 1 -A 30 'PAC_BUFFER' log.winbindd
               buffers: struct PAC_BUFFER
