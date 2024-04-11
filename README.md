@@ -7505,6 +7505,32 @@ ipmitool lan set 1 arp respond on
 ipmitool mc reset cold
 ```
 
+### linux CPU flags
+
+A program can expect that a CPU implements a feature, these are based
+on CPU flags, see
+https://gitlab.com/x86-psABIs/x86-64-ABI/-/blob/master/x86-64-ABI/low-level-sys-info.tex.
+
+``` shell
+$ /lib64/ld-linux-x86-64.so.2 --help 2>&1 | tail -n3
+  x86-64-v4
+  x86-64-v3 (supported, searched)
+  x86-64-v2 (supported, searched)
+```
+
+The above is a combination of CPU flags; a kind of variety:
+
+``` shell
+$ grep -m1 '^flags' /proc/cpuinfo | cut -d: -f2 | xargs -n1 | sort | \
+    grep -P '\b(cx16|lahf|popcnt|sse4_1|sse4_2|ssse3)' | nl
+     1  cx16
+     2  lahf_lm
+     3  popcnt
+     4  sse4_1
+     5  sse4_2
+     6  ssse3
+```
+
 ## kerberos
 
 - *'$'* in principal name indicates machine account
