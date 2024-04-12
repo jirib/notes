@@ -15173,6 +15173,74 @@ virsh define /tmp/esxi
 
 ### Xen
 
+#### kdump
+
+`crashkernel` options is passed to the Xen kernel itself:
+
+``` shell
+$ xl info | grep xen_commandline
+xen_commandline        : com2=115200,8n1 console=com2,vga dom0_mem=6G crashkernel=380M<4G
+
+$ grep -Pv '^\s*(#|$)' /etc/default/grub | grep -P 'CMDLINE(_LINUX)?_XEN(_REPLACE)?_DEFAULT'
+GRUB_CMDLINE_LINUX_XEN_REPLACE_DEFAULT="splash=none barrier=off mitigations=auto security=apparmor console=hvc0 console=xvc0,115200,8n1 earlyprintk=xen"
+GRUB_CMDLINE_XEN_DEFAULT="com2=115200,8n1 console=com2,vga dom0_mem=6G crashkernel=380M\<4G"
+```
+
+How to trigger crash via serial console (eg. SOL)? Trigger it via `CTRL-a`:
+
+``` shell
+...
+pancetta login:
+(XEN) *** Serial input to Xen (type 'CTRL-a' three times to switch input)
+(XEN) 'C' pressed -> triggering crashdump
+(XEN) Executing kexec image on cpu5
+(XEN) Shot down all CPUs
+[    0.000000][    T0] microcode: microcode updated early to revision 0xf0, date = 2021-11-12
+[    0.000000][    T0] Linux version 5.14.21-150500.55.52-default (geeko@buildhost) (gcc (SUSE Linux) 7.5.0, GNU ld (GNU Binutils; SUSE Linux Enterprise 15) 2.41.0.20230908-150100.7.46) #1 SMP PREEMPT_DYNAMIC Tue Mar 5 16:53:41 UTC 2024 (a62851f)
+[    0.000000][    T0] Command line: barrier=off mitigations=auto security=apparmor console=xvc0,115200,8n1 earlyprintk=xen sysrq=yes reset_devices acpi_no_memhotplug cgroup_disable=memory nokaslr numa=off irqpoll nr_cpus=1 root=kdump rootflags=bind rd.udev.children-max=8 disable_cpu_apicid=0  console=ttyS1,115200,8n1 panic=1 acpi_rsdp=0x7dced000 elfcorehdr=1955572K kexec_jump_back_entry=0x000000005fa00041
+...
+Extracting dmesg
+-------------------------------------------------------------------------------
+
+The dmesg log is saved to /kdump/mnt0/var/crash/2024-04-12-14:27/dmesg.txt.
+
+makedumpfile Completed.
+-------------------------------------------------------------------------------
+Saving dump using makedumpfile
+-------------------------------------------------------------------------------
+Copying data                                      : [100.0 %] |           eta: 0s
+
+The dumpfile is saved to /kdump/mnt0/var/crash/2024-04-12-14:27/vmcore.
+
+makedumpfile Completed.
+-------------------------------------------------------------------------------
+Generating README              Finished.
+Copying System.map             Finished.
+Copying kernel                 Finished.
+
+Dump saving completed.
+Type 'reboot -f' to reboot the system or 'exit' to
+resume the boot process.
+sh-4.4# ls -l /kdump/mnt0/var/crash/2024-04-12-14:27/vmcore*
+-rw------- 1 root root 554122716 Apr 12 14:28 /kdump/mnt0/var/crash/2024-04-12-14:27/vmcore
+```
+
+Note, that Linux crashkernel needs to be told what is its console - if used - in its "native" way;
+that is, `console=ttyS1,115200` (see above).
+
+``` shell
+# cat /etc/fstab
+UUID=3196abbb-ecbf-4703-82b2-2cdb105cf3ed /kdump/mnt0 xfs defaults 0 2
+
+# /kdump/mnt0/usr/bin/grep '^KDUMP_COMMANDLINE' /kdump/mnt0/etc/sysconfig/kdump
+KDUMP_COMMANDLINE="barrier=off mitigations=auto security=apparmor console=xvc0,115200,8n1 earlyprintk=xen sysrq=yes reset_devices acpi_no_memhotplug cgroup_disable=memory nokaslr numa=off
+KDUMP_COMMANDLINE_APPEND="console=ttyS1,115200,8n1"
+```
+
+The first line is a workaround; only the second line is important
+since the last `console` options is the effective `/dev/console` for
+Linux kernel.
+
 
 #### Xen on KVM
 
