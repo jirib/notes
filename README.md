@@ -15173,6 +15173,7 @@ virsh define /tmp/esxi
 
 ### Xen
 
+
 #### kdump
 
 `crashkernel` options is passed to the Xen kernel itself:
@@ -15240,6 +15241,10 @@ KDUMP_COMMANDLINE_APPEND="console=ttyS1,115200,8n1"
 The first line is a workaround; only the second line is important
 since the last `console` options is the effective `/dev/console` for
 Linux kernel.
+
+Some intersting links:
+- https://xenbits.xen.org/docs/4.17-testing/misc/kexec_and_kdump.txt
+- https://xenbits.xen.org/docs/4.10-testing/misc/xen-command-line.html
 
 
 #### Xen on KVM
