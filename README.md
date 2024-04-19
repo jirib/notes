@@ -7531,6 +7531,22 @@ $ grep -m1 '^flags' /proc/cpuinfo | cut -d: -f2 | xargs -n1 | sort | \
      6  ssse3
 ```
 
+
+### supermicro
+
+OMG, supermicro! Anyway, how to generate a license for IPMI to be able to update
+their crappy BIOS? See https://techblog.jeppson.org/2018/12/generate-supermicro-ipmi-license/ .
+
+``` shell
+$ echo -n 'XX:XX:XX:XX:XX:XX | \
+    xxd -r -p | \
+    openssl dgst -sha1 -mac HMAC -macopt hexkey:8544E3B47ECA58F9583043F8 | \
+    awk '{ printf $2 }' | \
+    cut -c 1-24 | \
+    sed -r 's/(....)/\1-/g;s/-$//'
+yyyy-yyyy-yyyy-yyyy-yyyy-yyyy
+```
+
 ## kerberos
 
 - *'$'* in principal name indicates machine account
@@ -15246,6 +15262,70 @@ Some intersting links:
 - https://xenbits.xen.org/docs/4.17-testing/misc/kexec_and_kdump.txt
 - https://xenbits.xen.org/docs/4.10-testing/misc/xen-command-line.html
 
+A crash image will be available after reboot...:
+
+``` shell
+(XEN) Enabled directed EOI with ioapic_ack_old on!
+(XEN) Enabling APIC mode.  Using 1 I/O APICs
+(XEN) ENABLING IO-APIC IRQs
+(XEN) Allocated console ring of 16 KiB.
+(XEN) VMX: Supported advanced features:
+(XEN)  - APIC MMIO access virtualisation
+(XEN)  - APIC TPR shadow
+(XEN)  - Extended Page Tables (EPT)
+(XEN)  - Virtual-Processor Identifiers (VPID)
+(XEN)  - Virtual NMI
+(XEN)  - MSR direct-access bitmap
+(XEN)  - Unrestricted Guest
+(XEN)  - VMCS shadowing
+(XEN)  - VM Functions
+(XEN)  - Virtualisation Exceptions
+(XEN)  - Page Modification Logging
+(XEN) HVM: ASIDs enabled.
+(XEN) VMX: Disabling executable EPT superpages due to CVE-2018-12207
+(XEN) HVM: VMX enabled
+(XEN) HVM: Hardware Assisted Paging (HAP) detected
+(XEN) HVM: HAP page sizes: 4kB, 2MB, 1GB
+(XEN) Brought up 8 CPUs
+(XEN) Scheduling granularity: cpu, 1 CPU per sched-resource
+(XEN) Initializing Credit2 scheduler
+(XEN) Dom0 has maximum 856 PIRQs
+(XEN)  Xen  kernel: 64-bit, lsb
+(XEN)  Dom0 kernel: 64-bit, PAE, lsb, paddr 0x1000000 -> 0x4a00000
+(XEN) PHYSICAL MEMORY ARRANGEMENT:
+(XEN)  Dom0 alloc.:   0000001040000000->0000001048000000 (1534445 pages to be allocated)
+(XEN)  Init. ramdisk: 00000010765ed000->0000001077bff0c6
+(XEN) VIRTUAL MEMORY ARRANGEMENT:
+(XEN)  Loaded kernel: ffffffff81000000->ffffffff84a00000
+(XEN)  Phys-Mach map: 0000008000000000->0000008000c00000
+(XEN)  Start info:    ffffffff84a00000->ffffffff84a004b8
+(XEN)  Page tables:   ffffffff84a01000->ffffffff84a2a000
+(XEN)  Boot stack:    ffffffff84a2a000->ffffffff84a2b000
+(XEN)  TOTAL:         ffffffff80000000->ffffffff84c00000
+(XEN)  ENTRY ADDRESS: ffffffff82fab1c0
+(XEN) Dom0 has maximum 8 VCPUs
+(XEN) Bogus DMIBAR 0xfed18001 on 0000:00:00.0
+(XEN) Initial low memory virq threshold set at 0x4000 pages.
+(XEN) Scrubbing Free RAM in background
+(XEN) Std. Loglevel: Errors and warnings
+(XEN) Guest Loglevel: Nothing (Rate-limited: Errors and warnings)
+(XEN) ***************************************************
+(XEN) Booted on L1TF-vulnerable hardware with SMT/Hyperthreading
+(XEN) enabled.  Please assess your configuration and choose an
+(XEN) explicit 'smt=<bool>' setting.  See XSA-273.
+(XEN) ***************************************************
+(XEN) Booted on MLPDS/MFBDS-vulnerable hardware with SMT/Hyperthreading
+(XEN) enabled.  Mitigations will not be fully effective.  Please
+(XEN) choose an explicit smt=<bool> setting.  See XSA-297.
+(XEN) ***************************************************
+(XEN) 3... 2... 1...
+(XEN) Xen is relinquishing VGA console.
+(XEN) *** Serial input to DOM0 (type 'CTRL-a' three times to switch input)
+(XEN) Freed 2048kB init memory
+mapping kernel into physical memory
+about to get started...
+...
+```
 
 #### Xen on KVM
 
