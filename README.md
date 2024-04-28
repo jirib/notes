@@ -7031,6 +7031,83 @@ $ ndrdump  --debug-stdout -d 10 krb5pac PAC_DATA struct /tmp/out.pac | \
                                                             0x00: SE_GROUP_LOGON_ID         (0)
 ```
 
+
+#### usershares
+
+It was via writing a "description" file to `/var/lib/samba/usershares':
+
+``` shell
+$ ls -ld /var/lib/samba/usershares/
+drwxrwx--T. 2 root sambashare 30 Apr 28 12:15 /var/lib/samba/usershares/
+```
+
+Hence, r/w for 'sambagroup' is needed.
+
+``` shell
+$ getent group sambashare
+sambashare:x:990:jiri
+
+$ net usershare add foobar /home/jiri/foobar "foobar"  nobody:R guest_ok=n
+
+$ net usershare info foobar
+[foobar]
+path=/home/jiri/foobar
+comment=foobar
+usershare_acl=T14S\nobody:R,
+guest_ok=n
+
+$ cat /var/lib/samba/usershares/foobar
+#VERSION 2
+path=/home/jiri/foobar
+comment=foobar
+usershare_acl=S-1-5-21-477997971-2989031469-1205486838-501:R
+guest_ok=n
+sharename=foobar
+```
+
+And, again, usermapping must work. One could use 'Everyone:R' as ACL.
+Since `guest_ok=n`, then a user must exists in Samba DB and must have
+working mapping to a local user via `_Get_Pwnam()`; since I did not want
+guests access, and since I did want to create a personalizes user access,
+I used `username map` hack (which effectively means allowing access to
+'nobody' if the password matches).
+
+``` shell
+$ testparm -s 2>/dev/null | grep -P '^\s+username map'
+        username map = /etc/samba/users.map
+
+$ cat /etc/samba/users.map
+nobody = friend
+```
+
+Reading `smb.conf(5)` says that for non-AD mode, this mapping is applied before
+checking creds; thus, 'friend' is, in fact, user 'nobody' and hence her password
+is 'nobody's' password.
+
+``` shell
+$ pdbedit -d 0 -L
+nobody:65534:nobody
+
+$ export PASSWD=<password>
+
+# see 'friend' and 'nobody' are the same
+$ smbclient -c 'ls; quit' //t14s/foo -U nobody | head -n2
+  .                                   D        0  Fri Apr 26 06:34:09 2024
+  ..                                  D        0  Fri Apr 26 06:34:09 2024
+root@t14s:~# smbclient -c 'ls; quit' //t14s/foo -U friend | head -n2
+  .                                   D        0  Fri Apr 26 06:34:09 2024
+  ..                                  D        0  Fri Apr 26 06:34:09 2024
+
+$ smbclient -c 'ls; quit' //t14s/foo -U nobody%"" | head -n2
+session setup failed: NT_STATUS_LOGON_FAILURE
+
+$ smbclient -c 'ls; quit' //t14s/foo -U friend"" | head -n2
+session setup failed: NT_STATUS_LOGON_FAILURE
+```
+
+Yes, one just just say - use 'nobody' :-)
+
+
 ### nfs
 
 What NFS protocol version are support?
