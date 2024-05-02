@@ -13018,7 +13018,8 @@ $ virsh dumpxml jbelka-jbm55qe01 | grep -P '(sysinfo|entry)'
   </sysinfo>
 ```
 
-*Ignition* config can be generated, eg. https://opensuse.github.io/fuel-ignition.
+[*Ignition*](https://coreos.github.io/butane/config-fcos-v1_5/) config
+can be generated, eg. https://opensuse.github.io/fuel-ignition.
 
 ``` shell
 $ cat jbm155qe01.config.ign
