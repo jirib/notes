@@ -13074,7 +13074,12 @@ $ cat jbm155qe01.config.ign
 How does it boot?
 
 ```
-[    0.024518][    T0] Kernel command line: BOOT_IMAGE=/boot/vmlinuz-5.14.21-150500.55.19-default root=UUID=4c55d806-7db6-48df-9657-6786842d88ce rd.timeout=60 console=ttyS0,115200 console=tty0 security=selinux selinux=1 splash=none net.ifnames=0 ignition.firstboot dasd_mod.dasd=autodetect ignition.platform.id=qemu
+# wrapped lines for readability
+
+[    0.024518][    T0] Kernel command line: BOOT_IMAGE=/boot/vmlinuz-5.14.21-150500.55.19-default
+  root=UUID=4c55d806-7db6-48df-9657-6786842d88ce rd.timeout=60 console=ttyS0,115200 console=tty0
+  security=selinux selinux=1 splash=none net.ifnames=0 ignition.firstboot dasd_mod.dasd=autodetect
+  ignition.platform.id=qemu
 ...
 Welcome to SUSE Linux Enterprise Micro 5.5  (x86_64) - Kernel 5.14.21-150500.55.19-default (ttyS0).
 
@@ -13103,7 +13108,7 @@ CPE_NAME="cpe:/o:suse:sle-micro:5.5"
 Note, that adding non-root user requires the filesystem where such a
 user home directory is located to be mounted! That is, add a section
 to the *ignition* config explicitly (but for *root*, it is OK since
-for `/root` there's `x-initrd.mount` mount point).
+for `/root` there's `x-initrd.mount` mount option).
 
 
 #### support
