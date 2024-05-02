@@ -2658,6 +2658,178 @@ Totem Single Ring Protocol implemented in Corosync Cluster Engine
 ```
 
 
+### corosync-qdevice
+
+A "client" of `corosync-qnetd`; even its configuration is in `/etc/corosync/corosync.conf`,
+it runs as a separate daemon, thus it has to be started/enabled:
+
+``` shell
+$  sed -n '/^quorum/,$p' /etc/corosync/corosync.conf
+quorum {
+        provider: corosync_votequorum
+        #expected_votes: 2
+        #two_node: 1
+        device {
+                votes: 1
+                model: net
+                net {
+                        tls: off
+                        host: 192.168.252.1
+                        port: 5403
+                        algorithm: ffsplit
+                        tie_breaker: lowest
+                }
+        }
+}
+```
+
+``` shell
+$ grep -Pv '^\s*(#|$)' /etc/sysconfig/corosync-qdevice
+COROSYNC_QDEVICE_OPTIONS="-q -d"
+```
+
+
+When, for example, `corosync-qdevice` connects to `corosync-qnetd`, the corosync
+will report:
+
+``` shell
+Apr 30 13:42:31 debug   [VOTEQ ] Received qdevice op 1 req from node 1 [Qdevice]
+Apr 30 13:42:31 debug   [VOTEQ ] flags: quorate: No Leaving: No WFA Status: No First: Yes Qdevice: Yes QdeviceAlive: No QdeviceCastVote: No QdeviceMasterWins: No
+Apr 30 13:42:31 debug   [VOTEQ ] got nodeinfo message from cluster node 1
+Apr 30 13:42:31 debug   [VOTEQ ] nodeinfo message[0]: votes: 1, expected: 0 flags: 0
+Apr 30 13:42:31 debug   [VOTEQ ] got nodeinfo message from cluster node 1
+Apr 30 13:42:31 debug   [VOTEQ ] nodeinfo message[1]: votes: 1, expected: 2 flags: 24
+Apr 30 13:42:31 debug   [VOTEQ ] flags: quorate: No Leaving: No WFA Status: No First: Yes Qdevice: Yes QdeviceAlive: No QdeviceCastVote: No QdeviceMasterWins: No
+Apr 30 13:42:31 debug   [VOTEQ ] total_votes=2, expected_votes=2
+Apr 30 13:42:31 debug   [VOTEQ ] node 1 state=1, votes=1, expected=2
+Apr 30 13:42:31 debug   [VOTEQ ] got getinfo request on 0x56030111bcf0 for node 0
+Apr 30 13:42:31 debug   [VOTEQ ] getinfo response error: 1
+Apr 30 13:42:31 debug   [VOTEQ ] sending initial status to 0x56030111bcf0
+Apr 30 13:42:31 debug   [VOTEQ ] Sending nodelist callback. ring_id = 1/175
+Apr 30 13:42:31 debug   [VOTEQ ] Sending quorum callback, quorate = 0
+Apr 30 13:42:31 debug   [VOTEQ ] got getinfo request on 0x56030111bcf0 for node 1
+Apr 30 13:42:31 debug   [VOTEQ ] getinfo response error: 1
+Apr 30 13:42:31 debug   [VOTEQ ] got getinfo request on 0x56030111bcf0 for node 2
+Apr 30 13:42:31 debug   [VOTEQ ] getinfo response error: 12
+Apr 30 13:42:31 debug   [VOTEQ ] flags: quorate: No Leaving: No WFA Status: No First: Yes Qdevice: Yes QdeviceAlive: Yes QdeviceCastVote: Yes QdeviceMasterWins: No
+Apr 30 13:42:31 debug   [VOTEQ ] got nodeinfo message from cluster node 1
+Apr 30 13:42:31 debug   [VOTEQ ] nodeinfo message[1]: votes: 1, expected: 2 flags: 120
+Apr 30 13:42:31 debug   [VOTEQ ] flags: quorate: No Leaving: No WFA Status: No First: Yes Qdevice: Yes QdeviceAlive: Yes QdeviceCastVote: Yes QdeviceMasterWins: No
+Apr 30 13:42:31 debug   [VOTEQ ] total_votes=2, expected_votes=2
+Apr 30 13:42:31 debug   [VOTEQ ] node 1 state=1, votes=1, expected=2
+Apr 30 13:42:31 debug   [VOTEQ ] node 0 state=1, votes=1
+Apr 30 13:42:31 debug   [VOTEQ ] lowest node id: 1 us: 1
+Apr 30 13:42:31 debug   [VOTEQ ] highest node id: 1 us: 1
+Apr 30 13:42:31 debug   [VOTEQ ] quorum regained, resuming activity
+Apr 30 13:42:31 notice  [QUORUM] This node is within the primary component and will provide service.
+Apr 30 13:42:31 notice  [QUORUM] Members[1]: 1
+Apr 30 13:42:31 debug   [QUORUM] sending quorum notification to (nil), length = 52
+Apr 30 13:42:31 debug   [VOTEQ ] Sending quorum callback, quorate = 1
+```
+
+Thus, a vote is added and the quorum is obtained.
+
+And, when, it leaves:
+
+``` shell
+Apr 30 13:44:36 debug   [VOTEQ ] flags: quorate: Yes Leaving: No WFA Status: No First: Yes Qdevice: Yes QdeviceAlive: Yes QdeviceCastVote: No QdeviceMasterWins: No
+Apr 30 13:44:36 debug   [VOTEQ ] got nodeinfo message from cluster node 1
+Apr 30 13:44:36 debug   [VOTEQ ] nodeinfo message[1]: votes: 1, expected: 2 flags: 57
+Apr 30 13:44:36 debug   [VOTEQ ] flags: quorate: Yes Leaving: No WFA Status: No First: Yes Qdevice: Yes QdeviceAlive: Yes QdeviceCastVote: No QdeviceMasterWins: No
+Apr 30 13:44:36 debug   [VOTEQ ] total_votes=2, expected_votes=2
+Apr 30 13:44:36 debug   [VOTEQ ] node 1 state=1, votes=1, expected=2
+Apr 30 13:44:36 debug   [VOTEQ ] quorum lost, blocking activity
+Apr 30 13:44:36 notice  [QUORUM] This node is within the non-primary component and will NOT provide any services.
+Apr 30 13:44:36 notice  [QUORUM] Members[1]: 1
+Apr 30 13:44:36 debug   [QUORUM] sending quorum notification to (nil), length = 52
+Apr 30 13:44:36 debug   [VOTEQ ] Sending quorum callback, quorate = 0
+Apr 30 13:44:36 debug   [VOTEQ ] flags: quorate: No Leaving: No WFA Status: No First: Yes Qdevice: No QdeviceAlive: No QdeviceCastVote: No QdeviceMasterWins: No
+Apr 30 13:44:36 debug   [QB    ] HUP conn (/dev/shm/qb-3778-3780-19-WXUubU/qb)
+Apr 30 13:44:36 debug   [QB    ] qb_ipcs_disconnect(/dev/shm/qb-3778-3780-19-WXUubU/qb) state:2
+Apr 30 13:44:36 debug   [MAIN  ] cs_ipcs_connection_closed()
+Apr 30 13:44:36 debug   [MAIN  ] cs_ipcs_connection_destroyed()
+Apr 30 13:44:36 debug   [QB    ] Free'ing ringbuffer: /dev/shm/qb-3778-3780-19-WXUubU/qb-response-votequorum-header
+Apr 30 13:44:36 debug   [QB    ] Free'ing ringbuffer: /dev/shm/qb-3778-3780-19-WXUubU/qb-event-votequorum-header
+Apr 30 13:44:36 debug   [QB    ] Free'ing ringbuffer: /dev/shm/qb-3778-3780-19-WXUubU/qb-request-votequorum-header
+Apr 30 13:44:36 debug   [QB    ] HUP conn (/dev/shm/qb-3778-3780-18-uSN3US/qb)
+Apr 30 13:44:36 debug   [QB    ] qb_ipcs_disconnect(/dev/shm/qb-3778-3780-18-uSN3US/qb) state:2
+Apr 30 13:44:36 debug   [MAIN  ] cs_ipcs_connection_closed()
+Apr 30 13:44:36 debug   [CMAP  ] exit_fn for conn=0x560301124f90
+Apr 30 13:44:36 debug   [MAIN  ] cs_ipcs_connection_destroyed()
+Apr 30 13:44:36 debug   [QB    ] Free'ing ringbuffer: /dev/shm/qb-3778-3780-18-uSN3US/qb-response-cmap-header
+Apr 30 13:44:36 debug   [QB    ] Free'ing ringbuffer: /dev/shm/qb-3778-3780-18-uSN3US/qb-event-cmap-header
+Apr 30 13:44:36 debug   [QB    ] Free'ing ringbuffer: /dev/shm/qb-3778-3780-18-uSN3US/qb-request-cmap-header
+Apr 30 13:44:36 debug   [VOTEQ ] got nodeinfo message from cluster node 1
+Apr 30 13:44:36 debug   [VOTEQ ] nodeinfo message[1]: votes: 1, expected: 2 flags: 8
+Apr 30 13:44:36 debug   [VOTEQ ] flags: quorate: No Leaving: No WFA Status: No First: Yes Qdevice: No QdeviceAlive: No QdeviceCastVote: No QdeviceMasterWins: No
+Apr 30 13:44:36 debug   [VOTEQ ] total_votes=2, expected_votes=2
+Apr 30 13:44:36 debug   [VOTEQ ] node 1 state=1, votes=1, expected=2
+Apr 30 13:44:36 debug   [VOTEQ ] Received qdevice op 0 req from node 1 [Qdevice]
+```
+
+That is, losing the quorum.
+
+
+#### corosync-qnetd
+
+Most distros setup TLS DB store in postinstall package scripts; an exaple from
+Debian:
+
+``` shell
+    # https://fedoraproject.org/wiki/Changes/NSSDefaultFileFormatSql
+    if ! [ -f "$db/cert9.db" ]; then
+	if [ -f "$dir/nssdb/cert8.db" ]; then
+	    # password file should have an empty line to be accepted
+	    [ -f "$pwdfile" -a ! -s "$pwdfile" ] && echo > "$pwdfile"
+
+	    # upgrade to SQLite database
+	    certutil -N -d "sql:$db" -f "$pwdfile" -@ "$pwdfile"
+	    chmod g+r "$db/cert9.db" "$db/key4.db"
+	else
+            corosync-qnetd-certutil -i -G
+	fi
+	chgrp "$user" "$db" "$db/cert9.db" "$db/key4.db"
+    fi
+```
+
+However, for testing purposes, this can be turned off:
+
+``` shell
+$ grep -Pv '^\s*(#|$)' /etc/sysconfig/corosync-qnetd
+COROSYNC_QNETD_OPTIONS="-s off -c off -d"
+COROSYNC_QNETD_RUNAS=""
+```
+
+Below, just summary:
+
+``` shell
+$ corosync-qnetd-tool -s
+QNetd address:                  *:5403
+TLS:                            Unsupported
+Connected clients:              0
+Connected clusters:             0
+Maximum send/receive size:      32768/32768 bytes
+```
+
+When a client (`corosync-qdevice`) connects:
+
+``` shell
+$ corosync-qnetd-tool -lv
+Cluster "jb155sapqe":
+    Algorithm:          Fifty-Fifty split
+    Tie-breaker:        Node with lowest node ID
+    Node ID 1:
+        Client address:         ::ffff:192.168.252.100:47222
+        HB interval:            8000ms
+        Configured node list:   1, 2
+        Ring ID:                1.a0
+        Membership node list:   1
+        Heuristics:             Undefined (membership: Undefined, regular: Undefined)
+        TLS active:             No
+        Vote:                   No change (ACK)
+```
+
+
 #### DLM
 
 ``` shell
@@ -12833,6 +13005,106 @@ $ virsh define <(virsh dumpxml ${template} | \
     -e 's/<name>.*<\/name>/<name>'${newvm}'<\/name>/' \
     -e 's/sle\/[^"]*/sle\/'${slesver}'/' )
 ```
+
+
+### SLE Micro
+
+SLE Micro as libvirt domain/VM:
+
+``` shell
+$ virsh dumpxml jbelka-jbm55qe01 | grep -P '(sysinfo|entry)'
+  <sysinfo type='fwcfg'>
+    <entry name='opt/com.coreos/config' file='/var/lib/libvirt/images/jbelka/jbm55qe01.config.ign'/>
+  </sysinfo>
+```
+
+*Ignition* config can be generated, eg. https://opensuse.github.io/fuel-ignition.
+
+``` shell
+$ cat jbm155qe01.config.ign
+{
+  "ignition": {
+    "version": "3.2.0"
+  },
+  "passwd": {
+    "users": [
+      {
+        "name": "root",
+        "passwordHash": "$2a$10$UQcdA3i2uB5p/XNeDzYfCemxBW1hdDfj6yCgRqDENHxxhbsB7DqRW",
+        "sshAuthorizedKeys": [
+          "ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE1x+93H1K9QT62tvFbO3M8Ze5JvjtDB4QeslJJx60xi"
+        ]
+      }
+    ]
+  },
+  "storage": {
+    "Files": [
+      {
+        "path": "/etc/hostname",
+        "mode": 420,
+        "overwrite": true,
+        "contents": {
+          "source": "data:,jbm55qe01"
+        }
+      },
+      {
+        "path": "/etc/NetworkManager/system-connections/eth0.nmconnection",
+        "mode": 384,
+        "overwrite": true,
+        "contents": {
+          "source": "data:text/plain;charset=utf-8;base64,Cltjb25uZWN0aW9uXQppZD1ldGgwCnR5cGU9ZXRoZXJuZXQKaW50ZXJmYWNlLW5hbWU9ZXRoMAoKW2lwdjRdCmRucy1zZWFyY2g9Cm1ldGhvZD1hdXRvCgpbaXB2Nl0KZG5zLXNlYXJjaD0KYWRkci1nZW4tbW9kZT1ldWk2NAptZXRob2Q9aWdub3JlCg==",
+          "human_read": "\n[connection]\nid=eth0\ntype=ethernet\ninterface-name=eth0\n\n[ipv4]\ndns-search=\nmethod=auto\n\n[ipv6]\ndns-search=\naddr-gen-mode=eui64\nmethod=ignore\n"
+        }
+      },
+      {
+        "path": "/etc/NetworkManager/conf.d/noauto.conf",
+        "mode": 420,
+        "overwrite": true,
+        "contents": {
+          "source": "data:text/plain;charset=utf-8;base64,W21haW5dCiMgRG8gbm90IGRvIGF1dG9tYXRpYyAoREhDUC9TTEFBQykgY29uZmlndXJhdGlvbiBvbiBldGhlcm5ldCBkZXZpY2VzCiMgd2l0aCBubyBvdGhlciBtYXRjaGluZyBjb25uZWN0aW9ucy4Kbm8tYXV0by1kZWZhdWx0PSoK",
+          "human_read": "[main]\n# Do not do automatic (DHCP/SLAAC) configuration on ethernet devices\n# with no other matching connections.\nno-auto-default=*\n"
+        }
+      }
+    ]
+  }
+}
+
+```
+
+How does it boot?
+
+```
+[    0.024518][    T0] Kernel command line: BOOT_IMAGE=/boot/vmlinuz-5.14.21-150500.55.19-default root=UUID=4c55d806-7db6-48df-9657-6786842d88ce rd.timeout=60 console=ttyS0,115200 console=tty0 security=selinux selinux=1 splash=none net.ifnames=0 ignition.firstboot dasd_mod.dasd=autodetect ignition.platform.id=qemu
+...
+Welcome to SUSE Linux Enterprise Micro 5.5  (x86_64) - Kernel 5.14.21-150500.55.19-default (ttyS0).
+
+SSH host key: SHA256:NEGqMg1WjBAcInuuQqMd2qvDRefbS4jce+PqpeZJH/8 (RSA)
+SSH host key: SHA256:QLwEXcXPfqow7H8aSFSE3hlgsI6kvji6fmKi+X8POtM (DSA)
+SSH host key: SHA256:jldoqlHlASKqInUU6HiwvqbX6glRf7wZZwCqzDsJlZg (ECDSA)
+SSH host key: SHA256:1UyphaashvUtmxurSRRbPUSv0vmOLCKYRnX+8mYDEt4 (ED25519)
+eth0: 192.168.252.181 fe80::5054:ff:feda:c551
+
+
+Activate the web console with: systemctl enable --now cockpit.socket
+
+jbm55qe01 login: root
+Password:
+jbm55qe01:~ # cat /etc/os-release
+NAME="SLE Micro"
+VERSION="5.5"
+VERSION_ID="5.5"
+PRETTY_NAME="SUSE Linux Enterprise Micro 5.5"
+ID="sle-micro"
+ID_LIKE="suse"
+ANSI_COLOR="0;32"
+CPE_NAME="cpe:/o:suse:sle-micro:5.5"
+```
+
+Note, that adding non-root user requires the filesystem where such a
+user home directory is located to be mounted! That is, add a section
+to the *ignition* config explicitly (but for *root*, it is OK since
+for `/root` there's `x-initrd.mount` mount point).
+
 
 #### support
 
