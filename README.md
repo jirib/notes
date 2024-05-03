@@ -15175,6 +15175,48 @@ $ grep -c index /usr/share/libvirt/schemas/domainbackup.rng
 0
 ```
 
+`virsh` and QEMU Guest Agent integration:
+
+``` shell
+$ $ virsh qemu-agent-command jbelka-jbw2k22qe01 --cmd '{"execute":"guest-ping"}'
+{"return":{}}
+
+$ virsh qemu-agent-command jbelka-jbw2k22qe01 --cmd '{"execute":"guest-info"}' | jq '.' | head
+{
+  "return": {
+    "version": "107.0.1",
+    "supported_commands": [
+      {
+        "enabled": true,
+        "name": "guest-get-cpustats",
+        "success-response": true
+      },
+      {
+
+```
+
+See below that if the VM is up and QEMU GA is alive, it shows *connected*.
+
+``` shell
+$ virsh dumpxml jbw2k22qe01 --xpath '//channel'
+<channel type="unix">
+  <source mode="bind" path="/var/lib/libvirt/qemu/channel/target/domain-37-jbw2k22qe01/org.qemu.guest_agent.0"/>
+  <target type="virtio" name="org.qemu.guest_agent.0" state="connected"/>
+  <alias name="channel0"/>
+  <address type="virtio-serial" controller="0" bus="0" port="1"/>
+</channel>
+```
+
+``` shell
+$ virsh domfsinfo jbw2k22qe01
+ Mountpoint        Name                                                Type    Target
+---------------------------------------------------------------------------------------
+ C:\               \\?\Volume{bba45489-3697-4c75-a5b9-c9a1a552cea8}\   NTFS
+ System Reserved   \\?\Volume{88d20f38-79bd-4411-9023-20e52883e124}\   NTFS
+ System Reserved   \\?\Volume{339d018f-c6a1-47c2-8270-dd37afa8809d}\   FAT32
+ D:\               \\?\Volume{4dba0c41-abae-11ed-8a0a-806e6f6e6963}\   CDFS
+```
+
 
 #### virt-install
 
