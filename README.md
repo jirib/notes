@@ -3326,6 +3326,60 @@ crm move     # careful, creates constraints
 crm resource constraints <resource> # show resource constraints
 ```
 
+
+#### hawk web ui
+
+[hawk](https://github.com/ClusterLabs/hawk) needs that a user is in
+*haclient* group; it uses PAM
+([*passwd*](https://github.com/ClusterLabs/hawk/blob/f9838ba95ed7a23ef4f8156b2b69031e8fadd19c/hawk/app/models/session.rb#L52)
+service):
+
+``` shell
+# from a login attempt
+$ strace -e status=successful -s 256 -f -e trace=file $(systemd-cgls -u hawk-backend.service | tail -n +2 | awk '{ ORS=" "; printf("-p %d ", $2) }') 2>&1 | grep /etc
+[pid  6849] openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+[pid  6849] stat("/etc/crypto-policies/back-ends/gnutls.config", {st_mode=S_IFREG|0644, st_size=1413, ...}) = 0
+[pid  6849] openat(AT_FDCWD, "/etc/crypto-policies/back-ends/gnutls.config", O_RDONLY|O_CLOEXEC) = 3
+[pid  6855] openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+[pid  6855] stat("/etc/crypto-policies/back-ends/gnutls.config", {st_mode=S_IFREG|0644, st_size=1413, ...}) = 0
+[pid  6855] openat(AT_FDCWD, "/etc/crypto-policies/back-ends/gnutls.config", O_RDONLY|O_CLOEXEC) = 3
+[pid  6856] openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+[pid  6856] access("/etc/pam.d/passwd", R_OK) = 0
+[pid  6856] openat(AT_FDCWD, "/etc/nsswitch.conf", O_RDONLY|O_CLOEXEC) = 3
+[pid  6856] openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+[pid  6856] openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+[pid  6856] openat(AT_FDCWD, "/etc/passwd", O_RDONLY|O_CLOEXEC) = 3
+[pid  6856] openat(AT_FDCWD, "/etc/passwd", O_RDONLY|O_CLOEXEC) = 3
+[pid  6856] openat(AT_FDCWD, "/etc/group", O_RDONLY|O_CLOEXEC) = 3
+[pid  6856] stat("/etc/pam.d", {st_mode=S_IFDIR|0755, st_size=4096, ...}) = 0
+[pid  6856] openat(AT_FDCWD, "/etc/pam.d/passwd", O_RDONLY) = 3
+[pid  6856] openat(AT_FDCWD, "/etc/pam.d/common-auth", O_RDONLY) = 4
+[pid  6856] openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 5
+[pid  6856] openat(AT_FDCWD, "/etc/pam.d/common-account", O_RDONLY) = 4
+[pid  6856] openat(AT_FDCWD, "/etc/pam.d/common-password", O_RDONLY) = 4
+[pid  6856] openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 5
+[pid  6856] openat(AT_FDCWD, "/etc/pam.d/common-session", O_RDONLY) = 4
+[pid  6856] openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 5
+[pid  6856] openat(AT_FDCWD, "/etc/pam.d/other", O_RDONLY) = 3
+[pid  6856] openat(AT_FDCWD, "/etc/login.defs", O_RDONLY) = 3
+[pid  6856] openat(AT_FDCWD, "/etc/passwd", O_RDONLY|O_CLOEXEC) = 3
+[pid  6856] openat(AT_FDCWD, "/etc/shadow", O_RDONLY|O_CLOEXEC) = 3
+[pid  6856] openat(AT_FDCWD, "/etc/security/pam_env.conf", O_RDONLY) = 3
+[pid  6856] openat(AT_FDCWD, "/etc/environment", O_RDONLY) = 3
+[pid  6856] openat(AT_FDCWD, "/etc/passwd", O_RDONLY|O_CLOEXEC) = 3
+[pid  6856] openat(AT_FDCWD, "/etc/login.defs", O_RDONLY) = 3
+[pid  6857] openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+[pid  6857] stat("/etc/crypto-policies/back-ends/gnutls.config", {st_mode=S_IFREG|0644, st_size=1413, ...}) = 0
+[pid  6857] openat(AT_FDCWD, "/etc/crypto-policies/back-ends/gnutls.config", O_RDONLY|O_CLOEXEC) = 3
+[pid  6858] openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+[pid  6858] stat("/etc/crypto-policies/back-ends/gnutls.config", {st_mode=S_IFREG|0644, st_size=1413, ...}) = 0
+[pid  6858] openat(AT_FDCWD, "/etc/crypto-policies/back-ends/gnutls.config", O_RDONLY|O_CLOEXEC) = 3
+[pid  6864] openat(AT_FDCWD, "/etc/ld.so.cache", O_RDONLY|O_CLOEXEC) = 3
+[pid  6864] stat("/etc/crypto-policies/back-ends/gnutls.config", {st_mode=S_IFREG|0644, st_size=1413, ...}) = 0
+[pid  6864] openat(AT_FDCWD, "/etc/crypto-policies/back-ends/gnutls.config", O_RDONLY|O_CLOEXEC) = 3
+```
+
+
 #### maintenances
 
 WARNINGS:
