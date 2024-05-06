@@ -7298,6 +7298,9 @@ guests access, and since I did want to create a personalizes user access,
 I used `username map` hack (which effectively means allowing access to
 'nobody' if the password matches).
 
+
+ACL is RFD (read, full, deny), see https://serverfault.com/a/474831/451558 .
+
 ``` shell
 $ testparm -s 2>/dev/null | grep -P '^\s+username map'
         username map = /etc/samba/users.map
