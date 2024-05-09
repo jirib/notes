@@ -11013,6 +11013,8 @@ generate_node_acls=0
 
 ##### debugging
 
+Note that writing to *debugfs* does not work with SecureBoot!
+
 ``` shell
 # grep -Po '^(drivers/target/iscsi[^:]+)(?=.*)' /sys/kernel/debug/dynamic_debug/control | sort -u
 drivers/target/iscsi/iscsi_target_auth.c
@@ -11034,6 +11036,9 @@ drivers/target/iscsi/iscsi_target_util.c
 # echo 'file drivers/target/iscsi/iscsi_target_login.c +p' > /sys/kernel/debug/dynamic_debug/control
 ```
 
+TODO: add `trace-cmd` tips...
+
+
 ###### discovery authentication
 
 ``` shell
@@ -11046,6 +11051,80 @@ Aug 30 13:47:15 sixers kernel: Initiator is requesting CSG: 1, has not been succ
 Aug 30 13:47:15 sixers kernel: iSCSI Login negotiation failed.
 Aug 30 13:47:15 sixers kernel: Moving to TARG_CONN_STATE_FREE.
 ```
+
+``` shell
+$ tshark -i eth0 -f '(tcp or udp) and port 3260' -Y 'iscsi.opcode == 0x03' -O iscsi
+Running as user "root" and group "root". This could be dangerous.
+Capturing on 'eth0'
+Frame 6: 182 bytes on wire (1456 bits), 182 bytes captured (1456 bits) on interface eth0, id 0
+Ethernet II, Src: RealtekU_79:5e:32 (52:54:00:79:5e:32), Dst: RealtekU_7f:b3:7a (52:54:00:7f:b3:7a)
+Internet Protocol Version 4, Src: 192.168.252.100, Dst: 192.168.252.1
+Transmission Control Protocol, Src Port: 37860, Dst Port: 3260, Seq: 49, Ack: 1, Len: 116
+[2 Reassembled TCP Segments (164 bytes): #4(48), #6(116)]
+iSCSI (Login Command)
+    Opcode: Login Command (0x03)
+    0... .... = T: Stay in current login stage
+    .0.. .... = C: Text is complete
+    .... 00.. = CSG: Security negotiation (0x0)
+    VersionMax: 0x00
+    VersionMin: 0x00
+    TotalAHSLength: 0x00
+    DataSegmentLength: 116 (0x00000074)
+    ISID: 00023d000000
+        00.. .... = ISID_t: IEEE OUI (0x0)
+        ..00 0000 = ISID_a: 0x00
+        ISID_b: 0x023d
+        ISID_c: 0x00
+        ISID_d: 0x0000
+    TSIH: 0x0000
+    InitiatorTaskTag: 0x00000000
+    CID: 0x0000
+    CmdSN: 0x00000001
+    ExpStatSN: 0x00000000
+    Key/Value Pairs
+        KeyValue: InitiatorName=iqn.1996-04.de.suse:01:jb155sapqe01
+        KeyValue: InitiatorAlias=jb155sapqe01
+        KeyValue: SessionType=Discovery
+        KeyValue: AuthMethod=CHAP
+...
+
+Frame 16: 174 bytes on wire (1392 bits), 174 bytes captured (1392 bits) on interface eth0, id 0
+Ethernet II, Src: RealtekU_79:5e:32 (52:54:00:79:5e:32), Dst: RealtekU_7f:b3:7a (52:54:00:7f:b3:7a)
+Internet Protocol Version 4, Src: 192.168.252.100, Dst: 192.168.252.1
+Transmission Control Protocol, Src Port: 37860, Dst Port: 3260, Seq: 273, Ack: 225, Len: 108
+[2 Reassembled TCP Segments (156 bytes): #15(48), #16(108)]
+iSCSI (Login Command)
+    Opcode: Login Command (0x03)
+    1... .... = T: Transit to next login stage
+    .0.. .... = C: Text is complete
+    .... 00.. = CSG: Security negotiation (0x0)
+    .... ..01 = NSG: Operational negotiation (0x1)
+    VersionMax: 0x00
+    VersionMin: 0x00
+    TotalAHSLength: 0x00
+    DataSegmentLength: 107 (0x0000006b)
+    ISID: 00023d000000
+        00.. .... = ISID_t: IEEE OUI (0x0)
+        ..00 0000 = ISID_a: 0x00
+        ISID_b: 0x023d
+        ISID_c: 0x00
+        ISID_d: 0x0000
+    TSIH: 0x0000
+    InitiatorTaskTag: 0x00000000
+    CID: 0x0000
+    CmdSN: 0x00000001
+    ExpStatSN: 0x957e000b
+    Key/Value Pairs
+        KeyValue: CHAP_N=suse
+        KeyValue: CHAP_R=0xc96e13f01d448a356cc727e6ebd94c6f
+        KeyValue: CHAP_I=197
+        KeyValue: CHAP_C=0xe9224ca1008ff6d9701df46da7ec5bd2
+    Padding: 00
+...
+```
+
+
+The above shows discovery auth from an initiator, *CHAP* authentication is used...
 
 ###### no authentication but still no ACL for the initiator
 
