@@ -3883,6 +3883,38 @@ It's not visible on `crm configure show` as resource, only property
 `cib-bootstrap-options` stonith options need to be set. It will
 self-fence if cannot see other nodes.
 
+In diskless SBD, this is what `stonith_admin` thinks about it:
+
+``` shell
+$ crm configure show type:property
+property cib-bootstrap-options: \
+        have-watchdog=true \
+        no-quorum-policy=freeze \
+        dc-version="2.1.5+20221208.a3f44794f-150500.6.14.4-2.1.5+20221208.a3f44794f" \
+        cluster-infrastructure=corosync \
+        cluster-name=jb155sapqe \
+        stonith-watchdog-timeout=-1
+
+$ crm configure show related:external/sbd | grep -c '' # that is, no 'external/sbd' primitive
+0
+
+$ stonith_admin -L
+watchdog
+1 fence device found
+
+$ stonith_admin -l $(hostname)
+watchdog
+1 fence device found
+```
+
+In pacemaker.log the above query logs...
+
+```
+May 10 08:28:15.633 jb155sapqe02 pacemaker-fenced    [1865] (can_fence_host_with_device)        info: watchdog is eligible to fence (off) jb155sapqe02: static-list
+```
+
+Thus, it is a hack, IMO.
+
 
 ### csync2
 
@@ -5657,6 +5689,98 @@ And the log on the first node continues...
 2023-02-06T16:44:25.870717+01:00 jb154sapqe01 kernel: [18365.556749][T25370] drbd drbd01: Committing cluster-wide state change 639728590 (28ms)
 2023-02-06T16:44:25.870718+01:00 jb154sapqe01 kernel: [18365.558110][T25370] drbd drbd01 jb154sapqe02: conn( Connecting -> Connected ) peer( Unknown -> Secondary )
 2023-02-06T16:44:25.870719+01:00 jb154sapqe01 kernel: [18365.559746][T25370] drbd drbd01/0 drbd1 jb154sapqe02: pdsk( Outdated -> Inconsistent ) repl( Off -> Established )
+```
+
+
+### OCFS2
+
+``` shell
+$  mkfs.ocfs2 -L jb155sapqe-shared-lvm-ocfs2-0 /dev/sda
+mkfs.ocfs2 1.8.7
+Cluster stack: pcmk
+Cluster name: jb155sapqe
+Stack Flags: 0x0
+NOTE: Feature extended slot map may be enabled
+Label: jb155sapqe-shared-lvm-ocfs2-0
+Features: sparse extended-slotmap backup-super unwritten inline-data strict-journal-super xattr indexed-dirs refcount discontig-bg append-dio
+Block size: 4096 (12 bits)
+Cluster size: 4096 (12 bits)
+Volume size: 1073741824 (262144 clusters) (262144 blocks)
+Cluster groups: 9 (tail covers 4096 clusters, rest cover 32256 clusters)
+Extent allocator size: 4194304 (1 groups)
+Journal size: 67108864
+Node slots: 2
+Creating bitmaps: done
+Initializing superblock: done
+Writing system files: done
+Writing superblock: done
+Writing backup superblock: 0 block(s)
+Formatting Journals: done
+Growing extent allocator: done
+Formatting slot map: done
+Formatting quota files: done
+Writing lost+found: done
+mkfs.ocfs2 successful
+
+$ wipefs /dev/sda
+DEVICE OFFSET TYPE  UUID                                 LABEL
+sda    0x2000 ocfs2 2f8ab0fa-5f5f-486f-9518-5837f0662116 jb155sapqe-shared-lvm-ocfs2-0
+```
+
+SLES does not support anymore *o2cb* cluster stack:
+
+``` shell
+$ /sys/fs/ocfs2/cluster_stack
+pcmk
+```
+
+Pacemaker/corosync stack configuration for *OCFS2* with
+*"independent"* DLM and OCFS2 primitive:
+
+``` shell
+primitive dlm ocf:pacemaker:controld \
+        op monitor interval=60 timeout=60 \
+        op start timeout=90s interval=0s \
+        op stop timeout=100s interval=0s
+primitive ocfs2-0 Filesystem \
+        params directory="/srv/ocfs2-0" fstype=ocfs2 device="/dev/disk/by-id/scsi-3600140534d0904dc8a24843897c4ad18" \
+        op monitor interval=20 timeout=40
+clone cl-dlm dlm \
+        meta interleave=true
+clone cl-ocfs2-0 ocfs2-0 \
+        meta interleave=true
+colocation co-ocfs2-1-with-dlm inf: cl-ocfs2-0 cl-dlm
+order o-dlm-before-ocfs2-0 Mandatory: cl-dlm cl-ocfs2-0
+```
+
+Some `o2info` details:
+
+``` shell
+$ o2info --mkfs /dev/disk/by-id/scsi-3600140534d0904dc8a24843897c4ad18 | fmt -w80
+-N 2 -J size=67108864 -b 4096 -C 4096 --fs-features
+backup-super,strict-journal-super,sparse,extended-slotmap,userspace-stack,inline-data,xattr,indexed-dirs,refcount,discontig-bg,append-dio,unwritten
+-L jb155sapqe-shared-lvm-ocfs2-0
+```
+
+See `userspace-stack`, that refers to:
+
+``` shell
+$ modinfo -d ocfs2_stack_user
+ocfs2 driver for userspace cluster stacks
+```
+
+`o2info --volinfo` reveals number of cluster nodes too:
+
+``` shell
+$ o2info --volinfo /dev/sda
+       Label: jb155sapqe-shared-lvm-ocfs2-0
+        UUID: 80038ED0D6B44AF7B617AE40DC337DF8
+  Block Size: 4096
+Cluster Size: 4096
+  Node Slots: 2
+    Features: backup-super strict-journal-super sparse extended-slotmap
+    Features: userspace-stack inline-data xattr indexed-dirs refcount
+    Features: discontig-bg append-dio unwritten
 ```
 
 
@@ -8040,6 +8164,17 @@ Same kernel and kernel debug files have to be present.
 $ strings /home/vmcore | grep -m 1 -i osrelease
 OSRELEASE=5.14.21-150400.24.18-default
 
+# or if newer file/libmagic
+$ file /tmp/2024-05-10-15\:53/vmcore | tr ',' '\n'
+/tmp/2024-05-10-15:53/vmcore: Kdump compressed dump v6
+ system Linux
+ node x23
+ release 5.14.21-150500.55.59-default
+ version #1 SMP PREEMPT_DYNAMIC Thu Apr 18 12:59:33 UTC 2024 (e8ae24a)
+ machine x86_64
+```
+
+``` shell
 $  crash /boot/vmlinux-5.14.21-150400.24.18-default.gz /home/vmcore
 ...
 WARNING: kernel relocated [344MB]: patching 118441 gdb minimal_symbol values
@@ -8064,7 +8199,6 @@ LOAD AVERAGE: 0.39, 0.17, 0.06
          CPU: 3
        STATE: TASK_RUNNING (PANIC)
 
-crash>
 crash> bt 62215
 PID: 62215  TASK: ffff8cd0660b4000  CPU: 3   COMMAND: "kfod.bin"
  #0 [ffffa7eb08d8fa80] machine_kexec at ffffffff9687ec63
@@ -8103,6 +8237,7 @@ PID: 62215  TASK: ffff8cd0660b4000  CPU: 3   COMMAND: "kfod.bin"
     R10: 0000000000000000  R11: 0000000000000246  R12: 00000000ffffffff
     R13: 00007ffd934cdcb8  R14: 0000000000000000  R15: 0000000001bae8a0
     ORIG_RAX: 0000000000000000  CS: 0033  SS: 002b
+
 crash> ps -p 62215
 PID: 0      TASK: ffffffff9821a940  CPU: 0   COMMAND: "swapper/0"
  PID: 1      TASK: ffff8ccfc021c000  CPU: 4   COMMAND: "systemd"
@@ -8114,10 +8249,12 @@ PID: 0      TASK: ffffffff9821a940  CPU: 0   COMMAND: "swapper/0"
        PID: 58992  TASK: ffff8ccffa774000  CPU: 4   COMMAND: "perl"
         PID: 62214  TASK: ffff8ccfdbe88000  CPU: 1   COMMAND: "java"
          PID: 62215  TASK: ffff8cd0660b4000  CPU: 3   COMMAND: "kfod.bin"
+
 crash> p ((struct task_struct *) 0xffff8cd0660b4000)->cred->uid
 $1 = {
   val = 1001
 }
+
 crash> sys
       KERNEL: /boot/vmlinux-5.14.21-150400.24.18-default.gz
    DEBUGINFO: /usr/lib/debug/boot/vmlinux-5.14.21-150400.24.18-default.debug
@@ -8136,44 +8273,45 @@ LOAD AVERAGE: 0.39, 0.17, 0.06
 ```
 
 ``` shell
-crash> log | sed -n '/RTC time:/s/.* time: \([^,]*\), date: \(.*\)/\2 \1/p'
-2022-12-06 15:02:29
 crash> !date --date='2022-12-06 15:02:29' +"%s"
 1670335349
-crash> log | perl -pe 's/(\d+)/localtime(1670335349+$1)/e' | tail
-[Fri Jan  6 11:19:20 2023.058462] RBP: 0000000000000000 R08: 0000000000000000 R09: 0138cb8651caaf7d
-[Fri Jan  6 11:19:20 2023.058462] R10: ffffffff88803e20 R11: 00000000000aae9e R12: 0000000000000000
-[Fri Jan  6 11:19:20 2023.058462] R13: 0000000000000000 R14: 0000000000000000 R15: 0000000000000000
-[Fri Jan  6 11:19:20 2023.090572]  ? __sched_text_end+0x7/0x7
-[Fri Jan  6 11:19:20 2023.090572]  default_idle+0x1c/0x150
-[Fri Jan  6 11:19:20 2023.090572]  do_idle+0x1bf/0x270
-[Fri Jan  6 11:19:20 2023.090572]  cpu_startup_entry+0x19/0x20
-[Fri Jan  6 11:19:20 2023.090572]  start_kernel+0x559/0x57e
-[Fri Jan  6 11:19:20 2023.090572]  secondary_startup_64_no_verify+0xc2/0xd0
-[Fri Jan  6 11:19:20 2023.090572] Kernel Offset: 0x6000000 from 0xffffffff81000000 (relocation range: 0xffffffff80000000-0xffffffffbfffffff)
+```
 
-crash> log | perl -pe 's/(\d+)/localtime(1670335349+$1)/e' | grep -m1 -C 10 sysrq
-[Wed Jan  4 20:00:14 2023.778249] floppy: error 10 while reading block 0
-[Thu Jan  5 03:00:03 2023.339826] blk_update_request: I/O error, dev fd0, sector 0 op 0x0:(READ) flags 0x0 phys_seg 1 prio class 0
-[Thu Jan  5 03:00:03 2023.346777] floppy: error 10 while reading block 0
-[Thu Jan  5 12:30:15 2023.884118] blk_update_request: I/O error, dev fd0, sector 0 op 0x0:(READ) flags 0x0 phys_seg 1 prio class 0
-[Thu Jan  5 12:30:15 2023.892338] floppy: error 10 while reading block 0
-[Thu Jan  5 20:00:14 2023.847606] blk_update_request: I/O error, dev fd0, sector 0 op 0x0:(READ) flags 0x0 phys_seg 1 prio class 0
-[Thu Jan  5 20:00:14 2023.854650] floppy: error 10 while reading block 0
-[Fri Jan  6 03:00:03 2023.135697] blk_update_request: I/O error, dev fd0, sector 0 op 0x0:(READ) flags 0x0 phys_seg 1 prio class 0
-[Fri Jan  6 03:00:03 2023.144006] floppy: error 10 while reading block 0
-[Fri Jan  6 11:14:24 2023.829289] CIFS: VFS: \\FFISOFS has not responded in 180 seconds. Reconnecting...
-[Fri Jan  6 11:19:19 2023.962359] sysrq: Trigger a crash
-[Fri Jan  6 11:19:19 2023.965234] Kernel panic - not syncing: sysrq triggered crash
-[Fri Jan  6 11:19:19 2023.966333] CPU: 0 PID: 0 Comm: swapper/0 Kdump: loaded Tainted: G               X    5.3.18-150300.59.98-default #1 SLE15-SP3
-[Fri Jan  6 11:19:19 2023.966333] Hardware name: Microsoft Corporation Virtual Machine/Virtual Machine, BIOS 090008  12/07/2018
-[Fri Jan  6 11:19:19 2023.966333] Call Trace:
-[Fri Jan  6 11:19:19 2023.966333]  <IRQ>
-[Fri Jan  6 11:19:19 2023.966333]  dump_stack+0x66/0x8b
-[Fri Jan  6 11:19:19 2023.966333]  panic+0xfe/0x2e3
-[Fri Jan  6 11:19:19 2023.966333]  ? printk+0x52/0x72
-[Fri Jan  6 11:19:19 2023.966333]  sysrq_handle_crash+0x11/0x20
-[Fri Jan  6 11:19:19 2023.966333]  __handle_sysrq+0x89/0x140
+``` shell
+crash> log -T | tail
+[Fri May 10 13:52:10 UTC 2024] RIP: 0033:0x7f39e6910263
+[Fri May 10 13:52:10 UTC 2024] Code: 0f 1f 80 00 00 00 00 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 90 64 8b 04 25 18 00 00 00 85 c0 75 14 b8 01 00 00 00 0f 05 <48> 3d 00 f0 ff ff 77 55 f3 c3 0f 1f 00 41 54 55 49 89 d4 53 48 89
+[Fri May 10 13:52:10 UTC 2024] RSP: 002b:00007ffd02bbd878 EFLAGS: 00000246 ORIG_RAX: 0000000000000001
+[Fri May 10 13:52:10 UTC 2024] RAX: ffffffffffffffda RBX: 0000000000000002 RCX: 00007f39e6910263
+[Fri May 10 13:52:10 UTC 2024] RDX: 0000000000000002 RSI: 000056262f12dd90 RDI: 0000000000000001
+[Fri May 10 13:52:10 UTC 2024] RBP: 000056262f12dd90 R08: 000000000000000a R09: 0000000000000000
+[Fri May 10 13:52:10 UTC 2024] R10: 00007f39e6810468 R11: 0000000000000246 R12: 00007f39e69f5500
+[Fri May 10 13:52:10 UTC 2024] R13: 0000000000000002 R14: 00007f39e69fac00 R15: 0000000000000002
+[Fri May 10 13:52:10 UTC 2024]  </TASK>
+[Fri May 10 13:52:11 UTC 2024] Kernel Offset: disabled
+
+crash> log -T | grep -m1 -C 10 sysrq
+[Fri May 10 13:48:40 UTC 2024] dlm: 26C3414655214AD98A484083744B44A1: generation 52 slots 4 1:4 2:2 3:3 4:1
+[Fri May 10 13:48:40 UTC 2024] dlm: 26C3414655214AD98A484083744B44A1: dlm_recover_directory
+[Fri May 10 13:48:40 UTC 2024] dlm: 26C3414655214AD98A484083744B44A1: dlm_recover_directory 4 in 3 new
+[Fri May 10 13:48:40 UTC 2024] dlm: 7D854860259C4E52874EC9D8BFDD7277: generation 52 slots 4 1:4 2:2 3:3 4:1
+[Fri May 10 13:48:40 UTC 2024] dlm: 7D854860259C4E52874EC9D8BFDD7277: dlm_recover_directory
+[Fri May 10 13:48:40 UTC 2024] dlm: 7D854860259C4E52874EC9D8BFDD7277: dlm_recover_directory 2 in 1 new
+[Fri May 10 13:48:40 UTC 2024] dlm: 26C3414655214AD98A484083744B44A1: dlm_recover_directory 0 out 3 messages
+[Fri May 10 13:48:40 UTC 2024] dlm: 26C3414655214AD98A484083744B44A1: dlm_recover 3 generation 52 done: 84 ms
+[Fri May 10 13:48:40 UTC 2024] dlm: 7D854860259C4E52874EC9D8BFDD7277: dlm_recover_directory 0 out 3 messages
+[Fri May 10 13:48:41 UTC 2024] dlm: 7D854860259C4E52874EC9D8BFDD7277: dlm_recover 3 generation 52 done: 228 ms
+[Fri May 10 13:52:10 UTC 2024] sysrq: Trigger a crash
+[Fri May 10 13:52:10 UTC 2024] Kernel panic - not syncing: sysrq triggered crash
+[Fri May 10 13:52:10 UTC 2024] CPU: 48 PID: 15658 Comm: bash Tainted: G           O   X    5.14.21-150500.55.59-default #1 SLE15-SP5 3a8569df5696e57cdcb648c7e890af33bdc23f85
+[Fri May 10 13:52:10 UTC 2024] Hardware name: HPE ProLiant DL360 Gen10/ProLiant DL360 Gen10, BIOS U32 07/20/2023
+[Fri May 10 13:52:10 UTC 2024] Call Trace:
+[Fri May 10 13:52:10 UTC 2024]  <TASK>
+[Fri May 10 13:52:10 UTC 2024]  dump_stack_lvl+0x45/0x5b
+[Fri May 10 13:52:10 UTC 2024]  panic+0x118/0x2f0
+[Fri May 10 13:52:10 UTC 2024]  ? printk+0x52/0x72
+[Fri May 10 13:52:10 UTC 2024]  sysrq_handle_crash+0x16/0x20
+[Fri May 10 13:52:10 UTC 2024]  __handle_sysrq+0x9b/0x160
 ```
 
 ## fadump
@@ -15131,6 +15269,23 @@ btrfsvol:/dev/sda2/@/.snapshots/2/snapshot: btrfs
 
 ### libvirt
 
+#### auth-SASL
+
+NOTE, this is not very secure!!!
+
+``` shell
+$  grep -RHPv '^\s*(#|$)' /etc/libvirt/libvirtd.conf /etc/sasl2/libvirt.conf
+/etc/libvirt/libvirtd.conf:listen_tcp = 1
+/etc/libvirt/libvirtd.conf:auth_tcp = "sasl"
+/etc/libvirt/libvirtd.conf:log_level = 1
+/etc/sasl2/libvirt.conf:mech_list: digest-md5
+/etc/sasl2/libvirt.conf:sasldb_path: /etc/libvirt/passwd.db
+
+$ sasldblistusers2 -f /etc/libvirt/passwd.db
+foo@avocado.example.com: userPassword
+```
+
+
 #### dnsmasq enabled network
 
 to extend dnsmasq features network schema and 'dnsmasq:options'
@@ -15168,6 +15323,22 @@ solve the issue with *PathPrefix* when booting [*pxelinux*](#pxelinux) from
 *GRUB2*.
 
 #### virsh
+
+An example for SASL (NOTE, that it is not very secure!!!) authentication:
+
+``` shell
+$ grep -H '' .config/libvirt/{libvirt,auth}.conf
+.config/libvirt/libvirt.conf:uri_aliases = [
+.config/libvirt/libvirt.conf:  "avocado=qemu+tcp://10.156.233.50:16509/system",
+.config/libvirt/libvirt.conf:]
+.config/libvirt/auth.conf:[auth-libvirt-avocado]
+.config/libvirt/auth.conf:credentials=avocado
+.config/libvirt/auth.conf:
+.config/libvirt/auth.conf:[credentials-avocado]
+.config/libvirt/auth.conf:authname=foo
+.config/libvirt/auth.conf:realm=avocado.example.com
+.config/libvirt/auth.conf:password=bar
+```
 
 ``` shell
 virsh vol-create-as <pool> <new_vol> <size>G --format <new_format> \
