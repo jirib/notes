@@ -8314,6 +8314,88 @@ crash> log -T | grep -m1 -C 10 sysrq
 [Fri May 10 13:52:10 UTC 2024]  __handle_sysrq+0x9b/0x160
 ```
 
+``` shell
+crash> files
+PID: 4049   TASK: ffff8a7943518000  CPU: 1   COMMAND: "bash"
+ROOT: /    CWD: /root
+ FD       FILE            DENTRY           INODE       TYPE PATH
+  0 ffff8a7944382800 ffff8a794b4a2b40 ffff8a794b57ca20 CHR  /dev/pts/0
+  1 ffff8a7943026100 ffff8a794bbe8b40 ffff8a794173e4d8 REG  /proc/sysrq-trigger
+  2 ffff8a7944382800 ffff8a794b4a2b40 ffff8a794b57ca20 CHR  /dev/pts/0
+ 10 ffff8a7944382800 ffff8a794b4a2b40 ffff8a794b57ca20 CHR  /dev/pts/0
+255 ffff8a7944382800 ffff8a794b4a2b40 ffff8a794b57ca20 CHR  /dev/pts/0
+```
+
+
+``` shell
+# for tainted kernel modules
+
+crash> mod -t
+NAME      TAINTS
+smartpqi  OX
+qla2xxx   OX
+```
+
+``` shell
+crash> mount
+     MOUNT           SUPERBLK     TYPE   DEVNAME   DIRNAME
+ffff8881001e1500 ffff88810004b000 rootfs none      /
+ffff8881125e5f80 ffff888104789800 proc   proc      /@/.snapshots/1/snapshot/proc
+ffff8881125e7d80 ffff88810478f000 sysfs  sysfs     /@/.snapshots/1/snapshot/sys
+ffff8881125e4780 ffff88810004e800 devtmpfs devtmpfs /@/.snapshots/1/snapshot/dev
+ffff8881125e5080 ffff88810004f000 securityfs securityfs /@/.snapshots/1/snapshot/sys/kernel/security
+ffff8881125e5b00 ffff88810478b000 tmpfs  tmpfs     /@/.snapshots/1/snapshot/dev/shm
+ffff8881125e4a80 ffff88810478c800 devpts devpts    /@/.snapshots/1/snapshot/dev/pts
+ffff8881125e4480 ffff88810478d800 tmpfs  tmpfs     /@/.snapshots/1/snapshot/run
+ffff8881125e7780 ffff88810478e800 tmpfs  tmpfs     /@/.snapshots/1/snapshot/sys/fs/cgroup
+ffff8881125e7480 ffff88810478f800 cgroup2 cgroup2  /@/.snapshots/1/snapshot/sys/fs/cgroup/unified
+ffff8881125e4180 ffff88810478c000 cgroup cgroup    /@/.snapshots/1/snapshot/sys/fs/cgroup/systemd
+ffff8881125e5500 ffff888104788000 pstore pstore    /@/.snapshots/1/snapshot/sys/fs/pstore
+ffff8881001e0d80 ffff888103431800 efivarfs efivarfs /@/.snapshots/1/snapshot/sys/firmware/efi/efivars
+ffff8881001e2a00 ffff888103437000 bpf    bpf       /@/.snapshots/1/snapshot/sys/fs/bpf
+ffff8881001e0f00 ffff888103433000 cgroup cgroup    /@/.snapshots/1/snapshot/sys/fs/cgroup/perf_event
+ffff8881001e0c00 ffff888103434800 cgroup cgroup    /@/.snapshots/1/snapshot/sys/fs/cgroup/rdma
+ffff8881001e2400 ffff888103435800 cgroup cgroup    /@/.snapshots/1/snapshot/sys/fs/cgroup/net_cls,net_prio
+ffff8881001e1980 ffff888103436800 cgroup cgroup    /@/.snapshots/1/snapshot/sys/fs/cgroup/hugetlb
+ffff8881001e0600 ffff88810007b000 cgroup cgroup    /@/.snapshots/1/snapshot/sys/fs/cgroup/memory
+ffff8881001e0900 ffff88810007c800 cgroup cgroup    /@/.snapshots/1/snapshot/sys/fs/cgroup/devices
+ffff8881001e2e80 ffff88810007d800 cgroup cgroup    /@/.snapshots/1/snapshot/sys/fs/cgroup/cpu,cpuacct
+ffff8881001e1e00 ffff88810007e800 cgroup cgroup    /@/.snapshots/1/snapshot/sys/fs/cgroup/pids
+ffff8881001e3900 ffff88810007f800 cgroup cgroup    /@/.snapshots/1/snapshot/sys/fs/cgroup/freezer
+ffff8881001e2100 ffff88810007c000 cgroup cgroup    /@/.snapshots/1/snapshot/sys/fs/cgroup/cpuset
+ffff8881001e2d00 ffff888100078000 cgroup cgroup    /@/.snapshots/1/snapshot/sys/fs/cgroup/blkio
+ffff8881001e1800 ffff88810007b800 cgroup cgroup    /@/.snapshots/1/snapshot/sys/fs/cgroup/misc
+ffff888124011f80 ffff88812cb0e000 btrfs  /dev/sdb2 /
+ffff888122789980 ffff88810f0c7800 autofs systemd-1 /@/.snapshots/1/snapshot/proc/sys/fs/binfmt_misc
+ffff888109188900 ffff8881027a8800 mqueue mqueue    /@/.snapshots/1/snapshot/dev/mqueue
+ffff88810918ae80 ffff88810004f800 debugfs debugfs  /@/.snapshots/1/snapshot/sys/kernel/debug
+ffff88811bd06700 ffff8881034b6000 tracefs tracefs  /@/.snapshots/1/snapshot/sys/kernel/tracing
+ffff888102cf6700 ffff88812cfc7800 xenfs  xenfs     /@/.snapshots/1/snapshot/proc/xen
+ffff88811bd06880 ffff88810a7c3000 fusectl fusectl  /@/.snapshots/1/snapshot/sys/fs/fuse/connections
+ffff88811ddab300 ffff88812d34a800 configfs configfs /@/.snapshots/1/snapshot/sys/kernel/config
+ffff888198478180 ffff88812cb0e000 btrfs  /dev/sdb2 /@/.snapshots/1/snapshot/.snapshots
+ffff88818824fa80 ffff88812cb0e000 btrfs  /dev/sdb2 /@/.snapshots/1/snapshot/boot/grub2/i386-pc
+ffff88819847a880 ffff88812cb0e000 btrfs  /dev/sdb2 /@/.snapshots/1/snapshot/boot/grub2/x86_64-efi
+ffff888124947d80 ffff88812cb0e000 btrfs  /dev/sdb2 /@/.snapshots/1/snapshot/home
+ffff8881001e2580 ffff88812cb0e000 btrfs  /dev/sdb2 /@/.snapshots/1/snapshot/opt
+ffff888102cf6880 ffff88812cb0e000 btrfs  /dev/sdb2 /@/.snapshots/1/snapshot/srv
+ffff8881125e5680 ffff88812cb0e000 btrfs  /dev/sdb2 /@/.snapshots/1/snapshot/usr/local
+ffff8881053b8480 ffff88812cb0e000 btrfs  /dev/sdb2 /@/.snapshots/1/snapshot/tmp
+ffff888124944480 ffff88812cb0e000 btrfs  /dev/sdb2 /@/.snapshots/1/snapshot/var
+ffff888106235b00 ffff88812dca7000 vfat   /dev/sdb1 /@/.snapshots/1/snapshot/boot/efi
+ffff88818dcaf600 ffff88811bab7000 tmpfs  tmpfs     /@/.snapshots/1/snapshot/run/user/600
+ffff8881251b2100 ffff8881910ca800 ocfs2  /dev/mapper/ocfs2-pm_01-part1 /@/.snapshots/1/snapshot/media/ocfs2_01
+ffff8881be9d7d80 ffff88812d919000 ocfs2  /dev/mapper/ocfs2-pm_02-part1 /@/.snapshots/1/snapshot/media/ocfs2_02
+ffff88819ab65200 ffff88811bfbd000 tmpfs  tmpfs     /@/.snapshots/1/snapshot/run/user/0
+ffff8880066cd680 ffff888188d19800 fuse   gvfsd-fuse /@/.snapshots/1/snapshot/run/user/0/gvfs
+```
+
+``` shell
+crash> p vm_swappiness
+vm_swappiness = $2 = 60
+```
+
+
 ## fadump
 
 *fadump* (Firmware Assisted Dump) is a robus crash dump mechanism using Power
