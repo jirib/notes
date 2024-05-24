@@ -89,6 +89,11 @@ Starting the installer:
 ``` shell
 $ ./hdblcm --action=install --dump_configfile_template=/root/hana.tmpl # template config
 
+# then you can use:
+#    ./hdblcm --configfile=/root/hana.tmpl --batch
+# do NOT forget to change node hostname in the file when copying to other node!!!
+
+# an interactive mode
 $ ./hdblcm --action=install --ignore=check_min_mem # installer
 ...
 > 1 (install action)
@@ -786,6 +791,13 @@ $ grep -m 1 -P 'srHook.*SOK' /var/log/pacemaker/pacemaker.log
 May 03 12:48:33 oldhanae1 pacemaker-based     [1575] (cib_perform_op)   info: +  /cib/configuration/crm_config/cluster_property_set[@id='SAPHanaSR']/nvpair[@id='SAPHanaSR-hana_yh0_site_srHook_whitewine']:  @value=SOK
 ```
 
+The hook is loaded only during SAP HANA start, so:
+
+``` shell
+$ hdbnsutil -reloadHADRProviders
+$ hdbnsutil -reconfig
+```
+
 
 #### Support tools from OS like SLES
 
@@ -850,11 +862,13 @@ $ tar xOJf /var/log/scc_oldhanae2_220511_1147.txz \
 
 ### redoing replication deployment
 
-Cf. https://help.sap.com/docs/SAP_HANA_PLATFORM/4e9b18c116aa42fc84c7dbfd02111aba/9a4a4cdcda454663ba0c75d180c7ed11.html?version=2.0.04&locale=en-US
-
 1. `cdglo ; ls -1 security/rsecssfs/*/*` -
    [keys](https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-sr-guide-costopt-15/#id-1.9.8.4)
-   present on second node
+   present on second node; a check could be:
+   ``` shell
+   $ su - <sapadm> -s /bin/bash -c \
+       'cd /usr/sap/$SAPSYSTEMNAME/SYS/global ; ls -1 security/rsecssfs/*/* | xargs -L 1 md5sum'
+   ```
 2. [backup](https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-sr-guide-costopt-15/#id-1.9.6.3):
    ``` shell
    # if not already backup present then...
@@ -862,7 +876,10 @@ Cf. https://help.sap.com/docs/SAP_HANA_PLATFORM/4e9b18c116aa42fc84c7dbfd02111aba
    ```
    backup can use also database user
    [key](https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-sr-guide-costopt-15/#id-create-a-database-user-key-in-sidadms-keystore)
-   (in YaST)
+   (in YaST); a check could be:
+   ``` shell
+   $ su - <sapadm> -s /bin/bash -c 'hdbuserstore LIST'
+   ```
 3. SSH works between nodes; `sudo`
    [rules](https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-sr-guide-costopt-15/#id-allowing-sidadm-to-access-the-cluster)
    are present
@@ -870,7 +887,8 @@ Cf. https://help.sap.com/docs/SAP_HANA_PLATFORM/4e9b18c116aa42fc84c7dbfd02111aba
    # SAPHanaSR-ScaleUp entries for writing srHook cluster attribute
    <sid>adm ALL=(ALL) NOPASSWD: /usr/sbin/crm_attribute -n hana_<sid>_site_srHook_*
    ```
-3. on primary node, HDB must be running
+3. on primary node, HDB must be running; see:
+   https://help.sap.com/docs/SAP_HANA_PLATFORM/4e9b18c116aa42fc84c7dbfd02111aba/9a4a4cdcda454663ba0c75d180c7ed11.html?version=2.0.04&locale=en-US
 4. do on the other node
    ``` shell
    # check if replication is setup
@@ -896,14 +914,17 @@ Cf. https://help.sap.com/docs/SAP_HANA_PLATFORM/4e9b18c116aa42fc84c7dbfd02111aba
    ```
 4. clear cluster configuration
    ``` shell
-   $ systemctl stop pacemaker
+   $ crm maintenance on
+   $ crm cluster stop
    $ systemctl preset sbd pacemaker
 
-   $ find /var/lib/pacemaker/ /var/log/YaST2/ /var/log/pacemaker/ /var/log/messages-* -type f -delete
-   $ : > /etc/sysconfig/sbd /etc/csync2/csync2.cfg /var/log/messages
+   # TODO: csync2
+   $ find /etc/corosync/{corosync.conf,auth*} /etc/csync2/csync2.cfg /var/lib/pacemaker/ /var/log/YaST2/ /var/log/pacemaker/ /var/log/messages-* -type f -delete
+   $ find /etc/sysconfig/sbd /etc/csync2/csync2.cfg /var/log/messages -exec sh -c ': > $1' {} {} \;
    $ export 'Y2DEBUG=1' > /etc/environment
    $ export Y2DEBUG=1
 
+   # TODO: clarify
    $ { umask=077; /usr/bin/openssl ecparam -genkey -name secp384r1 -out /etc/csync2/csync2_ssl_key.pem; cat << EOF | \
        /usr/bin/openssl req -new -key /etc/csync2/csync2_ssl_key.pem -x509 -days 3000 -out /etc/csync2/csync2_ssl_cert.pem;
    > --
@@ -916,7 +937,14 @@ Cf. https://help.sap.com/docs/SAP_HANA_PLATFORM/4e9b18c116aa42fc84c7dbfd02111aba
    > EOF
    > }
    ```
+5. susCostOpt hook for postTakeover prereqs (on the secondary node):
+   ``` shell
+   $ su - <sapadm> -s /bin/bash -c 'hdbuserstore SET sus_${SAPSYSTEMNAME}_costopt localhost:3${TINSTANCE}13 SYSTEM <password>'
+   # a check
+   $ su - rhpadm -s /bin/bash -c 'hdbuserstore LIST | grep SUS_${SAPSYSTEMNAME}_COSTOPT'
+   ```
 5. check DB passwords
+   TODO: how to change passwords
    ``` shell
    $ hdbsql -i $TINSTANCE -u SYSTEM -p <password>
 
@@ -927,7 +955,143 @@ Cf. https://help.sap.com/docs/SAP_HANA_PLATFORM/4e9b18c116aa42fc84c7dbfd02111aba
 
    hdbsql RHP=>
    ```
-6. ...
+6. rather install it manually: *corosync-qdevice*
+
+
+
+
+```
+-- /usr/share/YaST2/data/sap_ha/tmpl_cluster_config.erb.orig   2023-03-09 16:49:50.602371769 +0100
++++ /usr/share/YaST2/data/sap_ha/tmpl_cluster_config.erb        2023-03-09 16:51:37.221431393 +0100
+@@ -80,9 +80,8 @@ primitive rsc_SAP_<%= @np_system_id -%>_
+     op stop interval="0" timeout="300" \
+     meta priority="100"
+
+-location loc_<%= @np_system_id -%>_never_<%= primary_host_name -%> \
+-    rsc_SAP_<%= @np_system_id -%>_HDB<%= @np_instance -%> -inf: <%= primary_host_name -%>
+-
++location loc_RHT_never_jb154sapqe01 \
++     rsc_SAP_RHT_HDB10 -inf: jb154sapqe01
+
+ colocation col_<%= @np_system_id -%>_never_with_PRDip \
+     -inf: rsc_SAP_<%= @np_system_id -%>_HDB<%= @np_instance -%>:Started \
+```
+
+
+jb154sapqe02:~ # grep '<sid>' /usr/share/YaST2/data/sap_ha/tmpl_srhook.py.erb
+userkey_dflt = "saphanasr_<sid>_costopt"
+            self.userkey = userkey_dflt.replace("<sid>", mysid)
+rhpadm@jb154sapqe02:/usr/sap/RHP/HDB20> hdbuserstore set saphanasr_RHP_costopt localhost:32013 SYSTEM Linux123
+
+```
+--- /usr/share/YaST2/lib/sap_ha/system/hana.rb.orig     2023-03-09 17:02:21.535748574 +0100
++++ /usr/share/YaST2/lib/sap_ha/system/hana.rb  2023-03-09 17:04:28.414629524 +0100
+@@ -234,6 +234,9 @@ module SapHA
+           global_ini.set_config('ha_dr_provider_SAPHanaSR', 'provider', 'SAPHanaSR')
+           global_ini.set_config('ha_dr_provider_SAPHanaSR', 'path', '/usr/share/SAPHanaSR')
+           global_ini.set_config('ha_dr_provider_SAPHanaSR', 'execution_order', '1')
++          global_ini.set_config('ha_dr_provider_suscostopt', 'provider', 'susCostOpt')
++          global_ini.set_config('ha_dr_provider_suscostopt', 'path', '/usr/share/SAPHanaSR')
++          global_ini.set_config('ha_dr_provider_SAPHanaSR', 'execution_order', '2')
+           global_ini.set_config('trace', 'ha_dr_saphanasr', 'info')
+           global_ini.save
+         rescue StandardError => e
+```
+
+cat /usr/share/SAPHanaSR/susCostOpt.py > /usr/share/YaST2/data/sap_ha/tmpl_srhook.py.erb
+su - rhpadm -c 'hdbuserstore LIST'
+DATA FILE       : /usr/sap/RHP/home/.hdb/jb154sapqe02/SSFS_HDB.DAT
+KEY FILE        : /usr/sap/RHP/home/.hdb/jb154sapqe02/SSFS_HDB.KEY
+
+ACTIVE RECORDS  : 10
+DELETED RECORDS : 0
+
+
+KEY RHPSAPDBCTRL
+  ENV : jb154sapqe02:32013
+  USER: SAPDBCTRL
+KEY SAPHANASR_RHP_COSTOPT
+  ENV : localhost:32013
+  USER: SYSTEM
+KEY SUS_RHP_COSTOPT
+  ENV : localhost:32013
+  USER: SYSTEM
+Operation succeed.
+
+
+
+### removing an instance
+
+``` shell
+rhtadm@jb154sapqe02:/usr/sap/RHT/HDB10> sapcontrol -nr $TINSTANCE -function GetProcessList
+
+09.03.2023 12:05:45
+GetProcessList
+OK
+name, description, dispstatus, textstatus, starttime, elapsedtime, pid
+hdbdaemon, HDB Daemon, GREEN, Running, 2023 03 09 11:44:51, 0:20:54, 29427
+hdbcompileserver, HDB Compileserver, GREEN, Running, 2023 03 09 11:45:43, 0:20:02, 31343
+hdbindexserver, HDB Indexserver-RHT, GREEN, Running, 2023 03 09 11:45:44, 0:20:01, 31378
+hdbnameserver, HDB Nameserver, GREEN, Running, 2023 03 09 11:44:53, 0:20:52, 29618
+hdbpreprocessor, HDB Preprocessor, GREEN, Running, 2023 03 09 11:45:43, 0:20:02, 31346
+hdbwebdispatcher, HDB Web Dispatcher, GREEN, Running, 2023 03 09 11:46:17, 0:19:28, 32498
+hdbxsengine, HDB XSEngine-RHT, GREEN, Running, 2023 03 09 11:45:44, 0:20:01, 31381
+
+rhtadm@jb154sapqe02:/usr/sap/RHT/HDB10> ps -ef | grep -P '([R]HT|[h]db)'
+rhtadm    2863     1  0 11:37 ?        00:00:01 /usr/sap/RHT/HDB10/exe/sapstartsrv pf=/usr/sap/RHT/SYS/profile/RHT_HDB10_jb154sapqe02 -D -u rhtadm
+rhtadm   29420     1  0 11:44 ?        00:00:00 sapstart pf=/usr/sap/RHT/SYS/profile/RHT_HDB10_jb154sapqe02
+rhtadm   29427 29420  0 11:44 ?        00:00:00 /usr/sap/RHT/HDB10/jb154sapqe02/trace/hdb.sapRHT_HDB10 -d -nw -f /usr/sap/RHT/HDB10/jb154sapqe02/daemon.ini pf=/usr/sap/RHT/SYS/profile/RHT_HDB10_jb154sapqe02
+rhtadm   29618 29427  5 11:44 ?        00:01:13 hdbnameserver
+rhtadm   30792     1  0 11:45 ?        00:00:00 hdbrsutil  --start --port 31001 --volume 1 --volumesuffix mnt00001/hdb00001 --identifier 1678358724
+rhtadm   31343 29427  0 11:45 ?        00:00:04 hdbcompileserver
+rhtadm   31346 29427 67 11:45 ?        00:13:27 hdbpreprocessor
+rhtadm   31378 29427 16 11:45 ?        00:03:22 hdbindexserver -port 31003
+rhtadm   31381 29427  1 11:45 ?        00:00:16 hdbxsengine -port 31007
+rhtadm   32129     1  0 11:46 ?        00:00:00 hdbrsutil  --start --port 31003 --volume 3 --volumesuffix mnt00001/hdb00003.00003 --identifier 1678358762
+rhtadm   32498 29427  0 11:46 ?        00:00:06 hdbwebdispatcher
+
+rhtadm@jb154sapqe02:/usr/sap/RHT/HDB10> HDB stop
+
+rhtadm@jb154sapqe02:/usr/sap/RHT/HDB10> ps -ef | grep -P '([R]HT|[h]db)'
+rhtadm    2863     1  0 11:37 ?        00:00:01 /usr/sap/RHT/HDB10/exe/sapstartsrv pf=/usr/sap/RHT/SYS/profile/RHT_HDB10_jb154sapqe02 -D -u rhtadm
+rhtadm   30792     1  0 11:45 ?        00:00:00 hdbrsutil  --start --port 31001 --volume 1 --volumesuffix mnt00001/hdb00001 --identifier 1678358724
+rhtadm   32129     1  0 11:46 ?        00:00:00 hdbrsutil  --start --port 31003 --volume 3 --volumesuffix mnt00001/hdb00003.00003 --identifier 1678358762
+
+rhtadm@jb154sapqe02:/usr/sap/RHT/HDB10> ps -ef | grep -P '([R]HT|[h]db)' | grep -Po -- '--port \K(\d+)' | while read port ; do hdbrsutil -f -k -p $port ; done
+
+rhtadm@jb154sapqe02:/usr/sap/RHT/HDB10> pkill -u $USER -f '([R]HT|[h]db)'
+
+rhtadm@jb154sapqe02:/usr/sap/RHT/HDB10> ps -f
+UID        PID  PPID  C STIME TTY          TIME CMD
+rhtadm   22479 30546  0 12:13 pts/1    00:00:00 ps -f
+rhtadm   30546 30545  0 12:01 pts/1    00:00:00 -sh
+```
+
+
+### SAP Netweaver
+
+The main logic is to have ERS running somewhere else than ASCS to have logs/transactions.
+
+
+#### ENSA1
+
+- shared memory synchronization
+
+en.xxxx process name
+
+- when failover occurs, ASCS starts on a node with ERS and "vampires"
+  its memory; the ERS auto-stops after such an action and the cluster
+  will start ERS on other node for the replication reasons
+
+
+#### ENSA2
+
+- network synchronization
+
+enq.xxxx process name
+
+- when failover occurs, ASCS is restarted on any node and gets "logs"
+  from an existing ERS via TCP/IP.
 
 
 ## SAP cluster integration
