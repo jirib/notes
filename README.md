@@ -13124,9 +13124,33 @@ journalctl --rotate --vacuum-time=0.1s # clean journal
 - `etc/fstab`
 - `{free,proc/meminfo}`
 
+
 ### SLES
 
-#### installation
+
+#### autoyast
+
+AutoYaST schema is in *yast2-schema-default* package. The schema is Relax-NG.
+
+``` shell
+# broken xml file
+
+$ xmllint --encode utf-8 --noout --relaxng /usr/share/YaST2/schema/autoyast/rng/profile.rng /tmp/sles15sp5.xml.new ; echo $?
+Relax-NG validity error : Extra element runlevel in interleave
+/tmp/sles15sp5.xml.new:131: element runlevel: Relax-NG validity error : Element profile failed to validate content
+/tmp/sles15sp5.xml.new fails to validate
+3
+
+$ jing /usr/share/YaST2/schema/autoyast/rng/profile.rng /tmp/sles15sp5.xml.new
+/tmp/sles15sp5.xml.new:117:17: error: element "image" not allowed here; expected the element end-tag or element "do_online_update", "install_recommended", "instsource", "kernel", "packages", "patterns", "post-packages", "post-patterns", "products", "remove-packages", "remove-patterns" or "remove-products"
+/tmp/sles15sp5.xml.new:132:18: error: element "default" not allowed here; expected element "runlevel"
+/tmp/sles15sp5.xml.new:133:38: error: element "services" not allowed here; expected element "runlevel"
+/tmp/sles15sp5.xml.new:139:16: error: element "runlevel" incomplete; missing required element "runlevel"
+/tmp/sles15sp5.xml.new:159:18: error: element "pre-scripts" missing one or more required attributes; expected attribute "config:type", "t" or "type"
+```
+
+
+#### usb installation
 
 Hack to make a bootable USB from an ISO:
 
