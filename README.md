@@ -13653,125 +13653,69 @@ man cupsd.conf | egrep -A 1 'MaxJobs(PerPrinter)* number' | fmt -w80
 
 #### troubleshooting
 
-WIP!!!
+When a printer in unreachable, one can see the following
 
-1. find `Receive print job for <printer>` in `messages`
-2. get job ID related to above `Receive...` line (for job id)
-3. see `Closing connection` for `cups-lpd` PID spawned for the above `Receive...` line
-4. find `POST /jobs/<job> HTTP/1.1` in `error_log` (for client number)
-5. get client ID from above `POST...` `error_log` line
-6. find `[Job <job>] argv[2]=` line in `error_log` line (for user)
-7. get `argv[2]` value from above line
-
-``` shell
-#!/bin/bash
-
-MESSAGES=$1
-ERRORLOG=$2
-TIME=$3
-PRINTER=$4
-
-get_jobid() {
-    local _out
-    local _lineno
-    local _pid
-    local _jobid
-
-    # get Recieve print job line
-   _out=$(grep -n "${TIME}.*Receive print job for ${PRINTER}" "${MESSAGES}")
-   [[ -z "${_out}" ]] && exit 1
-
-   # get Receive print job line number
-   _lineno="${_out%%:*}"
-   (( ${_lineno} )) || exit 1
-
-   # get cups-lpd pid
-   _pid=$(grep -Po 'cups-lpd\[\K(\d+)(?=.*)' <<< "${_out}")
-   (( ${_pid} )) || exit 1
-
-   # get job id
-   while read line; do
-       # skin unrelated files
-       if [[ ! "${line}" =~ ${_time}.*\ cups-lpd\[${_pid}\] ]]; then
-	   continue
-       elif ! (( ${_jobid} )); then
-	   _jobid=$(grep -Po "cups-lpd\[${_pid}\]: Print file \- job ID = \K(\d+)(?=.*)" <<< "${line}")
-       else
-	   break
-       fi
-   # read since matched Receive print job line till end...
-   done < <(sed -n ${_lineno}',$p' "${MESSAGES}")
-   echo ${_pid} ${_jobid}
-}
-
-get_jobdet() {
-    local _jobid=$1
-
-    local _client
-    local _user
-
-    _client=$(grep -Po '\[Client \K(\d+)(?=\] POST /jobs/'${_jobid}' HTTP/1\.1)' ${ERRORLOG})
-    (( ${_client} )) || exit 1
-
-   while read line; do
-       # not interested in CGI lines
-       [[ "${line}" =~ \[CGI\] ]] && continue
-
-       # not interested in different clients
-       [[ "${line}" =~ \[Client && ! "${line}" =~ ${_client} ]] && continue
-
-	# not interested in different job ids
-       [[ "${line}" =~ (\[Job|Send-Document) && ! "${line}" =~ ${_jobid} ]] && continue
-
-       # not interested in different printers
-       [[ "${line}" =~ (Create\-Job|Get\-Printer\-Attributes) && ! "${line}" =~ ${PRINTER} ]] && continue
-
-       # D [09/Nov/2021:10:58:19 +0100] [Job 3623832] argv[2]="BOHRO"
-       if [[ "${line}" =~ \[Job\ ${_jobid}\]\ argv\[2\]= ]]; then
-	   _user=$(cut -d'"' -f2 <<< "${line}")
-	   [[ -z "${_user}" ]] && exit 1
-       fi
-
-       # not interested in different printers
-       [[ "${line}" =~ add_job && ! "${line}" =~ "${_user}" ]] && continue
-
-       echo "${line}"
-
-       # probably last line for a job
-       [[ "${line}" =~ \[Job\ ${_jobid}\]\ Unloading\.\.\. ]] && break
-
-   # read since matched Receive print job line till end...
-   done < <(sed -n '/Client '${_client}'\]/,$p' "${ERRORLOG}")
-
-}
-
-# main
-read -r lpd jobid <<< $(get_jobid)
-get_jobdet ${jobid}
+```
+E [05/Jun/2024:13:50:46 -0400] [Job 1026332] The printer is not responding.
+E [05/Jun/2024:13:53:26 -0400] [Job 1026332] The printer is not responding.
 ```
 
+However, to correlate the printer which "is not responding" in
+historical data, that is, how to find out which printer was not
+reachable while it is reachable now and the jobs are already all
+printed, the historical logs are needed because the printer name for
+the job is *only* logged when such a job is created:
+
 ``` shell
-$ ./cups_trace.sh messages-20211110 error_log.O 2021-11-09T10:57:58 psebr00135_ps | grep -vE '(Discarding|cupsd)' | tail -n 20
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Reading command status...
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] lpd_command returning 0
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Sending data file (142382 bytes)
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Spooling job, 0% complete.
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Set job-printer-state-message to "Spooling job, 0% complete.", current level=INFO
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Spooling job, 23% complete.
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Set job-printer-state-message to "Spooling job, 23% complete.", current level=INFO
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Spooling job, 46% complete.
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Set job-printer-state-message to "Spooling job, 46% complete.", current level=INFO
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Spooling job, 69% complete.
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Set job-printer-state-message to "Spooling job, 69% complete.", current level=INFO
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Spooling job, 92% complete.
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Set job-printer-state-message to "Spooling job, 92% complete.", current level=INFO
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Data file sent successfully.
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] Set job-printer-state-message to "Data file sent successfully.", current level=INFO
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] STATE: +cups-waiting-for-job-completed
-D [09/Nov/2021:10:58:19 +0100] [Job 3623826] time-at-completed=1636451899
-I [09/Nov/2021:10:58:19 +0100] [Job 3623826] Job completed.
-I [09/Nov/2021:10:58:19 +0100] Expiring subscriptions...
-D [09/Nov/2021:10:58:20 +0100] [Job 3623826] Unloading...
+I [26/Jun/2024:18:08:04 +0200] [Job 36] Queued on "testovic" by "root".
+...
+D [26/Jun/2024:18:08:04 +0200] [Job 36] Sending job to queue tagged as raw...
+D [26/Jun/2024:18:08:04 +0200] [Job 36] job-sheets=none,none
+D [26/Jun/2024:18:08:04 +0200] [Job 36] argv[0]="testovic"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] argv[1]="36"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] argv[2]="root"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] argv[3]="fstab"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] argv[4]="1"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] argv[5]="finishings=3 number-up=1 print-color-mode=monochrome job-uuid=urn:uuid:5d24d8bc-ea58-3dd1-423e-537915e2c4e6 job-originating-host-name=localhost date-time-at-creation= date-time-at-processing
+= time-at-creation=1719418084 time-at-processing=1719418084 document-name-supplied=fstab"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] argv[6]="/var/spool/cups/d00036-001"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[0]="CUPS_CACHEDIR=/var/cache/cups"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[1]="CUPS_DATADIR=/usr/share/cups"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[2]="CUPS_DOCROOT=/usr/share/cups/doc-root"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[3]="CUPS_REQUESTROOT=/var/spool/cups"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[4]="CUPS_SERVERBIN=/usr/lib/cups"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[5]="CUPS_SERVERROOT=/etc/cups"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[6]="CUPS_STATEDIR=/run/cups"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[7]="HOME=/var/spool/cups/tmp"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[8]="PATH=/usr/lib/cups/filter:/usr/bin:/usr/sbin:/bin:/usr/bin"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[9]="SERVER_ADMIN=root@t14s"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[10]="SOFTWARE=CUPS/2.4.10"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[11]="TMPDIR=/var/spool/cups/tmp"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[12]="USER=root"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[13]="CUPS_MAX_MESSAGE=2047"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[14]="CUPS_SERVER=/run/cups/cups.sock"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[15]="CUPS_ENCRYPTION=IfRequested"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[16]="IPP_PORT=631"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[17]="CHARSET=utf-8"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[18]="LANG=en_US.UTF-8"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[19]="PPD=/etc/cups/ppd/testovic.ppd"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[20]="CONTENT_TYPE=text/plain"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[21]="DEVICE_URI=socket://127.0.0.1:5170"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[22]="PRINTER_INFO=testovic"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[23]="PRINTER_LOCATION=test room"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[24]="PRINTER=testovic"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[25]="PRINTER_STATE_REASONS=none"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[26]="CUPS_FILETYPE=document"
+D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[27]="AUTH_I****"
+```
+
+That is, without old job data or old logs where one can see creation of a job, it is impossible to know what printer was not reachable.
+
+If the old data exist, one might get it from *control file*:
+
+``` shell
+$ strings /var/spool/cups/*36 | grep '^ipp'
+ipp://t14s/printers/testovic!
 ```
 
 CUPS files decribes: for a job it creates in spool directory at least two files,
