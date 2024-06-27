@@ -14923,6 +14923,10 @@ echo "${VAR}"
   ``` shell
   grep -F -x -v -f file2 file1
   ```
+- removal "accents":
+  ``` shell
+  iconv -f utf8 -t ascii//TRANSLIT test1
+  ```
 
 
 ### coreutils
