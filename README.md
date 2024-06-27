@@ -14802,6 +14802,11 @@ EOD
 
 ### bash
 
+- shortcuts:
+  ``` shell
+  >file 2>&1
+  2>file
+  ```
 - test via regex: `<string> =~ <regex_expr>`
   ``` shell
   man bash | col -b | sed -n '/=~/,/^ *$/{/^ *$/q;p}' | fmt -w 80 | sed 's/\- //'
@@ -14913,6 +14918,10 @@ echo "${VAR}"
   x
   x
   x
+  ```
+- comparing lines in two files:
+  ``` shell
+  grep -F -x -v -f file2 file1
   ```
 
 
