@@ -13709,7 +13709,8 @@ D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[26]="CUPS_FILETYPE=document"
 D [26/Jun/2024:18:08:04 +0200] [Job 36] envp[27]="AUTH_I****"
 ```
 
-That is, without old job data or old logs where one can see creation of a job, it is impossible to know what printer was not reachable.
+That is, without old job data or old logs where one can see creation
+of a job, it is impossible to know what printer was not reachable.
 
 If the old data exist, one might get it from *control file*:
 
@@ -13760,6 +13761,33 @@ $ ./testipp /var/spool/cups/c00089
      job-printer-state-message (textWithoutLanguage): Printing page 1, 4% complete.
      job-printer-state-reasons (keyword): none
 ```
+
+CUPS can cancel "stuck" jobs, ie. those expiring *MaxJobTime*
+
+``` shell
+$ lpstat -o testovic
+$ grep -P 'Job 39.*Canceling stuck' /var/log/cups/error_log
+I [27/Jun/2024:16:04:02 +0200] [Job 39] Canceling stuck job after 120 seconds.
+
+$ ./cups-2.4.7/cups/testipp /var/spool/cups/c00039 | grep 'job-state '
+    job-state (enum): canceled
+
+# compare succesful jobs with all jobs but not-completed
+
+$ grep -F -x -v -f <(lpstat -W successful -o testovic) \
+    <<< "$(grep -F -x -v -f <(lpstat -W not-completed -o testovic) <(lpstat -W all -o testovic))"
+testovic-38             root              2048   Thu 27 Jun 2024 03:47:37 PM CEST
+testovic-39             root              2048   Thu 27 Jun 2024 04:02:01 PM CEST
+
+$ lp -i 39 -H restart
+
+$ ps auxww | grep -P '[s]ocket.*\b39\b'
+lp         33000  0.0  0.0  14896  6908 ?        S    16:06   0:00 socket://127.0.0.1:5170 39 root fstab 1 finishings=3 number-up=1 print-color-mode=monochrome job-uuid=urn:uuid:23f8c77f-76f3-3a77-5e2c-2e447740790f job-originating-host-name=localhost date-time-at-completed= date-time-at-creation= date-time-at-processing= time-at-completed=1719497042 time-at-creation=1719496921 time-at-processing=1719497167 document-name-supplied=fstab /var/spool/cups/d00039-001
+
+$ lpstat -o testovic
+testovic-39             root              2048   Thu 27 Jun 2024 04:02:01 PM CEST
+```
+
 
 ### texlive
 
