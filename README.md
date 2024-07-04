@@ -9187,6 +9187,34 @@ To get a graphical output from `sar` files, one can:
 $ sadf -O showtoc,showinfo -g -- -A <sa file> > /tmp/out.svg
 ```
 
+Reading `sar` files is `TZ` dependent:
+
+``` shell
+$ ag --nofilename --nocolor --nogroup '^2024-06-30T.*Linux version' | grep -Pv '^\s*(#|$)' | sort -u | cut -c1-80
+2024-06-30T14:36:48.584469+08:00 example01 kernel: [    0.000000][    T0] Linux ve
+2024-06-30T16:09:14.103268+08:00 example01 kernel: [    0.000000][    T0] Linux ve
+2024-06-30T16:25:42.728050+08:00 example01 kernel: [    0.000000][    T0] Linux ve
+2024-06-30T16:59:41.364945+08:00 example01 kernel: [    0.000000][    T0] Linux ve
+2024-06-30T17:16:39.920318+08:00 example01 kernel: [    0.000000][    T0] Linux ve
+2024-06-30T17:26:30.210241+08:00 example02 kernel: [    0.000000][    T0] Linux ve
+
+$ TZ=Asia/Taipei LC_TIME=POSIX sar -n UDP -f scc_example01_240701_1645/sar/sa20240630 | grep RESTART
+14:36:48     LINUX RESTART      (8 CPU)
+16:09:14     LINUX RESTART      (8 CPU)
+16:25:42     LINUX RESTART      (8 CPU)
+16:59:41     LINUX RESTART      (8 CPU)
+17:16:39     LINUX RESTART      (8 CPU)
+
+## versus ##
+
+$ LC_TIME=POSIX sar -n UDP -f scc_example01_240701_1645/sar/sa20240630 | grep RESTART
+08:36:48     LINUX RESTART      (8 CPU)
+10:09:14     LINUX RESTART      (8 CPU)
+10:25:42     LINUX RESTART      (8 CPU)
+10:59:41     LINUX RESTART      (8 CPU)
+11:16:39     LINUX RESTART      (8 CPU)
+```
+
 
 ## networking
 
