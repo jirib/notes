@@ -8395,6 +8395,48 @@ crash> p vm_swappiness
 vm_swappiness = $2 = 60
 ```
 
+Another example, here the panic reveals:
+
+``` shell
+crash> sys
+      KERNEL: vmlinux-4.12.14-122.219.1.28275.1.PTF.1227122-default  [TAINTED]
+   DEBUGINFO: vmlinux-4.12.14-122.219.1.28275.1.PTF.1227122-default.debug
+    DUMPFILE: vmcore  [PARTIAL DUMP]
+        CPUS: 40
+        DATE: Tue Jul  2 15:30:47 CEST 2024
+      UPTIME: 03:22:08
+LOAD AVERAGE: 36.69, 13.33, 4.82
+       TASKS: 709
+    NODENAME: example1
+     RELEASE: 4.12.14-122.219.1.28275.1.PTF.1227122-default
+     VERSION: #1 SMP Thu Jun 27 21:40:03 UTC 2024 (daeeee0)
+     MACHINE: x86_64  (2596 Mhz)
+      MEMORY: 127.9 GB
+       PANIC: "Kernel panic - not syncing: panic_on_warn set ..."
+
+crash> p panic_on_warn
+panic_on_warn = $12 = 0
+```
+
+Huh? The system had `/proc/sys/kernel/panic_on_warn` set to `1`, so
+why is `panic_on_warn` in `crash` zero?
+
+```
+kernel/panic.c:panic()
+
+        if (panic_on_warn) {
+                /*
+                 * This thread may hit another WARN() in the panic path.
+                 * Resetting this prevents additional WARN() from panicking the
+                 * system on this thread.  Other threads are blocked by the
+                 * panic_mutex in panic().
+                 */
+                panic_on_warn = 0;
+        }
+```
+
+Miracles!
+
 
 ## fadump
 
