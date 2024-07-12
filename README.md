@@ -15670,6 +15670,14 @@ $  lsscsi -s | grep /dev/sde
 [0:0:0:1]    disk    QEMU     QEMU HARDDISK    2.5+  /dev/sde   25.7GB
 ```
 
+The same via `virsh qemu-monitor-command` directly:
+
+``` shell
+$ virsh qemu-monitor-command jb155sapqe02 --cmd '{"execute": "block_resize", "arguments": { "node-name": "libvirt-4-format", "size": 26843545600 } }'
+{"return":{},"id":"libvirt-21003"}
+```
+
+
 
 #### virt-install
 
