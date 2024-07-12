@@ -15631,6 +15631,45 @@ $ virsh domfsinfo jbw2k22qe01
  D:\               \\?\Volume{4dba0c41-abae-11ed-8a0a-806e6f6e6963}\   CDFS
 ```
 
+Resizing *online* block device of a VM:
+
+``` shell
+# (KVM host) 'sdb' is what interests me for the VM (jb155sapqe02)
+$ virsh domblklist jb155sapqe02 | grep sdb
+ sdb      /dev/mapper/sll--system-jb125qb01
+
+# (KVM host) size in bytes
+
+$ lvs --unit b | grep jb125qb01
+  jb125qb01      sll-system -wi-ao----  23622320128B
+
+# (KVM host) size changed
+$ lvextend -L +1G sll-system/jb125qb01
+  Size of logical volume sll-system/jb125qb01 changed from 23.00 GiB (5888 extents) to 24.00 GiB (6144 extents).
+  Logical volume sll-system/jb125qb01 successfully resized.
+$ lvs --unit b | grep jb125qb01
+  jb125qb01      sll-system -wi-ao----  25769803776B
+
+# (VM)
+$ lsscsi -is | grep /dev/sde
+[0:0:0:1]    disk    QEMU     QEMU HARDDISK    2.5+  /dev/sde   0QEMU_QEMU_HARDDISK_drive-scsi0-0-0-1  23.6GB
+
+# (KVM host) query from KVM host for QEMU view on the VM's block devices
+$ virsh qemu-monitor-command jb155sapqe02 --hmp 'info block -n -v' | grep -m1 -A3 -P 'image: .*jb125qb01'
+image: /dev/mapper/sll--system-jb125qb01
+file format: raw
+virtual size: 22 GiB (23622320128 bytes)
+disk size: 0 B
+
+# (KVM host) resizing QEMU view of block devices (size is from `lvs' after resize)
+$ virsh blockresize --domain jb155sapqe02 --path /dev/mapper/sll--system-jb125qb01 --size 25769803776B
+Block device '/dev/mapper/sll--system-jb125qb01' is resized
+
+# (VM)
+$  lsscsi -s | grep /dev/sde
+[0:0:0:1]    disk    QEMU     QEMU HARDDISK    2.5+  /dev/sde   25.7GB
+```
+
 
 #### virt-install
 
