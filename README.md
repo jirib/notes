@@ -15075,6 +15075,22 @@ five
 ```
 
 
+### tar
+
+Changing permissions of extract tar archive:
+
+``` shell
+$ curl -Ls https://github.com/zmwangx/ets/releases/download/v0.2.1/ets_0.2.1_linux_amd64.tar.gz | \
+    tar -xvzf - \
+    --to-command='mkdir -m <mode> -p -- "$(dirname -- "$TAR_FILENAME")" && install -m <mode> /dev/null "$TAR_FILENAME"; cat > "$TAR_FILENAME"' \
+    ets
+
+# an alternative
+$ curl -Ls https://github.com/zmwangx/ets/releases/download/v0.2.1/ets_0.2.1_linux_amd64.tar.gz | \
+    bash -c 'umask 244; tar -xvz --no-same-owner --no-same-permissions -f - ets'
+```
+
+
 ### tricks
 
 Prepending each line with a timestamp can be done nicely with moreutils's `ts`.
