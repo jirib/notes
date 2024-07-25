@@ -1931,6 +1931,19 @@ $ grep -Pv '^#{2,}' /boot/grub2/grubenv
 saved_entry=SLES 15-SP4
 ```
 
+Another "workaround" is to use `awk`:
+
+``` shell
+$ awk -F\' '$1 == "menuentry " || $1=="submenu " {print i++ " : " $2}; /^(\t)?menuentry / { if(i-1) print "\t" i-1">"j++ " : " $2};' /boot/grub2/grub.cfg
+0 : SLES 15-SP3
+1 : Advanced options for SLES 15-SP3
+        1>0 : SLES 15-SP3, with Linux 5.3.18-150300.59.164-default
+        1>1 : SLES 15-SP3, with Linux 5.3.18-150300.59.164-default (recovery mode)
+        1>2 : SLES 15-SP3, with Linux 5.3.18-150300.59.158-default
+        1>3 : SLES 15-SP3, with Linux 5.3.18-150300.59.158-default (recovery mode)
+```
+
+
 #### pxe
 
 ``` shell
