@@ -1839,6 +1839,27 @@ etc/zypp/credentials.d/SUSE_Package_Hub_12_SP5_x86_64
 etc/zypp/credentials.d/Advanced_Systems_Management_Module_12_x86_64
 ```
 
+ReaR and SecureBoot:
+
+``` shell
+$ 7z e -so localhost/rear-localhost.iso EFI/BOOT/initrd.cgz | \
+    zcat | cpio --to-stdout -i etc/rear/local.conf 2>/dev/null | \
+    grep SECURE_BOOT_BOOTLOADER
+SECURE_BOOT_BOOTLOADER="/usr/share/efi/x86_64/shim-sles.efi"
+
+
+$ 7z l localhost/rear-localhost.iso | grep 'EFI/.*\.efi'
+2024-08-01 08:55:47 .....       965672       965672  EFI/BOOT/BOOTX64.efi
+2024-08-01 08:55:47 .....      1275904      1275904  EFI/BOOT/grub.efi
+[root@avocado rear]# for i in EFI/BOOT/BOOTX64.efi EFI/BOOT/grub.efi ; do 7z e -so localhost/rear-localhost.iso $i | xxd -a | grep -A 1 -P '(shim,|SBAT.md.grub)' ; done
+000c9c50: 2c34 2c55 4546 4920 7368 696d 2c73 6869  ,4,UEFI shim,shi
+000c9c60: 6d2c 312c 6874 7470 733a 2f2f 6769 7468  m,1,https://gith
+--
+000c9ca0: 6973 652c 7368 696d 2c31 352e 382c 6d61  ise,shim,15.8,ma
+000c9cb0: 696c 3a73 6563 7572 6974 7940 7375 7365  il:security@suse
+00135040: 6169 6e2f 5342 4154 2e6d 640a 6772 7562  ain/SBAT.md.grub
+00135050: 2c34 2c46 7265 6520 536f 6674 7761 7265  ,4,Free Software
+```
 
 ## boot loaders
 
@@ -16401,6 +16422,87 @@ Used protocol: 2
 $ cat /var/log/apache2/access_log
 s125qb01.example.com 127.0.0.1 - - [30/Sep/2022:09:23:58 +0200] "GET / HTTP/2.0" 200 45
 ```
+
+Enabling a module, eg. one for WebDAV, on SLES:
+
+``` shell
+$ grep dav /etc/sysconfig/apache2 | fmt -w80
+APACHE_MODULES="actions alias auth_basic authn_core authn_file authz_host
+authz_groupfile authz_core authz_user autoindex cgi dav dav_fs dav_lock dir
+env expires include log_config mime negotiation setenvif ssl socache_shmcb
+userdir reqtimeout"
+
+# after stop-start
+
+$ grep -IR 'LoadModule' /etc/apache2/ | grep -m3 dav
+/etc/apache2/sysconfig.d/loadmodule.conf:LoadModule dav_module /usr/lib64/apache2-prefork/mod_dav.so
+/etc/apache2/sysconfig.d/loadmodule.conf:LoadModule dav_fs_module /usr/lib64/apache2-prefork/mod_dav_fs.so
+/etc/apache2/sysconfig.d/loadmodule.conf:LoadModule dav_lock_module /usr/lib64/apache2-prefork/mod_dav_lock.so
+
+# needs also some auth* modules !!!
+
+$ grep -Pv '^\s*(#|$)' /etc/apache2/conf.d/webdav.conf
+<IfModule dav_module>
+DavLockDB "/srv/www/var/DavLock"
+Alias /uploads "/srv/www/uploads"
+<Directory "/srv/www/uploads">
+  Dav On
+  AuthType Digest
+  AuthName DAV-upload
+  AuthUserFile "/srv/www/user.passwd"
+  AuthDigestProvider file
+  <RequireAny>
+    Require method GET POST OPTIONS
+    Require user admin
+  </RequireAny>
+</Directory>
+BrowserMatch "Microsoft Data Access Internet Publishing Provider" redirect-carefully
+BrowserMatch "MS FrontPage" redirect-carefully
+BrowserMatch "^WebDrive" redirect-carefully
+BrowserMatch "^WebDAVFS/1.[01234]" redirect-carefully
+BrowserMatch "^gnome-vfs/1.0" redirect-carefully
+BrowserMatch "^XML Spy" redirect-carefully
+BrowserMatch "^Dreamweaver-WebDAV-SCM1" redirect-carefully
+BrowserMatch " Konqueror/4" redirect-carefully
+</IfModule>
+
+$ mkdir -p /srv/www/{uploads,var}
+$ chown wwwrun:wwwrun /srv/www/{uploads,var}
+
+# the client test, eg. curl
+
+$ awk '{ print $1,$2,$3,"user password yyy" }' ~/.netrc
+machine 192.168.122.188 login user password yyy
+
+$ curl -s --digest -n -X PROPFIND -H 'Depth: 1' -k https://192.168.122.188/uploads/ | grep -C 5 text.txt
+</D:prop>
+<D:status>HTTP/1.1 200 OK</D:status>
+</D:propstat>
+</D:response>
+<D:response xmlns:lp2="http://apache.org/dav/props/" xmlns:lp1="DAV:">
+<D:href>/uploads/text.txt</D:href>
+<D:propstat>
+<D:prop>
+<lp1:resourcetype/>
+<lp1:creationdate>2024-08-09T11:37:51Z</lp1:creationdate>
+<lp1:getcontentlength>12</lp1:getcontentlength>
+
+# davfs2
+
+$ grep -IRHPv '^\s*(#|$)' /etc/davfs2/{secrets,davfs2.conf}
+/etc/davfs2/secrets:127.0.0.1 admin yyy
+/etc/davfs2/secrets:https://192.168.122.16/uploads admin yyy
+/etc/davfs2/secrets:https://192.168.122.188/uploads admin yyy
+/etc/davfs2/davfs2.conf:[/mnt]
+/etc/davfs2/davfs2.conf:use_proxy 1
+/etc/davfs2/davfs2.conf:proxy 127.0.0.1
+/etc/davfs2/davfs2.conf:trust_ca_cert server1.pem
+/etc/davfs2/davfs2.conf:trust_server_cert server1.pem
+/etc/davfs2/davfs2.conf:[/tmp/mnt]
+/etc/davfs2/davfs2.conf:trust_ca_cert server2.pem
+/etc/davfs2/davfs2.conf:trust_server_cert server2.pem
+```
+
 
 ## windows
 
