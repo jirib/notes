@@ -5004,12 +5004,106 @@ A used variable must be set or have a default value; see
 https://packer.io/docs/templates/hcl_templates/syntax for details.
 ```
 
+And, a real example:
+
+``` shell
+$ ls -l template.pkr.hcl
+-rw-r--r--. 1 root root 8735 Aug 21 08:38 template.pkr.hcl
+
+$ PACKER_LOG=1 packer build \
+  -var=root_password=foobar \
+  -var=encrypted_bootloader_password=foobar \
+  -var=build_username=packer \
+  -var=ssh_private_key_file=.ssh/id_rsa \
+  -var-file=variables.pkrvars.hcl .
+```
+
+Packer can server "dynamic" files via HTTP:
+
+``` hcl
+locals {
+  data_source_content = {
+    autoinstxml = templatefile("${abspath(path.root)}/data/autoinst.pkrtpl.hcl", {
+      build_username                   = var.build_username
+      build_user_id                    = var.build_user_id
+      encrypted_bootloader_password    = var.encrypted_bootloader_password
+      vm_guest_os_language             = var.vm_guest_os_language
+      vm_guest_os_keyboard             = var.vm_guest_os_keyboard
+      vm_guest_os_timezone             = var.vm_guest_os_timezone
+      vm_guest_os_cloudinit            = var.vm_guest_os_cloudinit
+      additional_packages              = var.additional_packages
+      reg_server                       = regex_replace(var.reg_server, "https?://", "")
+      reg_server_cert_fingerprint_type = var.reg_server_cert_fingerprint_type
+      reg_server_cert_fingerprint      = var.reg_server_cert_fingerprint
+      reg_server_install_updates       = var.reg_server_install_updates
+      reg_server_addons                = var.reg_server_addons
+      reg_server_os_level              = var.reg_server_os_level
+      reg_server_os_arch               = var.reg_server_os_arch
+      proxy_enabled                    = var.proxy_enabled
+      proxy_host                       = var.proxy_host
+      no_proxy                         = var.no_proxy
+    })
+  }
+  # for 'boot_cmd'
+  data_source_command = " netsetup=dhcp autoyast=http://{{ .HTTPIP }}:{{ .HTTPPort }}/autoinst.xml rootpassword=${var.root_password}"
+}
+
+source "qemu" "root_iso" {
+  ...
+  http_content = {
+    "/autoinst.xml" = "${local.data_source_content.autoinstxml}"
+  }
+  ...
+```
+
+Packer QEMU builder notes:
+
+``` hcl
+source "qemu" "root_iso" {
+  ...
+  qemu_binary = "/usr/libexec/qemu-kvm"
+  display = "none"
+  use_default_display = true
+
+  vm_name              = "SLES15SP6-template"
+  memory               = var.vm_mem_size
+  disk_size            = var.vm_disk_size
+  cpus                 = var.vm_cpu_count
+  format               = "qcow2"
+  disk_interface       = element(var.vm_disk_controller_type, 0)
+  disk_compression     = true
+  accelerator          = "kvm"
+  headless             = "false"
+  machine_type         = "q35"
+  cpu_model            = "host"
+  net_device           = var.vm_network_card
+  vtpm                 = true
+  efi_firmware_code    = "ovmf-x86_64-smm-suse-code.bin"
+  efi_firmware_vars    = "ovmf-x86_64-smm-suse-vars.bin"
+  ...
+
+  # log to serial console file-backend, not everything seems to work correctly !!!
+  qemuargs             = [
+          ["-vga", "virtio"],
+          ["-serial", "file:/tmp/ttyS0.log"]
+  ]
+
+  ...
+  # SLES/OpenSUSE specific
+  boot_command = [
+    "<esc>",
+    "e",
+    "<down><down><down><down><end>",
+    "${local.data_source_command}",
+    "<f10>"
+  ]
+
+  ...
+```
 
 Packer cache is located at `./packer_cache` by default, or
 `PACKER_CACHE_DIR` environment variable, see:
 https://developer.hashicorp.com/packer/docs/configure#configure-the-cache-directory.
-
-TODO: ??? ISO filename in `~/.cache/packer` ???
 
 
 ### salt
