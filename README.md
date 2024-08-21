@@ -4938,6 +4938,80 @@ httpd
 ## devops
 
 
+### hashicorp packer
+
+``` shell
+$ git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
+$ . "$HOME/.asdf/asdf.sh"
+$ . "$HOME/.asdf/completions/asdf.bash"
+$ asdf plugin add packer
+$ asdf install packer latest
+$ asdf global packer latest
+```
+
+Usually, Packer plugins are installed via `packer init`; they might be defined in a file ending with `pkr.hcl`:
+
+``` shell
+# plugins
+
+$ find .config/packer/plugins -type f -name 'packer-plugin*amd64'
+.config/packer/plugins/github.com/hashicorp/vsphere/packer-plugin-vsphere_v1.4.0_x5.0_linux_amd64
+.config/packer/plugins/github.com/hashicorp/ansible/packer-plugin-ansible_v1.1.1_x5.0_linux_amd64
+.config/packer/plugins/github.com/hashicorp/qemu/packer-plugin-qemu_v1.1.0_x5.0_linux_amd64
+
+$ grep -H '' !(*var*|*templ*).pkr.hcl
+provider.pkr.hcl:packer {
+provider.pkr.hcl:  required_version = ">= 1.10.0"
+provider.pkr.hcl:  required_plugins {
+provider.pkr.hcl:    vsphere = {
+provider.pkr.hcl:      version = ">= 1.3.0"
+provider.pkr.hcl:      source  = "github.com/hashicorp/vsphere"
+provider.pkr.hcl:    }
+provider.pkr.hcl:    ansible = {
+provider.pkr.hcl:      version = ">= 1.1.0"
+provider.pkr.hcl:      source  = "github.com/hashicorp/ansible"
+provider.pkr.hcl:    }
+provider.pkr.hcl:    qemu = {
+provider.pkr.hcl:      version = ">= 1.1.0"
+provider.pkr.hcl:      source = "github.com/hashicorp/qemu"
+provider.pkr.hcl:    }
+provider.pkr.hcl:  }
+provider.pkr.hcl:}
+```
+
+If you define a variable which is _sensitive_, then do NOT define it
+inside Packer templates; or it might end in the artifact and,
+oops... It's better to fail if such a variable is not defined properly
+_outside_ of the _fixed_ template files. See [Assigning Values to
+input
+Variables](https://developer.hashicorp.com/packer/docs/templates/hcl_templates/variables#assigning-values-to-input-variables):
+
+``` shell
+$ packer validate -var-file=$(echo *.pkrvars.hcl) .
+Error: Unset variable "ssh_private_key_file"
+
+A used variable must be set or have a default value; see
+https://packer.io/docs/templates/hcl_templates/syntax for details.
+
+Error: Unset variable "root_password"
+
+A used variable must be set or have a default value; see
+https://packer.io/docs/templates/hcl_templates/syntax for details.
+
+Error: Unset variable "encrypted_bootloader_password"
+
+A used variable must be set or have a default value; see
+https://packer.io/docs/templates/hcl_templates/syntax for details.
+```
+
+
+Packer cache is located at `./packer_cache` by default, or
+`PACKER_CACHE_DIR` environment variable, see:
+https://developer.hashicorp.com/packer/docs/configure#configure-the-cache-directory.
+
+TODO: ??? ISO filename in `~/.cache/packer` ???
+
+
 ### salt
 
 - *salt master*: management server
@@ -13252,6 +13326,15 @@ $ jing /usr/share/YaST2/schema/autoyast/rng/profile.rng /tmp/sles15sp5.xml.new
 /tmp/sles15sp5.xml.new:139:16: error: element "runlevel" incomplete; missing required element "runlevel"
 /tmp/sles15sp5.xml.new:159:18: error: element "pre-scripts" missing one or more required attributes; expected attribute "config:type", "t" or "type"
 ```
+
+When using RMT for registration, the RMT TLS cert must be trusted; or,
+the workaround are the following boot params:
+
+```
+ptoptions=+reg_ssl_verify reg_ssl_verify=0
+```
+
+That is, do NOT expect that `reg_server_cert_finterprint` makes the TLS cert trusted!!!
 
 
 #### usb installation
