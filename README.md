@@ -14261,6 +14261,74 @@ aa-complain <profile> # not enforcing but logging mode
                       # (similar to permissive in SELinux)
 ```
 
+Understanding how "disabled" or "complaining" profiles work:
+
+``` shell
+$  find /etc/apparmor.d/ -name '*php-fpm'
+/etc/apparmor.d/local/php-fpm
+/etc/apparmor.d/php-fpm
+
+$ find /etc/apparmor.d/ -name '*php-fpm' | grep /local/ | xargs grep -HPv '^\s*(#|$)'
+
+# test PHP script
+$ tac /var/log/messages | grep -m1 -Pi 'denied.*php-fpm'
+2024-08-26T15:46:09.250094+02:00 example01 kernel: [2690701.272617][   T29] audit: type=1400 audit(1724679969.233:13387): apparmor="DENIED" operation="open" profile="php-fpm" name="/tmp/phptest.php" pid=2240513 comm="php-fpm" requested_mask="r" denied_mask="r" fsuid=465 ouid=0
+
+$ aa-disable /etc/apparmor.d/php-fpm
+Disabling /etc/apparmor.d/php-fpm.
+
+$ find /etc/apparmor.d/ -name '*php-fpm' -ls
+   594034      4 lrwxrwxrwx   1 root     root           23 Aug 26 15:49 /etc/apparmor.d/disable/php-fpm -> /etc/apparmor.d/php-fpm
+   594024      4 -rw-r--r--   1 root     root          224 Aug 26 15:37 /etc/apparmor.d/local/php-fpm
+   451524      4 -rw-r--r--   1 root     root         1704 Oct  2  2023 /etc/apparmor.d/php-fpm
+
+# working now!
+$ SCRIPT_NAME=/tmp/phptest.php SCRIPT_FILENAME=/tmp/phptest.php REQUEST_METHOD=GET QUERY_STRING=full cgi-fcgi -bind -connect 127.0.0.1:9000 | head
+X-Powered-By: PHP/8.0.30
+Content-type: text/html; charset=UTF-8
+
+Hello World!
+<pre>total 160308
+-rw-r--r-- 1 root root     309518 Dec 18  2023 1218113_journal.out
+drwx------ 1 root root          0 Oct 19  2023 Temp-133ad4d5-6d9a-4f2f-ad33-40027d405718
+drwx------ 1 root root         32 Feb 15  2023 YaST2-02086-S91qJT
+-rw------- 1 root root          0 Apr 28  2023 aurules.8xzo9Gyh
+srwxrwxrwx 1 gdm  gdm           0 Feb 28 10:27 dbus-RBcxVCLi3d
+
+# back to enforce mode
+$  aa-enforce /etc/apparmor.d/php-fpm
+Setting /etc/apparmor.d/php-fpm to enforce mode.
+
+$ find /etc/apparmor.d/ -name '*php-fpm' -ls
+   594024      4 -rw-r--r--   1 root     root          224 Aug 26 15:37 /etc/apparmor.d/local/php-fpm
+   594035      4 -rw-r--r--   1 root     root         1704 Aug 26 15:51 /etc/apparmor.d/php-fpm
+
+# IIUC, they need to be re-executed
+$ aa-unconfined  | grep -Po '^(\d+)(?=.*php-fpm)' | xargs -n1 kill
+
+# after php-fpm restart
+$ aa-unconfined | grep php-fpm
+2241663 /usr/sbin/php-fpm (php-fpm: master process (/etc/php8/fpm/php-fpm.conf)) confined by 'php-fpm (enforce)'
+2241664 /usr/sbin/php-fpm confined by 'php-fpm (enforce)'
+2241665 /usr/sbin/php-fpm confined by 'php-fpm (enforce)'
+
+# complain mode
+$ grep -m1 profile /etc/apparmor.d/php-fpm
+profile php-fpm /usr/sbin/php-fpm* flags=(attach_disconnected) {
+
+$ aa-complain /etc/apparmor.d/php-fpm
+
+$ aa-unconfined | grep php-fpm
+2241663 /usr/sbin/php-fpm (php-fpm: master process (/etc/php8/fpm/php-fpm.conf)) confined by 'php-fpm (complain)'
+2241664 /usr/sbin/php-fpm confined by 'php-fpm (complain)'
+2241665 /usr/sbin/php-fpm confined by 'php-fpm (complain)'
+
+# however, complain mode works via changing the "master" profile
+$ grep -m1 profile /etc/apparmor.d/php-fpm
+profile php-fpm /usr/sbin/php-fpm* flags=(attach_disconnected, complain) {
+```
+
+
 ### auditd
 
 - [audit system reference](https://access.redhat.com/articles/4409591)
