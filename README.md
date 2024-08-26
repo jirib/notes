@@ -2268,6 +2268,128 @@ $ az vm list-ip-addresses -n csjbelka01 | grep ipAddress # for public IP
 How to make "scripts" to run during every boot? See
 https://stackoverflow.com/questions/6475374/how-do-i-make-cloud-init-startup-scripts-run-every-time-my-ec2-instance-boots.
 
+
+`cloud-init devel net-convert` might be helpful to see what final
+configuration would be from cloud-init instance data (well, there
+'route' is missing for some unknown reason):
+
+``` shell
+$ cat ~/metadata.yaml
+instance-id: cloud-vm
+local-hostname: cloud-vm
+network:
+  version: 2
+  ethernets:
+    eth0:
+      match:
+        macaddress: '00:0c:29:21:f1:61'
+      dhcp4: false
+      addresses:
+        - 172.16.171.139/24
+      nameservers:
+        addresses: [172.16.171.254]
+      routes:
+        - to: 0.0.0.0/0
+          via: 172.16.171.254
+
+$ cloud-init devel net-convert \
+    -m eth0,00:0c:29:21:f1:61 \
+    --network-data ~/metadata.yaml \
+    --kind yaml \
+    --output-kind sysconfig \
+    -D sles -d ./
+Read input format 'yaml' from '/root/metadata.yaml'.
+Wrote output format 'sysconfig' to './'
+
+$ find ./etc/
+./etc/
+./etc/resolv.conf
+./etc/NetworkManager
+./etc/NetworkManager/conf.d
+./etc/NetworkManager/conf.d/99-cloud-init.conf
+./etc/udev
+./etc/udev/rules.d
+./etc/udev/rules.d/85-persistent-net-cloud-init.rules
+./etc/sysconfig
+./etc/sysconfig/network
+./etc/sysconfig/network/ifcfg-eth0
+
+$ cat ./etc/sysconfig/network/ifcfg-eth0
+# Created by cloud-init on instance boot automatically, do not edit.
+#
+BOOTPROTO=static
+IPADDR=172.16.171.139
+LLADDR=00:0c:29:21:f1:61
+NETMASK=255.255.255.0
+STARTMODE=auto
+```
+
+Pushing _cloud-init_ data to VMware:
+
+``` shell
+$ grep -H '' metadata.yaml userdata.yaml
+metadata.yaml:instance-id: cloud-vm
+metadata.yaml:local-hostname: cloud-vm
+metadata.yaml:network:
+metadata.yaml:  version: 2
+metadata.yaml:  ethernets:
+metadata.yaml:    eth0:
+metadata.yaml:      match:
+metadata.yaml:        macaddress: '00:0c:29:21:f1:61'
+metadata.yaml:      dhcp4: false
+metadata.yaml:      addresses:
+metadata.yaml:        - 172.16.171.139/24
+metadata.yaml:      nameservers:
+metadata.yaml:        addresses: [172.16.171.254]
+metadata.yaml:      routes:
+metadata.yaml:        - to: 0.0.0.0/0
+metadata.yaml:          via: 172.16.171.254
+userdata.yaml:#cloud-config
+userdata.yaml:
+userdata.yaml:users:
+userdata.yaml:  - default
+
+$ export METADATA=$(gzip -c9 <metadata.yaml | { base64 -w0 2>/dev/null || base64; }) \
+    USERDATA=$(gzip -c9 <userdata.yaml | { base64 -w0 2>/dev/null || base64; })
+
+$ printenv | grep GOVC | sed 's/=.*/=******/'
+GOVC_PASSWORD=******
+GOVC_URL=******
+GOVC_USERNAME=******
+GOVC_INSECURE=******
+
+$ export VM=/ha-datacenter/vm/test01
+$ govc vm.change -vm "${VM}" -e guestinfo.metadata="${METADATA}" \
+    -e guestinfo.metadata.encoding="gzip+base64" \
+    -e guestinfo.userdata="${USERDATA}" \
+    -e guestinfo.userdata.encoding="gzip+base64"
+
+$ vmtoolsd --cmd "info-get guestinfo.metadata" | base64 -d | zcat -
+instance-id: cloud-vm
+local-hostname: cloud-vm
+network:
+  version: 2
+  ethernets:
+    eth0:
+      match:
+        macaddress: '00:0c:29:21:f1:61'
+      dhcp4: false
+      addresses:
+        - 172.16.171.139/24
+      nameservers:
+        addresses: [172.16.171.254]
+      routes:
+        - to: 0.0.0.0/0
+          via: 172.16.171.254
+
+$ vmtoolsd --cmd "info-get guestinfo.userdata" | base64 -d | zcat -
+#cloud-config
+
+users:
+  - default
+```
+
+
 ## clusters
 
 ### pacemaker/corosync
@@ -16325,6 +16447,31 @@ EOF
 virsh define /tmp/esxi
 ```
 
+#### govc
+
+`govc` is "vSphere" CLI, written in golang.
+
+``` shell
+$ printenv | grep ^GOVC
+GOVC_PASSWORD=password
+GOVC_URL=https://example.com
+GOVC_USERNAME=user
+GOVC_INSECURE=1
+
+$ govc vm.info jirib-test01
+Name:           jirib-test01
+  Path:         /ha-datacenter/vm/jirib-test01
+  UUID:         564d5d7a-57dc-7a82-55f6-563e0421f161
+  Guest name:   SUSE Linux Enterprise 15 (64-bit)
+  Memory:       2048MB
+  CPU:          2 vCPU(s)
+  Power state:  poweredOn
+  Boot time:    2024-08-22 13:24:40 +0000 UTC
+  IP address:
+  Host:         example.com
+
+
+```
 
 ### Xen
 
