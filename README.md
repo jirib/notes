@@ -15988,7 +15988,7 @@ $ qemu-img snapshot -l s125admem01.qcow2
 #### guestfish
 
 ``` shell
-guestfish -a sles12sp4-template.qcow2 -m /dev/sda2:/::btrfs
+$ guestfish -a sles12sp4-template.qcow2 -m /dev/sda2:/::btrfs
 
 Welcome to guestfish, the guest filesystem shell for
 editing virtual machine filesystems and disk images.
@@ -16032,6 +16032,34 @@ btrfsvol:/dev/sda2/@/.snapshots/2/snapshot: btrfs
 ><fs> truncate /var/log/zypp/history
 ><fs> exit
 ```
+
+Or...
+
+``` shell
+$ guestfish --ro -a Linux-SLES15SP6-Minimal.qcow2
+
+Welcome to guestfish, the guest filesystem shell for
+editing virtual machine filesystems and disk images.
+
+Type: ‘help’ for help on commands
+      ‘man’ to read the manual
+      ‘quit’ to quit the shell
+
+><fs> run
+ 100% ⟦▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒▒⟧ 00:00
+><fs> list-filesystems
+/dev/sda1: vfat
+/dev/sda2: ext4
+/dev/sysvg/lv_log: ext4
+/dev/sysvg/lv_opt: ext4
+/dev/sysvg/lv_root: ext4
+/dev/sysvg/lv_tmp: ext4
+><fs> mount /dev/sysvg/lv_root /
+><fs> cat /etc/sysconfig/network/ifcfg-eth0
+BOOTPROTO='dhcp'
+STARTMODE='auto'
+```
+
 
 ### libvirt
 
