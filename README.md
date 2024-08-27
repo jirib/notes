@@ -5638,6 +5638,77 @@ Configuration consists of three columns:
 2. map
 3. options
 
+Warning! - _autofs_ makes a distinction about "maptype", thus if
+`auto.master(5)` "maptype" is not a script but "plain" `autofs(5)`
+automounter map, then the "maptype" file should not be executable.
+
+``` shell
+# /etc/auto.smb is an executable as shipped by SLES RPM
+
+$ rtss strace -f -e trace=file automount -f -v -d10 2>&1 | grep -P '(lookup|execve|/etc/auto.smb)'
+   3.7ms    3.7ms # execve("/usr/sbin/automount", ["automount", "-f", "-v", "-d10"], 0x7ffeb5479010 /* 50 vars */) = 0
+  20.2ms    3.5ms # [pid 10621] execve("/sbin/mount.nfs", ["/sbin/mount.nfs", "-V"], 0x55c662b7bc80 /* 69 vars */) = 0
+  36.1ms   48.4μs # [pid 10620] openat(AT_FDCWD, "/usr/lib64/autofs/lookup_files.so", O_RDONLY|O_CLOEXEC) = 5
+  43.4ms    0.3ms # [pid 10625] execve("/usr/bin/mount", ["/usr/bin/mount", "-n", "--bind", "/tmp/autoiSO3Qz", "/tmp/autoElclRH"], 0x55c662b7bc80 /* 69 vars */) = 0
+  57.4ms    4.8ms # [pid 10626] execve("/usr/bin/umount", ["/usr/bin/umount", "-c", "-n", "/tmp/autoElclRH"], 0x55c662b7bc80 /* 69 vars */) = 0
+  65.1ms    0.3ms # lookup_read_master: lookup(file): read entry /smb
+  66.6ms    0.3ms # lookup_nss_read_map: reading map file /etc/auto.smb
+  66.9ms    0.2ms # [pid 10627] newfstatat(AT_FDCWD, "/etc/auto.smb", {st_mode=S_IFREG|0755, st_size=2083, ...}, 0) = 0
+  67.0ms   72.9μs # [pid 10627] openat(AT_FDCWD, "/usr/lib64/autofs/lookup_program.so", O_RDONLY|O_CLOEXEC) = 7
+  67.5ms    0.4ms # [pid 10627] access("/etc/auto.smb", X_OK) = 0
+  74.8ms    0.3ms # [pid 10628] execve("/usr/bin/mount", ["/usr/bin/mount", "-n", "--bind", "/tmp/auto3r7NHZ", "/tmp/autok50x7R"], 0x55c662b7bc80 /* 69 vars */) = 0
+  88.2ms    4.0ms # [pid 10629] execve("/usr/bin/umount", ["/usr/bin/umount", "-c", "-n", "/tmp/autok50x7R"], 0x55c662b7bc80 /* 69 vars */) = 0
+  95.2ms   45.4μs # [pid 10627] mount("/etc/auto.smb", "/smb", "autofs", MS_MGC_VAL, "fd=6,pgrp=10613,minproto=5,maxpr"...) = 0
+
+   v--- here when I executed `ls /smb/avocado/iso' where 'iso' is the share and 'avocado' is the host
+
+  12.65s    0.2ms # [pid 10645] newfstatat(AT_FDCWD, "/etc/auto.smb", {st_mode=S_IFREG|0755, st_size=2083, ...}, 0) = 0
+  12.65s   52.5μs # lookup_mount: lookup(program): looking up avocado
+  12.66s    0.2ms # [pid 10646] execve("/etc/auto.smb", ["/etc/auto.smb", "avocado"], 0x55c662b855e0 /* 89 vars */) = 0
+  12.66s    0.4ms # [pid 10646] openat(AT_FDCWD, "/etc/auto.smb", O_RDONLY) = 3
+  12.66s   67.7μs # [pid 10646] stat("/etc/auto.smb", {st_mode=S_IFREG|0755, st_size=2083, ...}) = 0
+  12.67s    0.2ms # [pid 10648] execve("/usr/bin/ls", ["ls", "-d", "/run/user/0/krb5cc_*"], 0x55a118e60970 /* 89 vars */) = 0
+  12.68s    0.2ms # [pid 10649] execve("/usr/bin/smbclient", ["/usr/bin/smbclient", "-N", "-gL", "avocado"], 0x55a118e60970 /* 89 vars */ <unfinished ...>
+  12.68s   20.1μs # [pid 10649] <... execve resumed>)       = 0
+  12.68s   92.5μs # [pid 10650] execve("/usr/bin/awk", ["awk", "-v", "key=avocado", "-v", "opts=-fstype=cifs,guest", "-F", "|", "--", "\n\tBEGIN\t{ ORS=\"\"; first=1 }\n\t/Di"...], 0x55a118e60970 /* 89 vars */ <unfinished ...>
+  12.68s   78.2μs # [pid 10650] <... execve resumed>)       = 0
+  13.01s    1.0ms # lookup_mount: lookup(program): avocado -> -fstype=cifs,guest         "/iso" "://avocado/iso"
+  13.01s   49.1μs # [pid 10645] mount("/etc/auto.smb", "/smb/avocado/iso", "autofs", MS_MGC_VAL, "fd=6,pgrp=10613,minproto=5,maxpr"...) = 0
+  13.01s    0.2ms # [pid 10652] newfstatat(AT_FDCWD, "/etc/auto.smb", {st_mode=S_IFREG|0755, st_size=2083, ...}, 0) = 0
+  13.01s   60.2μs # lookup_mount: lookup(program): /smb/avocado/iso -> -fstype=cifs,guest ://avocado/iso
+  13.02s    3.7ms # [pid 10653] execve("/usr/bin/mount", ["/usr/bin/mount", "-t", "cifs", "-o", "guest", "//avocado/iso", "/smb/avocado/iso"], 0x55c662b7bc80 /* 69 vars */) = 0
+  13.03s    0.3ms # [pid 10654] execve("/sbin/mount.cifs", ["/sbin/mount.cifs", "//avocado/iso", "/smb/avocado/iso", "-o", "rw,guest"], 0x7ffe5d3f3cb8 /* 65 vars */) = 0
+
+# /etc/auto.smb executable and having a map
+...
+  61.4ms    0.2ms # [pid 10990] newfstatat(AT_FDCWD, "/etc/auto.smb", {st_mode=S_IFREG|0755, st_size=127, ...}, 0) = 0
+  61.5ms   62.4μs # [pid 10990] openat(AT_FDCWD, "/usr/lib64/autofs/lookup_program.so", O_RDONLY|O_CLOEXEC) = 7
+  61.9ms    0.3ms # [pid 10990] access("/etc/auto.smb", X_OK) = 0
+  67.9ms    0.2ms # [pid 10991] execve("/usr/bin/mount", ["/usr/bin/mount", "-n", "--bind", "/tmp/autoMC7k0t", "/tmp/autoamzl0I"], 0x5562c2c7cc80 /* 69 vars */) = 0
+  77.8ms    4.5ms # [pid 10992] execve("/usr/bin/umount", ["/usr/bin/umount", "-c", "-n", "/tmp/autoamzl0I"], 0x5562c2c7cc80 /* 69 vars */) = 0
+  83.9ms   36.5μs # [pid 10990] mount("/etc/auto.smb", "/smb", "autofs", MS_MGC_VAL, "fd=6,pgrp=10976,minproto=5,maxpr"...) = 0
+   2.66s    0.2ms # [pid 10997] newfstatat(AT_FDCWD, "/etc/auto.smb", {st_mode=S_IFREG|0755, st_size=127, ...}, 0) = 0
+   2.66s   29.3μs # lookup_mount: lookup(program): looking up avocado-iso
+   2.67s    0.2ms # [pid 10998] execve("/etc/auto.smb", ["/etc/auto.smb", "avocado-iso"], 0x5562c2c865e0 /* 89 vars */) = -1 ENOEXEC (Exec format error)
+   2.67s    0.2ms # lookup(program): lookup for avocado-iso failed
+
+# /etc/auto.smb non-executable and having just autofs(5) map
+...
+  59.8ms    0.3ms # [pid 11217] newfstatat(AT_FDCWD, "/etc/auto.smb", {st_mode=S_IFREG|0644, st_size=127, ...}, 0) = 0
+  59.9ms   74.0μs # [pid 11217] openat(AT_FDCWD, "/usr/lib64/autofs/lookup_file.so", O_RDONLY|O_CLOEXEC) = 7
+  60.4ms    0.4ms # [pid 11217] access("/etc/auto.smb", R_OK) = 0
+  67.7ms    0.3ms # [pid 11218] execve("/usr/bin/mount", ["/usr/bin/mount", "-n", "--bind", "/tmp/auto0vHUIu", "/tmp/autoHRdljb"], 0x559d54aaac80 /* 69 vars */) = 0
+  79.7ms    4.2ms # [pid 11222] execve("/usr/bin/umount", ["/usr/bin/umount", "-c", "-n", "/tmp/autoHRdljb"], 0x559d54aaac80 /* 69 vars */) = 0
+  86.5ms    0.1ms # [pid 11217] openat(AT_FDCWD, "/etc/auto.smb", O_RDONLY|O_CLOEXEC) = 7
+  87.0ms   47.3μs # [pid 11217] mount("/etc/auto.smb", "/smb", "autofs", MS_MGC_VAL, "fd=6,pgrp=11203,minproto=5,maxpr"...) = 0
+   1.88s    0.2ms # [pid 11224] newfstatat(AT_FDCWD, "/etc/auto.smb", {st_mode=S_IFREG|0644, st_size=127, ...}, 0) = 0
+   1.88s   49.4μs # lookup_mount: lookup(file): looking up avocado-iso
+   1.88s   90.4μs # [pid 11224] newfstatat(AT_FDCWD, "/etc/auto.smb", {st_mode=S_IFREG|0644, st_size=127, ...}, 0) = 0
+   1.88s   43.1μs # lookup_mount: lookup(file): avocado-iso -> -fstype=cifs,credentials=/root/smb.avocado,uid=oracle,gid=dba,dir_mode=0700,file_mode=0500,vers=2.1 ://avocado/iso
+   1.88s    3.9ms # [pid 11225] execve("/usr/bin/mount", ["/usr/bin/mount", "-t", "cifs", "-o", "credentials=/root/smb.avocado,ui"..., "//avocado/iso", "/smb/avocado-iso"], 0x559d54aaac80 /* 69 vars */) = 0
+   1.89s    0.3ms # [pid 11226] execve("/sbin/mount.cifs", ["/sbin/mount.cifs", "//avocado/iso", "/smb/avocado-iso", "-o", "rw,credentials=/root/smb.avocado"...], 0x7fff8880cf78 /* 65 vars */) = 0
+```
+
 
 ### btrfs
 
