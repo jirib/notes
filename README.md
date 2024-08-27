@@ -15175,6 +15175,43 @@ Bridge snowflake 192.0.2.3:80 2B280B23E1107BB62ABFC40DDCC8824814F80A72 fingerpri
 Bridge snowflake 192.0.2.4:80 8838024498816A039FCBBAB14E6F40A0843051FA fingerprint=8838024498816A039FCBBAB14E6F40A0843051FA url=https://1098762253.rsc.cdn77.org/ fronts=www.cdn77.com,www.phpmyadmin.net ice=stun:stun.l.google.com:19302,stun:stun.antisip.com:3478,stun:stun.bluesip.net:3478,stun:stun.dus.net:3478,stun:stun.epygi.com:3478,stun:stun.sonetel.net:3478,stun:stun.uls.co.za:3478,stun:stun.voipgate.com:3478,stun:stun.voys.nl:3478 utls-imitate=hellorandomizedalpn
 ```
 
+Brave browser has Tor built-in:
+
+``` shell
+$ find .config/BraveSoftware/ -type f -name '*brave*'
+.config/BraveSoftware/Brave-Browser/biahpgbdmdkfgndcmfiipgcebobojjkp/1.0.36/tor-0.4.8.10-linux-brave-2
+.config/BraveSoftware/Brave-Browser/apfggiafobakjahnkchiecbomjgigkkn/1.0.6/tor-snowflake-brave
+.config/BraveSoftware/Brave-Browser/apfggiafobakjahnkchiecbomjgigkkn/1.0.6/tor-obfs4-brave
+
+# get ControlPort
+
+$ ss -tnlp | grep -f <(pgrep -f 'brave.*/tor') | grep -Po '127\.0\.0\.1:\K(\d+)' | \
+    xargs -I {} bash -c "echo -e 'PROTOCOLINFO\r\n' | \
+    nc 127.0.0.1 {} | grep -Pq '^[0-9]{3}-' && echo {}"
+43143
+
+$ echo -e 'PROTOCOLINFO\r\n' | nc 127.0.0.1 $CONTROLPORT
+250-PROTOCOLINFO 1
+250-AUTH METHODS=COOKIE,SAFECOOKIE COOKIEFILE="/home/jiri/.config/BraveSoftware/Brave-Browser/tor/watch/control_auth_cookie"
+250-VERSION Tor="0.4.8.10"
+250 OK
+514 Authentication required.
+
+# controlport is cookie protected
+
+$ COOKIED=$(hexdump -e '32/1 "%02x""\n"' /home/jiri/.config/BraveSoftware/Brave-Browser/tor/watch/control_auth_cookie)
+
+$ echo -e 'AUTHENTICATE '${COOKIED}'\r\nGETCONF ClientTransportPlugin\r\nQUIT\r\n' | \
+    nc 127.0.0.1 $CONTROLPORT
+250 OK
+250-ClientTransportPlugin=snowflake exec ../../apfggiafobakjahnkchiecbomjgigkkn/1.0.6/tor-snowflake-brave -url https://snowflake-broker.torproject.net.global.prod.fastly.net/ -front cdn.sstatic.net -ice stun:stun.l.google.com:19302,stun:stun.voip.blackberry.com:3478,stun:stun.altar.com.pl:3478,stun:stun.antisip.com:3478,stun:stun.bluesip.net:3478,stun:stun.dus.net:3478,stun:stun.epygi.com:3478,stun:stun.sonetel.com:3478,stun:stun.sonetel.net:3478,stun:stun.stunprotocol.org:3478,stun:stun.uls.co.za:3478,stun:stun.voipgate.com:3478,stun:stun.voys.nl:3478
+250 ClientTransportPlugin=meek_lite,obfs2,obfs3,obfs4,scramblesuit exec ../../apfggiafobakjahnkchiecbomjgigkkn/1.0.6/tor-obfs4-brave
+250 closing connection
+
+```
+
+Tor commands are at [Tor Specification](https://spec.torproject.org/control-spec/commands.html).
+
 
 ## schedulers
 
