@@ -16757,6 +16757,106 @@ Name:           jirib-test01
 
 ```
 
+
+#### VCSA
+
+JSON answer aka template file, only needed when deploying via the
+installer to ESXi/vSphere:
+
+``` json
+{
+  "__version": "2.13.0",
+  "new_vcsa": {
+    "esxi": {
+      "hostname": "<ip>",
+      "username": "root",
+      "password": "********,
+      "deployment_network": "VM Network",
+      "datastore": "vcsa"
+    },
+    "appliance": {
+      "thin_disk_mode": true,
+      "deployment_option": "tiny",
+      "name": "Embedded-vCenter-Server-Appliance"
+    },
+    "network": {
+      "ip_family": "ipv4",
+      "mode": "static",
+      "system_name": "vcsa.example.com",
+      "ip": "<ip>",
+      "prefix": "<prefix>",
+      "gateway": "<default_gw>",
+      "dns_servers": [
+        "<dns_ip>"
+      ]
+    },
+    "os": {
+      "password": "********,
+      "ntp_servers": "<ip_or_host>",
+      "ssh_enable": true
+    },
+    "sso": {
+      "password": "********,
+      "domain_name": "vsphere.local"
+    }
+  },
+  "ceip": {
+    "settings": {
+      "ceip_enabled": false
+    }
+  }
+}
+```
+
+VCSA ISO has OVA file:
+
+``` shell
+$ bsdtar xOf VMware-VCSA-all-8.*iso 'vcsa/VMware-vCenter-Server-Appliance-8.*.ova' | bsdtar tf -
+VMware-vCenter-Server-Appliance-8.0.3.00000-24022515_OVF10.ovf
+VMware-vCenter-Server-Appliance-8.0.3.00000-24022515_OVF10.mf
+VMware-vCenter-Server-Appliance-8.0.3.00000-24022515_OVF10.cert
+VMware-vCenter-Server-Appliance-8.0.3.00000-24022515_OVF10-file1.json
+VMware-vCenter-Server-Appliance-8.0.3.00000-24022515_OVF10-file2.rpm
+VMware-vCenter-Server-Appliance-8.0.3.00000-24022515_OVF10-disk1.vmdk
+VMware-vCenter-Server-Appliance-8.0.3.00000-24022515_OVF10-disk2.vmdk
+VMware-vCenter-Server-Appliance-8.0.3.00000-24022515_OVF10-disk3.vmdk
+```
+
+According to a blog, the appliance needs couple of additional disks
+attached (they need to be attached if "extracting" the appliance
+_outside_ of ESXi/vSphere (in "VMware" environment, the appliance
+would create the disk itself during deployment via the installer):
+
+``` shell
+$ bsdtar xOf VMware-VCSA-all-8.*iso 'vcsa/VMware-vCenter-Server-Appliance-8.*.ova' | \
+    bsdtar xOf - '*.json' | \
+    jq -r '.tiny | to_entries[] | select(.key | startswith("disk")) | (.key | split("-"; null)[1]), .value' | \
+    xargs -n2 | nl
+     1  root 48GB
+     2  swap 25GB
+     3  core 25GB
+     4  log 10GB
+     5  db 10GB
+     6  dblog 15GB
+     7  seat 10GB
+     8  netdump 1GB
+     9  autodeploy 10GB
+    10  imagebuilder 10GB
+    11  updatemgr 100GB
+    12  archive 50GB
+    13  vtsdb 10GB
+    14  vtsdblog 5GB
+    15  lifecycle 100GB
+    16  lvm_snapshot 150GB
+```
+
+Deployment from VCSA ISO:
+
+``` shell
+$ lin64/vcsa-deploy install --accept-eula --no-esx-ssl-verify --no-ssl-certificate-verification embedded_vCSA_on_ESXi.json
+```
+
+
 ### Xen
 
 
