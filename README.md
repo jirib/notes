@@ -7,6 +7,14 @@
 - default ACL of a directory for inheritance
 
 
+## applications
+
+
+### bugzilla
+
+For bugzilla reports in CSV, just add `&ctype=csv` in the URL.
+
+
 ## authentication
 
 ### 389ds
@@ -15387,7 +15395,14 @@ SHELL=/bin/csh
 ```
 
 
-## shell
+## shell and utils
+
+
+Various shell startup files are described at [Some differences between
+BASH and TCSH](https://web.fe.up.pt/~jmcruz/etc/unix/sh-vs-csh.html)
+and [Shell
+Startup](https://docs.nersc.gov/environment/shell_startup/).
+
 
 ### awk
 
@@ -16479,6 +16494,11 @@ ovs-vsctl set bridge virtual0 mcast_snooping_enable=<value>
 ### vmware
 
 #### esxi
+
+A bit old boot parameters are described at [ESXi 7.0 Update 3i Build
+20842708 Kernel Settings
+](https://github.com/lamw/esxi-advanced-and-kernel-settings/blob/master/esxi-70u3i-kernel-settings.md).
+
 
 ##### cli
 
