@@ -16876,6 +16876,101 @@ Deployment from VCSA ISO:
 $ lin64/vcsa-deploy install --accept-eula --no-esx-ssl-verify --no-ssl-certificate-verification embedded_vCSA_on_ESXi.json
 ```
 
+Importing VCSA into libvirt/KVM - I can't explain why but totally
+there should be _17_ disks, even though there are 16 disks in the json
+file !!! The following therefore works for me:
+
+``` shell
+# creating additional vcenter disks
+$ bsdtar xOf /tmp/data/iso/VMware-VCSA-all-8*.iso 'vcsa/VMware-vCenter-Server-Appliance-8.*.ova' | \
+    bsdtar -xOf - '*.json' | \
+    jq -r '.tiny | to_entries[] | select(.key | startswith("disk")) | (.key | split("-"; null)[1]), .value' | \
+    xargs -n2 | nl | \
+    sed -n '3,$p' | while read number name size ; do \
+        qemu-img create -f qcow2 vcenter-disk${number}.qcow2 ${size//GB/G} ; done
+
+$ ls -1 vcenter-disk*.qcow2 | sort -V
+vcenter-disk4.qcow2
+vcenter-disk5.qcow2
+vcenter-disk6.qcow2
+vcenter-disk7.qcow2
+vcenter-disk8.qcow2
+vcenter-disk9.qcow2
+vcenter-disk10.qcow2
+vcenter-disk11.qcow2
+vcenter-disk12.qcow2
+vcenter-disk13.qcow2
+vcenter-disk14.qcow2
+vcenter-disk15.qcow2
+vcenter-disk16.qcow2
+
+# extracting vmdk from the ova
+$ bsdtar xOf /tmp/data/iso/VMware-VCSA-all-8*.iso 'vcsa/VMware-vCenter-Server-Appliance-8.*.ova' | \
+    bsdtar -xf - 'VMware-vCenter-Server-Appliance-8*.vmdk'
+
+$ ls -1 *.vmdk
+VMware-vCenter-Server-Appliance-8.0.3.00000-24022515_OVF10-disk1.vmdk
+VMware-vCenter-Server-Appliance-8.0.3.00000-24022515_OVF10-disk2.vmdk
+VMware-vCenter-Server-Appliance-8.0.3.00000-24022515_OVF10-disk3.vmdk
+
+# converting vmdk to qcow2
+$ (i=1; while read line; do \
+    qemu-img convert -f vmdk -O qcow2 $line vcenter-disk${i}.qcow2; ((i++)); \
+    done) < <(ls -1 *.vmdk)
+
+$ ls -1 vcenter-disk[1-3].qcow2
+vcenter-disk1.qcow2
+vcenter-disk2.qcow2
+vcenter-disk3.qcow2
+
+$ while read name size; do \
+    echo qemu-img resize vcenter-${name}.qcow2 $((${size%%GB} * 1024 * 1024 * 1024 )) ; \
+    done << EOF
+disk1  49728
+disk2  7040
+disk3  25600
+disk4  25600
+disk5  10240
+disk6  10240
+disk7  15360
+disk8  10240
+disk9  1024
+disk10  10240
+disk11  10240
+disk12  102400
+disk13  51200
+disk14  10240
+disk15  5120
+disk16  102400
+disk17  153600
+EOF
+
+# 'tiny' profile CPU and memory settings
+# inside vcenter appliance there's `/usr/sbin/verify_disk_size.py` which does some internal
+# check and based on CPU and memory it requires a specific storage configuration
+
+$ bsdtar xOf /tmp/data/iso/VMware-VCSA-all-8*.iso 'vcsa/VMware-vCenter-Server-Appliance-8.*.ova' | \
+    bsdtar -xOf - '*.json' | \
+    jq '.tiny | to_entries[] | select((.key == "cpu") or .key == "memory") | (.key, .value)' | xargs -n2
+cpu 2
+memory 14336
+
+$ virt-install \
+    --name vcenter \
+    --memory 14336 \
+    --vcpus 2 \
+    --cpu host-passthrough,check=none,migratable=on \
+    $(printf -- ' --disk /var/lib/libvirt/images/vsphere/vcenter-disk%d.qcow2,bus=sata' $(seq 1 16)) \
+    --os-variant linux2022 \
+    --network model=e1000e,network=vsphere \
+    --wait 0 \
+    --import
+```
+
+Then, open the VM console, change root password (you can also enable shell and SSH); login via HTTPS on 5480 port,
+and follow the wizard.
+
+
 
 ### Xen
 
