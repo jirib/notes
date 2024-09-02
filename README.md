@@ -16960,7 +16960,7 @@ $ virt-install \
     --memory 14336 \
     --vcpus 2 \
     --cpu host-passthrough,check=none,migratable=on \
-    $(printf -- ' --disk /var/lib/libvirt/images/vsphere/vcenter-disk%d.qcow2,bus=sata' $(seq 1 16)) \
+    $(printf -- ' --disk /var/lib/libvirt/images/vsphere/vcenter-disk%d.qcow2,bus=sata' $(seq 1 17)) \
     --os-variant linux2022 \
     --network model=e1000e,network=vsphere \
     --wait 0 \
