@@ -16924,7 +16924,7 @@ vcenter-disk2.qcow2
 vcenter-disk3.qcow2
 
 $ while read name size; do \
-    echo qemu-img resize vcenter-${name}.qcow2 $((size * 1024 * 1024)) ; \
+    qemu-img resize vcenter-${name}.qcow2 $((size * 1024 * 1024)) ; \
     done << EOF
 disk1  49728
 disk2  7040
