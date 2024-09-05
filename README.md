@@ -4921,6 +4921,89 @@ exists
 A [playgroun](https://jqplay.org/) for `jq`.
 
 
+### (GNU) make
+
+An example how to automate creating of vCenter in KVM:
+
+``` makefile
+ISO=/tmp/data/iso/VMware-VCSA-all-8.0.3-24022515.iso
+OVA='vcsa/VMware-vCenter-Server-Appliance-8.*.ova'
+SHELL=/bin/bash
+VM=vcenter
+
+DISK_NUM := 1 2 3 4 5 6 7 8 9 10 11 12 13 14 15 16 17
+# from ./usr/lib/vmware/cis_upgrade_runner/config/deployment-size-layout.json, converted to bytes
+# the 2nd disk is not in the json file, it is in fact an iso
+
+DISK_SIZES := 52143587328 7840620544 26843545600 26843545600 10737418240 \
+        10737418240 16106127360 10737418240 1073741824 10737418240 10737418240 \
+        107374182400 53687091200 10737418240 5368709120 107374182400 161061273600
+
+DISK_OPTS := $(foreach num,$(DISK_NUM),--disk /var/lib/libvirt/images/vsphere/vcenter-disk$(num).qcow2,bus=sata)
+
+all: vmdk qcow2 snapshot install
+
+vmdk: vcenter-disk1.vmdk vcenter-disk2.vmdk vcenter-disk3.vmdk
+
+%.vmdk:
+        @echo -n "Extracting vmdk files... "
+        @bsdtar xOf ${ISO} ${OVA} | bsdtar -xf - -s '/.*disk/vcenter-disk/' '*.vmdk'
+        @echo Done
+
+qcow2: vmdk $(patsubst %,vcenter-disk%.qcow2,$(DISK_NUM))
+
+%.qcow2:
+        @if [[ "$@" =~ vcenter-disk[1-3].qcow2 ]]; then \
+            vmdk_file=$(@:.qcow2=.vmdk); \
+            echo -n "Converting $$vmdk_file to qcow2... "; \
+            qemu-img convert -O qcow2 $$vmdk_file $@ >/dev/null; \
+            echo Done; \
+            DISK_NUM=$$(echo $@ | grep -Po 'vcenter-disk\K([0-9]+)(?=.qcow2)'); \
+            SIZE=$$(echo $(DISK_SIZES) | cut -d' ' -f$$DISK_NUM); \
+            echo -n "Resizing $@ to required size... "; \
+            qemu-img resize --shrink $@ $${SIZE}; \
+            echo Done; \
+        elif [[ "$@" =~ vcenter-disk[4-9]|1[0-7].qcow2 ]]; then \
+            DISK_NUM=$$(echo $@ | grep -Po 'vcenter-disk\K([0-9]+)(?=.qcow2)'); \
+            SIZE=$$(echo $(DISK_SIZES) | cut -d' ' -f$$DISK_NUM); \
+            echo -n "Creating additional $@ file... "; \
+            qemu-img create -f qcow2 $@ $${SIZE} >/dev/null >/dev/null; \
+            echo Done; \
+        else \
+            echo "Unknown disk name: $<"; \
+        fi
+
+snapshot: $(patsubst %,vcenter-disk%.qcow2,$(DISK_NUM))
+        @for disk in $(patsubst %,vcenter-disk%.qcow2,$(DISK_NUM)); do \
+                echo "Creating snapshot for $$disk"; \
+                qemu-img snapshot -c default $$disk; \
+        done
+
+install:
+        @echo -n "Importing vcenter VM... "
+        @virt-install \
+        --name vcenter \
+        --memory 14336 \
+        --vcpus 2 \
+        --cpu host-passthrough,check=none,migratable=on \
+        $(DISK_OPTS) \
+        --os-variant linux2022 \
+        --network model=e1000e,network=vsphere,mac=52:54:00:fa:fc:35 \
+        --wait 0 \
+        --import
+        @echo Done
+        @echo ""
+        @echo "Open vcenter console and change root user password!"
+        @echo ""
+        @echo "In case of an issue, revert to 'default' snapshot"
+
+clean:
+        -virsh destroy $(VM)
+        -virsh undefine --nvram --tpm $(VM)
+        rm -f vcenter-disk*.vmdk vcenter-disk*.qcow2
+```
+
+
 ### patches / diffs
 
 Patching files from different paths from one diff, that is extracting
@@ -16970,6 +17053,9 @@ $ virt-install \
 Then, open the VM console, change root password (you can also enable shell and SSH); login via HTTPS on 5480 port,
 and follow the wizard.
 
+vCenter appliance console UI is idiotic, however networking (do it
+before configuring vCenter via web UI!) can be done via
+`/opt/vmware/share/vami/vami_config_net`.
 
 
 ### Xen
