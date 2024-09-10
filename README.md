@@ -17923,9 +17923,22 @@ $ dig +short +noall +answer @192.168.122.200 _ldap._tcp.home.arpa. SRV
 0 100 389 win2k19-01.HOME.ARPA.
 ```
 
+
 ### OpenSSH server
 
 See https://docs.microsoft.com/en-us/windows-server/administration/openssh/openssh_install_firstuse
+
+
+### recovery partiton
+
+To recreate recovery partition, follow this guides:
+- https://support.microsoft.com/en-us/topic/kb5028997-instructions-to-manually-resize-your-partition-to-install-the-winre-update-400faa27-9343-461c-ada9-24c8229763bf
+- https://www.tenforums.com/backup-restore/150234-recovery-partition.html#post1837415
+
+The latter is especially useful since it describes how to get
+`WinRE.wim` and `ReAgent.xml` from the installation media via _7zip_
+to copy it into `C:\Windows\system32\recovery`.
+
 
 ### templating windoze
 
@@ -17935,6 +17948,7 @@ Install all drivers, eg. virtio-win drivers.
 > %windir%\system32\sysprep\sysprep.exe /?
 > %windir%\system32\sysprep\sysprep.exe /generalize /shutdown
 ```
+
 
 ### WinPE
 
