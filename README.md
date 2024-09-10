@@ -16937,7 +16937,7 @@ vmtoolsd.level = debug
 ```
 
 VMware Tools might do
-vSphere [Guest OS Customization])https://knowledge.broadcom.com/external/article/311864/how-does-vsphere-guest-os-customization.html)
+vSphere [Guest OS Customization](https://knowledge.broadcom.com/external/article/311864/how-does-vsphere-guest-os-customization.html)
 (GOSC).
 
 GOSC via VMware Tools might conflict with _cloud-init_; in case of
