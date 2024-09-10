@@ -2397,6 +2397,17 @@ users:
   - default
 ```
 
+Some _cloud-init_ commands:
+- `cloud-init collect-logs -uv`
+- `cloud-init clean -l --machine-id -s` # remove logs, zero machine-id and remove CI seed dir
+- `DEBUG_LEVEL=2 DI_LOG=stderr /usr/lib/cloud-init/ds-identify --force` # detect datasources
+- `cloud-id` # which datasource is being used by CI
+  ``` shell
+  # not yet run, or `cloud-init clean -s' was used
+  $ cloud-id
+  not run
+  ```
+
 
 ## clusters
 
@@ -16845,6 +16856,33 @@ GOVC_URL=https://example.com
 GOVC_USERNAME=user
 GOVC_INSECURE=1
 
+$ govc about
+FullName:     VMware vCenter Server 8.0.3 build-24022515
+Name:         VMware vCenter Server
+Vendor:       VMware, Inc.
+Version:      8.0.3
+Build:        24022515
+OS type:      linux-x64
+API type:     VirtualCenter
+API version:  8.0.3.0
+Product ID:   vpx
+UUID:         fe57421e-0e49-4b8e-932e-a05a94ee260e
+
+$ govc ls /Datacenter/host/
+/Datacenter/host/192.168.100.3
+
+$ govc host.info /Datacenter/host/192.168.100.3
+Name:              192.168.100.3
+  Path:            /Datacenter/host/192.168.100.3/192.168.100.3
+  Manufacturer:    Red Hat
+  Logical CPUs:    8 CPUs @ 2200MHz
+  Processor type:  Intel(R) Xeon(R) Silver 4114 CPU @ 2.20GHz
+  CPU usage:       123 MHz (0.7%)
+  Memory:          8168MB
+  Memory usage:    2655 MB (32.5%)
+  Boot time:       2024-09-02 09:15:14.069137 +0000 UTC
+  State:           connected
+
 $ govc vm.info jirib-test01
 Name:           jirib-test01
   Path:         /ha-datacenter/vm/jirib-test01
@@ -16856,8 +16894,397 @@ Name:           jirib-test01
   Boot time:    2024-08-22 13:24:40 +0000 UTC
   IP address:
   Host:         example.com
+```
+
+``` shell
+$ govc vm.info -e external=true  /Datacenter/vm/jirib-test01 | grep -m1 -Po 'guestinfo.userdata:\s*\K(.*)' | base64 -d | zcat -
+#cloud-config
+
+users:
+- default
+- name: jiri
+  primary_group: jiri
+  sudo: ALL=(ALL) NOPASSWD:ALL
+  groups: sudo, wheel
+  lock_passwd: true
+  ssh_authorized_keys:
+  - AAAAC3NzaC1lZDI1NTE5AAAAIE1x+93H1K9QT62tvFbO3M8Ze5JvjtDB4QeslJJx60xi jiri
+```
 
 
+#### tools & Guest OS Customization
+
+VMware Tools are _open-vm-tools_ now.
+
+``` shell
+$ rpm -q open-vm-tools
+open-vm-tools-12.4.0-150600.1.3.x86_64
+```
+
+``` shell
+$ grep -Pv '^\s*(#|$)' /etc/vmware-tools/tools.conf
+[powerops]
+[vmsvc]
+[vmtools]
+[vmtray]
+[desktopevents]
+[logging]
+log=true
+deployPkg.level = debug
+vmtoolsd.level = debug
+[guestinfo]
+[unity]
+```
+
+VMware Tools might do
+vSphere [Guest OS Customization])https://knowledge.broadcom.com/external/article/311864/how-does-vsphere-guest-os-customization.html)
+(GOSC).
+
+GOSC via VMware Tools might conflict with _cloud-init_; in case of
+GOSC, _cloud-init_ should provide only _user data_. And if
+_cloud-init_ takes too long, VMware Tools can have increased timeout:
+
+``` shell
+$ grep cloud /etc/vmware-tools/tools.conf.example
+# This "wait-cloudinit-timeout" option controls how long does guest
+# customization wait for cloud-init execution done when it detects cloud-init
+# Guest customization will continue executing as soon as it detects cloud-init
+# If cloud-init is still running beyond this option's value in seconds, guest
+# customization will continue executing regardless cloud-init execution status.
+#wait-cloudinit-timeout=30
+
+$ vmware-toolbox-cmd config set deployPkg wait-cloudinit-timeout 60
+$ vmware-toolbox-cmd config get deployPkg wait-cloudinit-timeout
+[deployPkg] wait-cloudinit-timeout = 60
+$ grep '^wait-cloudinit-timeout' /etc/vmware-tools/tools.conf
+wait-cloudinit-timeout=60
+```
+
+Interaction with _cloud-init_ requires version >= 18.4, ideally >=
+23.1 (would use 'Datasource VMware').
+
+``` shell
+$ rpm -q cloud-init
+cloud-init-23.3-150100.8.79.2.x86_64
+```
+
+_cloud-init_ is able to use various datasources, eg. OVF of VMware;
+see how it behaves when no VM _guestinfo_ is set:
+
+``` shell
+$ vmtoolsd --cmd "info-get guestinfo.userdata"
+No value found
+
+$ DEBUG_LEVEL=1 DI_LOG=stderr /usr/lib/cloud-init/ds-identify --force
+[up 350482.07s] ds-identify --force
+policy loaded: mode=search report=false found=all maybe=all notfound=disabled
+no datasource_list found, using default: MAAS ConfigDrive NoCloud AltCloud Azure Bigstep CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware LXD NWCS Akamai
+DMI_PRODUCT_NAME=VMware20,1
+DMI_SYS_VENDOR=VMware, Inc.
+DMI_PRODUCT_SERIAL=VMware-42 03 d4 64 38 b9 fa d1-5c 91 80 20 ca 47 ca a5
+DMI_PRODUCT_UUID=64d40342-b938-d1fa-5c91-8020ca47caa5
+PID_1_PRODUCT_NAME=unavailable
+DMI_CHASSIS_ASSET_TAG=No Asset Tag
+DMI_BOARD_NAME=440BX Desktop Reference Platform
+FS_LABELS=BOOTFS,EFIFS,EFIFS,EFI,EFI,ROOT
+ISO9660_DEVS=
+KERNEL_CMDLINE=BOOT_IMAGE=/boot/vmlinuz-6.4.0-150600.21-default root=UUID=5832c91b-2e72-477f-bd2f-99382788517a rw systemd.show_status=1 console=ttyS0,115200 console=tty0 quiet
+VIRT=vmware
+UNAME_KERNEL_NAME=Linux
+UNAME_KERNEL_RELEASE=6.4.0-150600.21-default
+UNAME_KERNEL_VERSION=#1 SMP PREEMPT_DYNAMIC Thu May 16 11:09:22 UTC 2024 (36c1e09)
+UNAME_MACHINE=x86_64
+UNAME_NODENAME=jbelka-test2
+UNAME_OPERATING_SYSTEM=GNU/Linux
+DSNAME=
+DSLIST=MAAS ConfigDrive NoCloud AltCloud Azure Bigstep CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware LXD NWCS Akamai
+MODE=search
+ON_FOUND=all
+ON_MAYBE=all
+ON_NOTFOUND=disabled
+pid=11335 ppid=10717
+is_container=false
+is_ds_enabled(IBMCloud) = true.
+ec2 platform is 'Unknown'.
+is_ds_enabled(IBMCloud) = true.
+Running on vmware but rpctool query returned 1: No value found
+No ds found [mode=search, notfound=disabled]. Disabled cloud-init [1]
+[up 350482.42s] returning 1
+```
+
+Now with _cloud-init_ user data:
+
+``` shell
+$ cat > userdata.yaml <<EOF
+#cloud-config
+
+users:
+- default
+- name: jiri
+  primary_group: jiri
+  sudo: ALL=(ALL) NOPASSWD:ALL
+  groups: sudo, wheel
+  lock_passwd: true
+  ssh_authorized_keys:
+  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE1x+93H1K9QT62tvFbO3M8Ze5JvjtDB4QeslJJx60xi jiri
+EOF
+
+$ vmtoolsd --cmd "info-set guestinfo.userdata.encoding gzip+base64"
+$ vmtoolsd --cmd "info-set guestinfo.userdata $(gzip -c9 < userdata.yaml | { base64 -w0 2>/dev/null || base64; })"
+
+$ vmtoolsd --cmd "info-get guestinfo.userdata" | base64 -d | zcat -
+#cloud-config
+
+users:
+- default
+- name: jiri
+  primary_group: jiri
+  sudo: ALL=(ALL) NOPASSWD:ALL
+  groups: sudo, wheel
+  lock_passwd: true
+  ssh_authorized_keys:
+  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE1x+93H1K9QT62tvFbO3M8Ze5JvjtDB4QeslJJx60xi jiri
+
+
+$  DEBUG_LEVEL=1 DI_LOG=stderr /usr/lib/cloud-init/ds-identify --force
+[up 350912.78s] ds-identify --force
+policy loaded: mode=search report=false found=all maybe=all notfound=disabled
+no datasource_list found, using default: MAAS ConfigDrive NoCloud AltCloud Azure Bigstep CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware LXD NWCS Akamai
+DMI_PRODUCT_NAME=VMware20,1
+DMI_SYS_VENDOR=VMware, Inc.
+DMI_PRODUCT_SERIAL=VMware-42 03 d4 64 38 b9 fa d1-5c 91 80 20 ca 47 ca a5
+DMI_PRODUCT_UUID=64d40342-b938-d1fa-5c91-8020ca47caa5
+PID_1_PRODUCT_NAME=unavailable
+DMI_CHASSIS_ASSET_TAG=No Asset Tag
+DMI_BOARD_NAME=440BX Desktop Reference Platform
+FS_LABELS=BOOTFS,EFIFS,EFIFS,EFI,EFI,ROOT
+ISO9660_DEVS=
+KERNEL_CMDLINE=BOOT_IMAGE=/boot/vmlinuz-6.4.0-150600.21-default root=UUID=5832c91b-2e72-477f-bd2f-99382788517a rw systemd.show_status=1 console=ttyS0,115200 console=tty0 quiet
+VIRT=vmware
+UNAME_KERNEL_NAME=Linux
+UNAME_KERNEL_RELEASE=6.4.0-150600.21-default
+UNAME_KERNEL_VERSION=#1 SMP PREEMPT_DYNAMIC Thu May 16 11:09:22 UTC 2024 (36c1e09)
+UNAME_MACHINE=x86_64
+UNAME_NODENAME=jbelka-test2
+UNAME_OPERATING_SYSTEM=GNU/Linux
+DSNAME=
+DSLIST=MAAS ConfigDrive NoCloud AltCloud Azure Bigstep CloudSigma CloudStack DigitalOcean Vultr AliYun Ec2 GCE OpenNebula OpenStack OVF SmartOS Scaleway Hetzner IBMCloud Oracle Exoscale RbxCloud UpCloud VMware LXD NWCS Akamai
+MODE=search
+ON_FOUND=all
+ON_MAYBE=all
+ON_NOTFOUND=disabled
+pid=11381 ppid=10717
+is_container=false
+is_ds_enabled(IBMCloud) = true.
+ec2 platform is 'Unknown'.
+is_ds_enabled(IBMCloud) = true.
+Running on vmware but rpctool query returned 1: No value found
+check for 'VMware' returned found
+Found single datasource: VMware
+[up 350913.15s] returning 0
+```
+
+Voila! 'VMware' datasource found!
+
+GOSC works based on 'VM Customization Specifications' policy/profile; the policy might be something like this:
+
+``` xml
+<ConfigRoot>
+  <_type>vim.CustomizationSpecItem</_type>
+  <info>
+    <_type>vim.CustomizationSpecInfo</_type>
+    <changeVersion>1725551416</changeVersion>
+    <description>jbelka test</description>
+    <lastUpdateTime>2024-09-05T15:50:16Z</lastUpdateTime>
+    <name>jbelka-test</name>
+    <type>Linux</type>
+  </info>
+  <spec>
+    <_type>vim.vm.customization.Specification</_type>
+    <globalIPSettings>
+      <_type>vim.vm.customization.GlobalIPSettings</_type>
+      <dnsServerList>
+        <_length>1</_length>
+        <_type>string[]</_type>
+        <e id="0">1.1.1.1</e>
+      </dnsServerList>
+      <dnsSuffixList>
+        <_length>1</_length>
+        <_type>string[]</_type>
+        <e id="0">example.com</e>
+      </dnsSuffixList>
+    </globalIPSettings>
+    <identity>
+      <_type>vim.vm.customization.LinuxPrep</_type>
+      <domain>example.com</domain>
+      <hostName>
+        <_type>vim.vm.customization.UnknownNameGenerator</_type>
+      </hostName>
+      <hwClockUTC>true</hwClockUTC>
+      <scriptText/>
+      <timeZone>Europe/Prague</timeZone>
+    </identity>
+    <nicSettingMap>
+      <_length>1</_length>
+      <_type>vim.vm.customization.AdapterMapping[]</_type>
+      <e id="0">
+        <_type>vim.vm.customization.AdapterMapping</_type>
+        <adapter>
+          <_type>vim.vm.customization.IPSettings</_type>
+          <ip>
+            <_type>vim.vm.customization.UnknownIpGenerator</_type>
+          </ip>
+          <primaryWINS/>
+          <secondaryWINS/>
+        </adapter>
+      </e>
+    </nicSettingMap>
+    <options>
+      <_type>vim.vm.customization.LinuxOptions</_type>
+    </options>
+  </spec>
+</ConfigRoot>
+```
+
+Then, when creating new VM from template, in 'Select clone options'
+part of the 'New VM' wizard, there's 'Customize the operating system'
+which would ask in 'User settings' dialog customization specification,
+eg. 'Computer Name', IPv4 address' etc...
+
+The final GOSC data with _cloud-init_ user data might be the following:
+
+``` shell
+$ govc vm.info -e external=true  /Datacenter/vm/jirib-test01 | grep -P '(deployPkg|guestinfo.userdata)' | fold -w80
+    tools.deployPkg.fileName:      imcf-KCr7iB
+    guestinfo.userdata:            H4sIAHJE4GYCAz2OzYrCQBCE73mKBi8ra2BjVtEBD9Eom
+nWjoiB4CWOmNaOjE+ZHY57e0YXtQ9P9VVFUIxfSMj+X1wM/ep7VqDTxfGB4oFYYd13pBQmcuOIeQKn4h
+apHdlTSlv9UWyYJRPP54MOtJqSLZbReb2PiPie/zZq8bS24F4jCUSHzc1ZSre+MgFEWX0G6yKg1hVS8R
+pad8eHKAPgQuRmFaU1HgdjFsyDdjDsvNhsH1Wc/nAY//dWm2za3yX4R/vZ22EluJxMPv1eoRZJU3a+K/
+7V9AqeO4QnxAAAA
+    guestinfo.userdata.encoding:   gzip+base64
+```
+
+`tools.deployPkg.filename` is, in fact, a file on the datastore, in
+the same directory where the VM data are located:
+
+``` shell
+$ govc datastore.ls jirib-test01/
+jirib-test01.vmsd
+jirib-test01-00a5fe75.hlog
+imcf-KCr7iB
+jirib-test01.vmx
+jirib-test01.vmdk
+jirib-test01-flat.vmdk
+
+$ govc datastore.download jirib-test01/imcf-KCr7iB /tmp/imcf-KCr7iB
+[10-09-24 10:31:56] Downloading... OK
+
+$ 7z l /tmp/imcf-KCr7iB | sed -n '/Listing/,$p' | head -n 12
+Listing archive: /tmp/imcf-KCr7iB
+
+--
+Path = /tmp/imcf-KCr7iB
+Type = Cab
+Offset = 512
+Physical Size = 628197
+Method = MSZip
+Blocks = 1
+Volumes = 1
+Volume Index = 0
+ID = 0
+
+$ 7z e -so /tmp/imcf-KCr7iB cust.cfg
+[NETWORK]
+NETWORKING = yes
+BOOTPROTO = dhcp
+HOSTNAME = jirib-test01
+DOMAINNAME = example.com
+
+[NIC-CONFIG]
+NICS = NIC1
+
+[NIC1]
+MACADDR = 00:50:56:83:ab:39
+PRIMARY = yes
+ONBOOT = yes
+IPv4_MODE = BACKWARDS_COMPATIBLE
+BOOTPROTO = static
+IPADDR = 192.168.100.201
+NETMASK = 255.255.255.0
+GATEWAY = 192.168.100.1
+
+
+[DNS]
+DNSFROMDHCP=no
+SUFFIX|1 = example.com
+NAMESERVER|1 = 1.1.1.1
+
+[DATETIME]
+TIMEZONE = Europe/Prague
+UTC = yes
+
+[CUSTOM-SOURCE]
+CUSTOMIZATION_SOURCE=vcenter-clone
+```
+
+...and `toolsDeployPkg.log` extracts are the following:
+
+``` shell
+$ grep -i command /var/log/vmware-imc/toolsDeployPkg.log
+[2024-09-10T14:36:14.575Z] [    info] Original deployment command: '/usr/bin/perl -I/tmp/.vmware/linux/deploy/scripts /tmp/.vmware/linux/deploy/scripts/Customize.pl /tmp/.vmware/linux/deploy/cust.cfg'.
+[2024-09-10T14:36:14.575Z] [    info] Actual deployment command: '/usr/bin/perl -I/var/run/.vmware-imgcust-dh0Ta7i/scripts /var/run/.vmware-imgcust-dh0Ta7i/scripts/Customize.pl /var/run/.vmware-imgcust-dh0Ta7i/cust.cfg'.
+[2024-09-10T14:36:14.594Z] [   debug] Command to exec : '/usr/bin/cloud-init'.
+[2024-09-10T14:36:16.198Z] [    info] Customization command output:
+[2024-09-10T14:36:16.199Z] [   debug] Command to exec : '/usr/bin/perl'.
+[2024-09-10T14:36:25.136Z] [    info] Customization command output:
+2024-09-10T14:36:16 DEBUG: Command: 'cat /etc/issue'
+2024-09-10T14:36:16 DEBUG: Command: 'cat /etc/issue'
+2024-09-10T14:36:16 DEBUG: Command: 'perl --version'
+2024-09-10T14:36:16 DEBUG: Command: 'hostname 2>/dev/null'
+2024-09-10T14:36:16 DEBUG: TimedCommand: 'hostname -f 2>/dev/null' with timeout of 5 sec
+2024-09-10T14:36:16 DEBUG: Command: '/bin/cat /etc/machine-id'
+2024-09-10T14:36:16 DEBUG: Command: '/bin/rm -f /etc/machine-id'
+2024-09-10T14:36:16 DEBUG: Command: 'dbus-uuidgen --ensure=/etc/machine-id'
+2024-09-10T14:36:16 DEBUG: Command: '/bin/cat /etc/machine-id'
+2024-09-10T14:36:16 DEBUG: Command: 'hostname jirib-test01'
+2024-09-10T14:36:16 DEBUG: Command: 'chmod 644 /etc/HOSTNAME'
+2024-09-10T14:36:16 DEBUG: Command: 'hostname jirib-test01'
+2024-09-10T14:36:24 DEBUG: Command: 'modprobe pcnet32 2> /dev/null'
+2024-09-10T14:36:24 DEBUG: Command: '/sbin/ifconfig eth0 2> /dev/null'
+2024-09-10T14:36:24 DEBUG: Command: 'whereis ip'
+2024-09-10T14:36:24 DEBUG: Command: '/usr/sbin/ip addr show 2>&1'
+2024-09-10T14:36:24 DEBUG: Command: 'whereis ip'
+2024-09-10T14:36:24 DEBUG: Command: '/usr/sbin/ip addr show 2>&1'
+2024-09-10T14:36:24 DEBUG: Command: 'chmod 644 /etc/sysconfig/network/ifcfg-eth0'
+2024-09-10T14:36:24 DEBUG: Command: 'chmod 644 /etc/hosts'
+2024-09-10T14:36:24 DEBUG: Command: 'chmod 644 /etc/nsswitch.conf'
+2024-09-10T14:36:24 DEBUG: Command: 'readlink -f "/etc/resolv.conf"'
+2024-09-10T14:36:24 DEBUG: Command: 'chmod 644 /etc/sysconfig/network/config'
+2024-09-10T14:36:24 DEBUG: Command: 'chmod 644 /etc/sysconfig/network/config'
+2024-09-10T14:36:24 DEBUG: Command: 'chmod 644 /etc/sysconfig/network/config'
+2024-09-10T14:36:24 DEBUG: Command: 'netconfig update -f'
+2024-09-10T14:36:24 DEBUG: Command: 'chmod 644 /etc/sysconfig/network/dhcp'
+2024-09-10T14:36:24 DEBUG: Command: 'ln -sf /usr/share/zoneinfo/Europe/Prague /etc/localtime'
+2024-09-10T14:36:24 DEBUG: Command: 'chmod 644 /etc/sysconfig/clock'
+2024-09-10T14:36:24 DEBUG: Command: 'whereis timedatectl'
+2024-09-10T14:36:24 DEBUG: Command: '/usr/bin/timedatectl set-local-rtc 0 2>/tmp/guest.customization.stderr'
+[2024-09-10T14:36:31.150Z] [   debug] Command to exec : '/bin/rm'.
+[2024-09-10T14:36:31.254Z] [    info] Customization command output:
+[2024-09-10T14:36:31.254Z] [   debug] Command to exec : '/usr/bin/cloud-init'.
+[2024-09-10T14:36:32.157Z] [    info] Customization command output:
+[2024-09-10T14:36:37.193Z] [   debug] Command to exec : '/usr/bin/cloud-init'.
+[2024-09-10T14:36:38.321Z] [    info] Customization command output:
+[2024-09-10T14:36:46.030Z] [   debug] Command to exec : '/usr/bin/cloud-init'.
+[2024-09-10T14:36:47.768Z] [    info] Customization command output:
+[2024-09-10T14:36:58.976Z] [   debug] Command to exec : '/usr/bin/cloud-init'.
+[2024-09-10T14:37:00.706Z] [    info] Customization command output:
+[2024-09-10T14:37:00.707Z] [   debug] Command to exec : '/bin/readlink'.
+[2024-09-10T14:37:00.808Z] [    info] Customization command output:
+[2024-09-10T14:37:00.808Z] [   debug] Command to exec : '/sbin/telinit'.
+[2024-09-10T14:37:00.909Z] [    info] Customization command output:
+[2024-09-10T14:37:01.909Z] [   debug] Command to exec : '/sbin/telinit'.
+[2024-09-10T14:37:02.636Z] [    info] Customization command output:
+[2024-09-10T14:37:02.636Z] [   error] Customization command failed with stderr: 'Failed to set wall message, ignoring: Refusing activation, D-Bus is shutting down.
 ```
 
 
