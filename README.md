@@ -16908,7 +16908,7 @@ users:
   groups: sudo, wheel
   lock_passwd: true
   ssh_authorized_keys:
-  - AAAAC3NzaC1lZDI1NTE5AAAAIE1x+93H1K9QT62tvFbO3M8Ze5JvjtDB4QeslJJx60xi jiri
+  - ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIE1x+93H1K9QT62tvFbO3M8Ze5JvjtDB4QeslJJx60xi jiri
 ```
 
 
