@@ -17287,6 +17287,11 @@ $ grep -i command /var/log/vmware-imc/toolsDeployPkg.log
 [2024-09-10T14:37:02.636Z] [   error] Customization command failed with stderr: 'Failed to set wall message, ignoring: Refusing activation, D-Bus is shutting down.
 ```
 
+KB articles & other sources of information:
+- https://knowledge.broadcom.com/external/article/311864/how-does-vsphere-guest-os-customization.html
+- https://knowledge.broadcom.com/external/article?legacyId=59557
+- https://cloudinit.readthedocs.io/en/latest/reference/datasources/vmware.html
+
 
 #### VCSA
 
