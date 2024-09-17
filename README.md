@@ -8603,7 +8603,7 @@ Soft Hyphen), it doubles that unicode character.
 $ tac /tmp/out.sla | grep -m1 -Po 'ITEXT.*CH="\K[^"]+'
 Te­­ze
 
-s:~/src/github.com/jirib/notes$ tac /tmp/out.sla | grep -m1 -Po 'ITEXT.*CH="\K[^"]+' | xxd -a
+s tac /tmp/out.sla | grep -m1 -Po 'ITEXT.*CH="\K[^"]+' | xxd -a
 00000000: 5465 c2ad c2ad 7a65 0a                   Te....ze.
 ```
 
