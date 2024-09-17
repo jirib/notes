@@ -6032,6 +6032,104 @@ Id Path                    single      single     single   Unallocated Total    
    Used                    34598.62MiB 1248.95MiB  0.02MiB
 ```
 
+An attempt to mount BTRFS outside of LVM:
+
+``` shell
+# just a demonstration that the block device is a PV
+$ xxd -s $((512+32)) -l 32 /dev/loop0
+00000220: 6938 7070 3932 4852 6b66 6939 6f73 4949  i8pp92HRkfi9osII
+00000230: 5246 746f 6545 6649 6678 376d 3730 5246  RFtoeEfIfx7m70RF
+
+# LVM metadata are usually 1 or 4 MB, here skipping 1 MB
+# plus skipping 65536 for BTRFS superblock start offset
+$ xxd -s $(( (1 * 1024 * 1024) + 65536)) -l 4096 /dev/loop0 | grep _BHRfS_M
+00110040: 5f42 4852 6653 5f4d 0800 0000 0000 0000  _BHRfS_M........
+
+# BTRFS superblock starts at 65536, the magic number `_BHRfS_M` is located
+# at offset 64 within the superblock
+$ printf '%d - %d - %d\n' 0x00110040 $((1 * 1024 * 1024)) 64 | bc
+65536
+
+# or... skipping LVM, BTRFS superblock start offset and checking if BTRFS
+# magic number starts at offset 64 (0x40)
+$ dd if=/dev/loop0 bs=1 skip=$(( (1 * 1024 * 1024) + 65536 )) count=4096 status=none | \
+    xxd -l $((64+16))
+00000000: 7803 d745 0000 0000 0000 0000 0000 0000  x..E............
+00000010: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+00000020: cf5c 6059 03c4 4341 ad26 1ffc 3d66 59a6  .\`Y..CA.&..=fY.
+00000030: 0000 0100 0000 0000 0100 0000 0000 0000  ................
+00000040: 5f42 4852 6653 5f4d 0800 0000 0000 0000  _BHRfS_M........
+
+# skipping LVM metadata
+$ losetup -o $((1 * 1024 * 1024)) /dev/loop9 /dev/loop0
+
+$ btrfs inspect-internal dump-super -F /dev/loop9
+superblock: bytenr=65536, device=/dev/loop9
+---------------------------------------------------------
+csum_type               0 (crc32c)
+csum_size               4
+csum                    0x7803d745 [match]
+bytenr                  65536
+flags                   0x1
+                        ( WRITTEN )
+magic                   _BHRfS_M [match]
+fsid                    cf5c6059-03c4-4341-ad26-1ffc3d6659a6
+metadata_uuid           00000000-0000-0000-0000-000000000000
+label
+generation              8
+root                    30638080
+sys_array_size          129
+chunk_root_generation   6
+root_level              0
+chunk_root              22036480
+chunk_root_level        0
+log_root                0
+log_root_transid (deprecated)   0
+log_root_level          0
+total_bytes             520093696
+bytes_used              147456
+sectorsize              4096
+nodesize                16384
+leafsize (deprecated)   16384
+stripesize              4096
+root_dir                6
+num_devices             1
+compat_flags            0x0
+compat_ro_flags         0x3
+                        ( FREE_SPACE_TREE |
+                          FREE_SPACE_TREE_VALID )
+incompat_flags          0x361
+                        ( MIXED_BACKREF |
+                          BIG_METADATA |
+                          EXTENDED_IREF |
+                          SKINNY_METADATA |
+                          NO_HOLES )
+cache_generation        0
+uuid_tree_generation    8
+dev_item.uuid           59fb9221-a858-47fe-9711-f228a6976b53
+dev_item.fsid           cf5c6059-03c4-4341-ad26-1ffc3d6659a6 [match]
+dev_item.type           0
+dev_item.total_bytes    520093696
+dev_item.bytes_used     92274688
+dev_item.io_align       4096
+dev_item.io_width       4096
+dev_item.sector_size    4096
+dev_item.devid          1
+dev_item.dev_group      0
+dev_item.seek_speed     0
+dev_item.bandwidth      0
+dev_item.generation     0
+
+$ wipefs /dev/loop9
+DEVICE OFFSET  TYPE  UUID                                 LABEL
+loop9  0x10040 btrfs cf5c6059-03c4-4341-ad26-1ffc3d6659a6
+
+# see btrfs(5) for details
+$ mount -t btrfs -o ro,skip_balance,norecovery /dev/loop9 /mnt
+$ cat /mnt/test.txt
+hello world
+```
+
 
 ### drbd
 
@@ -6549,6 +6647,40 @@ Logged issues:
 
 ^^ here a backing directory of the 'test' share did not exit
 ```
+
+### XFS
+
+An attempt to mount XFS outside of LVM:
+
+``` shell
+# just a demonstration that the block device is a PV
+$ xxd -s $((512+32)) -l 32 /dev/loop0
+00000220: 6938 7070 3932 4852 6b66 6939 6f73 4949  i8pp92HRkfi9osII
+00000230: 5246 746f 6545 6649 6678 376d 3730 5246  RFtoeEfIfx7m70RF
+
+$ xxd -c 32 /dev/loop0 | grep -m 1 XFS
+00100000: 5846 5342 0000 1000 0000 0000 0001 f000 0000 0000 0000 0000 0000 0000 0000 0000  XFSB............................
+
+$ printf '%d\n' 0x00100000 | bc
+104857600010020
+
+$ xxd -s $((1048576)) -l 32 /dev/loop0
+00100000: 5846 5342 0000 1000 0000 0000 0001 f000  XFSB............
+00100010: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+
+$ losetup -o 1048576 /dev/loop9 /dev/loop0
+
+$ wipefs /dev/loop9
+DEVICE OFFSET TYPE UUID                                 LABEL
+loop9  0x0    xfs  bdbe2aca-5ba0-4e2c-a3d0-96798248e075
+
+$ mount -o ro /dev/loop9 /mnt
+$ cat /mnt/test.txt
+hello world
+```
+
+For BTRFS, see its own section.
+
 
 #### samba
 
@@ -8408,6 +8540,76 @@ Update `polixy.xml`.
 xmllint --xpath '/policymap/policy[@pattern="PDF"]' /etc/ImageMagick-7/policy.xml
 <policy xmlns="" domain="coder" rights="read | write" pattern="PDF"/>
 ```
+
+
+### scribus
+
+Fonts, dictionaries and hyphenations can be "imported" into Scribus via: Windows - Resource Manager. See:
+
+``` shell
+$ ls -1 .local/share/scribus/{dicts/{hyph,spell}/,downloads,fonts}
+.local/share/scribus/dicts/hyph/:
+hyph_cs_CZ.dic
+README_cs.txt
+
+.local/share/scribus/dicts/spell/:
+cs_CZ.aff
+cs_CZ.dic
+
+.local/share/scribus/downloads:
+cs_CZ.aff
+cs_CZ.dic
+hyph_cs_CZ.dic
+hyph_pl_PL.dic
+pl_PL.aff
+pl_PL.dic
+README_cs.txt
+README_pl.txt
+scribus_fonts.xml
+scribus_fonts.xml.sha256
+scribus_help.xml
+scribus_help.xml.sha256
+scribus_hyph_dicts.xml
+scribus_hyph_dicts.xml.sha256
+scribus_palettes.xml
+scribus_palettes.xml.sha256
+scribus_spell_dicts.xml
+scribus_spell_dicts.xml.sha256
+
+.local/share/scribus/fonts:
+```
+
+Hm, Resource Manager could not download spellcheck dicts and hyphenation data, so I did:
+
+``` shell
+$ curl -Ls 'https://download.documentfoundation.org/libreoffice/src/24.8.1/libreoffice-dictionaries-24.8.1.2.tar.xz?idx=2' | \
+    bsdtar --strip-components 3 -xf - -C ~/.local/share/scribus/dicts/spell 'libreoffice*/cs_CZ/cs_CZ*'
+$ curl -Ls 'https://download.documentfoundation.org/libreoffice/src/24.8.1/libreoffice-dictionaries-24.8.1.2.tar.xz?idx=2' | \
+    bsdtar --strip-components 3 -xf - -C ~/.local/share/scribus/dicts/hyph 'libreoffice*/cs_CZ/hyph_cs_CZ*'
+```
+
+Scribus uses unicode character U+00AD (soft hyphen) as a hyphenation
+character in its _sla_ format.
+
+``` shell
+$ tac /tmp/out.sla | grep -m1 -Po 'ITEXT.*CH="\K[^"]+' | xxd -a
+00000000: 5465 c2ad 7a65 0a                        Te..ze.
+```
+
+However, if you explictly insert a soft hyphen (Insert - Character -
+Soft Hyphen), it doubles that unicode character.
+
+``` shell
+$ tac /tmp/out.sla | grep -m1 -Po 'ITEXT.*CH="\K[^"]+'
+Te­­ze
+
+s:~/src/github.com/jirib/notes$ tac /tmp/out.sla | grep -m1 -Po 'ITEXT.*CH="\K[^"]+' | xxd -a
+00000000: 5465 c2ad c2ad 7a65 0a                   Te....ze.
+```
+
+So, this might help if one prefers to hyphenate the text herself via
+Scribus python API, for example.
+
 
 ## hardware
 
@@ -12595,6 +12797,19 @@ guide is great place for additional info!
 `smartctl -a <device>`
 
 ### lvm
+
+Specification of LVM metadata is at [LVM Format
+Specification](https://github.com/libyal/libvslvm/blob/main/documentation/Logical%20Volume%20Manager%20(LVM)%20format.asciidoc).
+
+``` shell
+$ xxd -s $((512+32)) -l 32 /dev/loop0
+00000220: 6938 7070 3932 4852 6b66 6939 6f73 4949  i8pp92HRkfi9osII
+00000230: 5246 746f 6545 6649 6678 376d 3730 5246  RFtoeEfIfx7m70RF
+
+$ grep -A 1 -m1 pv0 /etc/lvm/backup/testvg
+                pv0 {
+                        id = "i8pp92-HRkf-i9os-IIRF-toeE-fIfx-7m70RF"
+```
 
 ``` shell
 lvmconfig # print current lvm configuration
