@@ -14182,10 +14182,26 @@ $ virsh define <(virsh dumpxml ${template} | \
 
 SLE Micro as libvirt domain/VM:
 
+
+#### ignition
+
+Note, that *ignition* needs to match `ignition.platform.id` and
+provided that, that is, if you would have `ignition.platform.id=metal`
+and would in fact use QEMU sysinfo, it won't work!
+
 ``` shell
-$ virsh dumpxml jbelka-jbm55qe01 | grep -P '(sysinfo|entry)'
-  <sysinfo type='fwcfg'>
-    <entry name='opt/com.coreos/config' file='/var/lib/libvirt/images/jbelka/jbm55qe01.config.ign'/>
+$ for i in /var/lib/libvirt/images/iso/SUSE-Manager-Server.x86_64-5.0.0*; do \
+    echo '#' image: $i ; virt-cat -a $i /boot/grub2/grub.cfg | grep -Po -m1 'ignition.platform.id=\S+'; \
+  done
+# image: /var/lib/libvirt/images/iso/SUSE-Manager-Server.x86_64-5.0.0-Qcow-GM.qcow2
+ignition.platform.id=qemu
+# image: /var/lib/libvirt/images/iso/SUSE-Manager-Server.x86_64-5.0.0-Raw-GM.raw
+ignition.platform.id=metal
+
+$ virsh dumpxml jbelka-jbmrt55qe01 | xmllint --xpath '//sysinfo' -
+<sysinfo type="fwcfg">
+    <entry name="opt/com.coreos/config" file="/var/lib/libvirt/images/jbelka/jbmrt55qe01.config.ign"/>
+    <entry name="opt/org.opensuse.combustion/script" file="/var/lib/libvirt/images/jbelka/jbmrt55qe01.combustion.sh"/>
   </sysinfo>
 ```
 
