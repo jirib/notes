@@ -16400,6 +16400,29 @@ BOOTPROTO='dhcp'
 STARTMODE='auto'
 ```
 
+What about if local host does not support, for example, filesystem use
+in the image (eg. EL not supporting BTRFS)?
+
+``` shell
+# download appliance from:
+# https://download.libguestfs.org/binaries/appliance/
+
+$ export LIBGUESTFS_PATH=<path_to_applicance> guestfish ...
+```
+
+Or you can rebuild _supermin_ appliance yourself, but the above is
+much quicker solution.
+
+There are more tools - to list filesystems, copy in/out, cat files, list paths...
+
+``` shell
+$ virt-ls -l -d micro55qe01 -m /dev/sda3:/:subvol=@/boot/writable /
+total 4
+drwxr-xr-x.  1 root root   36 Sep 24 13:01 .
+drwxr-xr-x  20 root root 4096 Sep 25 06:46 ..
+-rw-r--r--.  1 root root    0 Sep 24 13:01 firstboot_happened
+```
+
 
 ### libvirt
 
