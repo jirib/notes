@@ -1594,6 +1594,11 @@ borg list ::$(borg list --last 1 | awk '{ print $1 }') <path>
 borg extract --strip-components <digit> ::$(borg list --last 1 | awk '{ print $1 }') <path>
 ```
 
+Use `BORG_PASSCOMMAND` variable with literal command how to get the
+password, instead of `BORG_PASSHRASE`, as the latter might leak in the
+logs.
+
+
 ### rear
 
 [Rear](https://github.com/rear/rear) is not ready to use tool, it's
@@ -15362,6 +15367,23 @@ $ gpg --armor --export
 # secret key
 $ gpg --export-secret-keys <value>
 ```
+
+
+Where are the keys located?
+
+``` shell
+gpg --list-secret-keys --with-keygrip jirib79@gmail.com
+sec   rsa2048 2021-09-17 [SCEA]
+      F178D4D326B55EB03F8A23A55B9E7F688216D470
+      Keygrip = 533E713DA4C40370164DB8C00E9F7BF158860754
+uid           [ultimate] Jiří Bělka <jirib79@gmail.com>
+ssb   rsa2048 2021-09-17 [SEA]
+      Keygrip = D1D82AE03624312E06E5FAC166818CED5CF9F7BC
+
+$ find .gnupg/private-keys-v1.d/ | grep D1D8
+.gnupg/private-keys-v1.d/D1D82AE03624312E06E5FAC166818CED5CF9F7BC.key
+```
+
 
 #### hockeypuck PGP server
 
