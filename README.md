@@ -4786,6 +4786,446 @@ xdg-mime query filetype <file>     # returns mime type
 xdg-mime query default <mime_type> # returns desktop file
 ```
 
+### sway
+
+Not fully completed yet.
+
+``` shell
+$ grep -RHPv '^\s*(#|$|//)' .config/{sway/config,waybar/*}
+.config/sway/config:set $mod Mod4
+.config/sway/config:set $left h
+.config/sway/config:set $down j
+.config/sway/config:set $up k
+.config/sway/config:set $right l
+.config/sway/config:set $term foot
+.config/sway/config:set $menu dmenu_path | wmenu | xargs swaymsg exec --
+.config/sway/config:include /etc/sway/config-vars.d/*
+.config/sway/config:set $screenlock "swaylock -k -c 000000"
+.config/sway/config:bindsym $mod+F2 exec $screenlock
+.config/sway/config:    bindsym $mod+Return exec $term
+.config/sway/config:    bindsym $mod+Shift+q kill
+.config/sway/config:    bindsym $mod+d exec $menu
+.config/sway/config:    floating_modifier $mod normal
+.config/sway/config:    bindsym $mod+Shift+c reload
+.config/sway/config:    bindsym $mod+Shift+e exec swaynag -t warning -m 'You pressed the exit shortcut. Do you really want to exit sway? This will end your Wayland session.' -B 'Yes, exit sway' 'swaymsg exit'
+.config/sway/config:    bindsym $mod+$left focus left
+.config/sway/config:    bindsym $mod+$down focus down
+.config/sway/config:    bindsym $mod+$up focus up
+.config/sway/config:    bindsym $mod+$right focus right
+.config/sway/config:    bindsym $mod+Left focus left
+.config/sway/config:    bindsym $mod+Down focus down
+.config/sway/config:    bindsym $mod+Up focus up
+.config/sway/config:    bindsym $mod+Right focus right
+.config/sway/config:    bindsym $mod+Shift+$left move left
+.config/sway/config:    bindsym $mod+Shift+$down move down
+.config/sway/config:    bindsym $mod+Shift+$up move up
+.config/sway/config:    bindsym $mod+Shift+$right move right
+.config/sway/config:    bindsym $mod+Shift+Left move left
+.config/sway/config:    bindsym $mod+Shift+Down move down
+.config/sway/config:    bindsym $mod+Shift+Up move up
+.config/sway/config:    bindsym $mod+Shift+Right move right
+.config/sway/config:    bindsym $mod+1 workspace number 1
+.config/sway/config:    bindsym $mod+2 workspace number 2
+.config/sway/config:    bindsym $mod+3 workspace number 3
+.config/sway/config:    bindsym $mod+4 workspace number 4
+.config/sway/config:    bindsym $mod+5 workspace number 5
+.config/sway/config:    bindsym $mod+6 workspace number 6
+.config/sway/config:    bindsym $mod+7 workspace number 7
+.config/sway/config:    bindsym $mod+8 workspace number 8
+.config/sway/config:    bindsym $mod+9 workspace number 9
+.config/sway/config:    bindsym $mod+0 workspace number 10
+.config/sway/config:    bindsym $mod+Shift+1 move container to workspace number 1
+.config/sway/config:    bindsym $mod+Shift+2 move container to workspace number 2
+.config/sway/config:    bindsym $mod+Shift+3 move container to workspace number 3
+.config/sway/config:    bindsym $mod+Shift+4 move container to workspace number 4
+.config/sway/config:    bindsym $mod+Shift+5 move container to workspace number 5
+.config/sway/config:    bindsym $mod+Shift+6 move container to workspace number 6
+.config/sway/config:    bindsym $mod+Shift+7 move container to workspace number 7
+.config/sway/config:    bindsym $mod+Shift+8 move container to workspace number 8
+.config/sway/config:    bindsym $mod+Shift+9 move container to workspace number 9
+.config/sway/config:    bindsym $mod+Shift+0 move container to workspace number 10
+.config/sway/config:    bindsym $mod+b splith
+.config/sway/config:    bindsym $mod+v splitv
+.config/sway/config:    bindsym $mod+s layout stacking
+.config/sway/config:    bindsym $mod+w layout tabbed
+.config/sway/config:    bindsym $mod+e layout toggle split
+.config/sway/config:    bindsym $mod+f fullscreen
+.config/sway/config:    bindsym $mod+Shift+space floating toggle
+.config/sway/config:    bindsym $mod+space focus mode_toggle
+.config/sway/config:    bindsym $mod+a focus parent
+.config/sway/config:    bindsym $mod+Shift+minus move scratchpad
+.config/sway/config:    bindsym $mod+minus scratchpad show
+.config/sway/config:mode "resize" {
+.config/sway/config:    bindsym $left resize shrink width 10px
+.config/sway/config:    bindsym $down resize grow height 10px
+.config/sway/config:    bindsym $up resize shrink height 10px
+.config/sway/config:    bindsym $right resize grow width 10px
+.config/sway/config:    bindsym Left resize shrink width 10px
+.config/sway/config:    bindsym Down resize grow height 10px
+.config/sway/config:    bindsym Up resize shrink height 10px
+.config/sway/config:    bindsym Right resize grow width 10px
+.config/sway/config:    bindsym Return mode "default"
+.config/sway/config:    bindsym Escape mode "default"
+.config/sway/config:}
+.config/sway/config:bindsym $mod+r mode "resize"
+.config/sway/config:bar {
+.config/sway/config:    swaybar_command waybar
+.config/sway/config:    status_command i3status
+.config/sway/config:    colors {
+.config/sway/config:        statusline #ffffff
+.config/sway/config:        background #000000
+.config/sway/config:        inactive_workspace #32323200 #32323200 #5c5c5c
+.config/sway/config:    }
+.config/sway/config:}
+.config/sway/config:include /etc/sway/config.d/*
+.config/waybar/config.jsonc:{
+.config/waybar/config.jsonc:    "position": "bottom", // Waybar position (top|bottom|left|right)
+.config/waybar/config.jsonc:    "height": 30, // Waybar height (to be removed for auto height)
+.config/waybar/config.jsonc:    "spacing": 4, // Gaps between modules (4px)
+.config/waybar/config.jsonc:    "modules-left": [
+.config/waybar/config.jsonc:        "sway/workspaces",
+.config/waybar/config.jsonc:        "sway/mode",
+.config/waybar/config.jsonc:        "sway/scratchpad",
+.config/waybar/config.jsonc:        "custom/media"
+.config/waybar/config.jsonc:    ],
+.config/waybar/config.jsonc:    "modules-right": [
+.config/waybar/config.jsonc:        "pulseaudio",
+.config/waybar/config.jsonc:        "network",
+.config/waybar/config.jsonc:        "cpu",
+.config/waybar/config.jsonc:        "memory",
+.config/waybar/config.jsonc:        "temperature",
+.config/waybar/config.jsonc:        "backlight",
+.config/waybar/config.jsonc:        "keyboard-state",
+.config/waybar/config.jsonc:        "sway/language",
+.config/waybar/config.jsonc:        "battery",
+.config/waybar/config.jsonc:        "battery#bat2",
+.config/waybar/config.jsonc:        "clock",
+.config/waybar/config.jsonc:        "tray"
+.config/waybar/config.jsonc:,
+.config/waybar/config.jsonc:        "custom/power"
+.config/waybar/config.jsonc:    ],
+.config/waybar/config.jsonc:    "keyboard-state": {
+.config/waybar/config.jsonc:        "numlock": true,
+.config/waybar/config.jsonc:        "capslock": true,
+.config/waybar/config.jsonc:        "format": "{name} {icon}",
+.config/waybar/config.jsonc:        "format-icons": {
+.config/waybar/config.jsonc:            "locked": "",
+.config/waybar/config.jsonc:            "unlocked": ""
+.config/waybar/config.jsonc:        }
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "sway/mode": {
+.config/waybar/config.jsonc:        "format": "<span style=\"italic\">{}</span>"
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "sway/scratchpad": {
+.config/waybar/config.jsonc:        "format": "{icon} {count}",
+.config/waybar/config.jsonc:        "show-empty": false,
+.config/waybar/config.jsonc:        "format-icons": ["", ""],
+.config/waybar/config.jsonc:        "tooltip": true,
+.config/waybar/config.jsonc:        "tooltip-format": "{app}: {title}"
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "idle_inhibitor": {
+.config/waybar/config.jsonc:        "format": "{icon}",
+.config/waybar/config.jsonc:        "format-icons": {
+.config/waybar/config.jsonc:            "activated": "",
+.config/waybar/config.jsonc:            "deactivated": ""
+.config/waybar/config.jsonc:        }
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "tray": {
+.config/waybar/config.jsonc:        "spacing": 10
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "clock": {
+.config/waybar/config.jsonc:        "tooltip-format": "<big>{:%Y %B}</big>\n<tt><small>{calendar}</small></tt>",
+.config/waybar/config.jsonc:        "format-alt": "{:%Y-%m-%d}",
+.config/waybar/config.jsonc:        "format": "{:%H:%M:%S}",
+.config/waybar/config.jsonc:        "interval": 5
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "cpu": {
+.config/waybar/config.jsonc:        "format": "{usage}% ",
+.config/waybar/config.jsonc:        "tooltip": false
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "memory": {
+.config/waybar/config.jsonc:        "format": "{}% "
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "temperature": {
+.config/waybar/config.jsonc:        "critical-threshold": 80,
+.config/waybar/config.jsonc:        "format": "{temperatureC}°C {icon}",
+.config/waybar/config.jsonc:        "format-icons": ["", "", ""]
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "backlight": {
+.config/waybar/config.jsonc:        "format": "{percent}% {icon}",
+.config/waybar/config.jsonc:        "format-icons": ["", "", "", "", "", "", "", "", ""]
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "battery": {
+.config/waybar/config.jsonc:        "states": {
+.config/waybar/config.jsonc:            "warning": 30,
+.config/waybar/config.jsonc:            "critical": 15
+.config/waybar/config.jsonc:        },
+.config/waybar/config.jsonc:        "format": "{capacity}% {icon}",
+.config/waybar/config.jsonc:        "format-full": "{capacity}% {icon}",
+.config/waybar/config.jsonc:        "format-charging": "{capacity}% ",
+.config/waybar/config.jsonc:        "format-plugged": "{capacity}% ",
+.config/waybar/config.jsonc:        "format-alt": "{time} {icon}",
+.config/waybar/config.jsonc:        "format-icons": ["", "", "", "", ""]
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "battery#bat2": {
+.config/waybar/config.jsonc:        "bat": "BAT2"
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "power-profiles-daemon": {
+.config/waybar/config.jsonc:      "format": "{icon}",
+.config/waybar/config.jsonc:      "tooltip-format": "Power profile: {profile}\nDriver: {driver}",
+.config/waybar/config.jsonc:      "tooltip": true,
+.config/waybar/config.jsonc:      "format-icons": {
+.config/waybar/config.jsonc:        "default": "",
+.config/waybar/config.jsonc:        "performance": "",
+.config/waybar/config.jsonc:        "balanced": "",
+.config/waybar/config.jsonc:        "power-saver": ""
+.config/waybar/config.jsonc:      }
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "network": {
+.config/waybar/config.jsonc:        "format-wifi": "{essid} ({signalStrength}%) ",
+.config/waybar/config.jsonc:        "format-ethernet": "{ipaddr}/{cidr} ",
+.config/waybar/config.jsonc:        "tooltip-format": "{ifname} via {gwaddr} ",
+.config/waybar/config.jsonc:        "format-linked": "{ifname} (No IP) ",
+.config/waybar/config.jsonc:        "format-disconnected": "Disconnected ⚠",
+.config/waybar/config.jsonc:        "format-alt": "{ifname}: {ipaddr}/{cidr}"
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "pulseaudio": {
+.config/waybar/config.jsonc:        "format": "{volume}% {icon} {format_source}",
+.config/waybar/config.jsonc:        "format-bluetooth": "{volume}% {icon} {format_source}",
+.config/waybar/config.jsonc:        "format-bluetooth-muted": " {icon} {format_source}",
+.config/waybar/config.jsonc:        "format-muted": " {format_source}",
+.config/waybar/config.jsonc:        "format-source": "{volume}% ",
+.config/waybar/config.jsonc:        "format-source-muted": "",
+.config/waybar/config.jsonc:        "format-icons": {
+.config/waybar/config.jsonc:            "headphone": "",
+.config/waybar/config.jsonc:            "hands-free": "",
+.config/waybar/config.jsonc:            "headset": "",
+.config/waybar/config.jsonc:            "phone": "",
+.config/waybar/config.jsonc:            "portable": "",
+.config/waybar/config.jsonc:            "car": "",
+.config/waybar/config.jsonc:            "default": ["", "", ""]
+.config/waybar/config.jsonc:        },
+.config/waybar/config.jsonc:        "on-click": "pavucontrol"
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "custom/media": {
+.config/waybar/config.jsonc:        "format": "{icon} {}",
+.config/waybar/config.jsonc:        "return-type": "json",
+.config/waybar/config.jsonc:        "max-length": 40,
+.config/waybar/config.jsonc:        "format-icons": {
+.config/waybar/config.jsonc:            "spotify": "",
+.config/waybar/config.jsonc:            "default": "🎜"
+.config/waybar/config.jsonc:        },
+.config/waybar/config.jsonc:        "escape": true,
+.config/waybar/config.jsonc:        "exec": "$HOME/.config/waybar/mediaplayer.py 2> /dev/null" // Script in resources folder
+.config/waybar/config.jsonc:    },
+.config/waybar/config.jsonc:    "custom/power": {
+.config/waybar/config.jsonc:        "format" : "⏻ ",
+.config/waybar/config.jsonc:		"tooltip": false,
+.config/waybar/config.jsonc:		"menu": "on-click",
+.config/waybar/config.jsonc:		"menu-file": "$HOME/.config/waybar/power_menu.xml", // Menu file in resources folder
+.config/waybar/config.jsonc:		"menu-actions": {
+.config/waybar/config.jsonc:			"shutdown": "shutdown",
+.config/waybar/config.jsonc:			"reboot": "reboot",
+.config/waybar/config.jsonc:			"suspend": "systemctl suspend",
+.config/waybar/config.jsonc:			"hibernate": "systemctl hibernate"
+.config/waybar/config.jsonc:		}
+.config/waybar/config.jsonc:    }
+.config/waybar/config.jsonc:}
+.config/waybar/style.css:* {
+.config/waybar/style.css:    /* `otf-font-awesome` is required to be installed for icons */
+.config/waybar/style.css:    font-family: FontAwesome, Roboto, Helvetica, Arial, sans-serif;
+.config/waybar/style.css:    font-size: 13px;
+.config/waybar/style.css:}
+.config/waybar/style.css:window#waybar {
+.config/waybar/style.css:  /* background-color: rgba(43, 48, 59, 0.5); */
+.config/waybar/style.css:  background-color: black;
+.config/waybar/style.css:    border-bottom: 3px solid rgba(100, 114, 125, 0.5);
+.config/waybar/style.css:    color: #ffffff;
+.config/waybar/style.css:    transition-property: background-color;
+.config/waybar/style.css:    transition-duration: .5s;
+.config/waybar/style.css:}
+.config/waybar/style.css:window#waybar.hidden {
+.config/waybar/style.css:    opacity: 0.2;
+.config/waybar/style.css:}
+.config/waybar/style.css:/*
+.config/waybar/style.css:window#waybar.empty {
+.config/waybar/style.css:    background-color: transparent;
+.config/waybar/style.css:}
+.config/waybar/style.css:window#waybar.solo {
+.config/waybar/style.css:    background-color: #FFFFFF;
+.config/waybar/style.css:}
+.config/waybar/style.css:*/
+.config/waybar/style.css:window#waybar.termite {
+.config/waybar/style.css:    background-color: #3F3F3F;
+.config/waybar/style.css:}
+.config/waybar/style.css:window#waybar.chromium {
+.config/waybar/style.css:    background-color: #000000;
+.config/waybar/style.css:    border: none;
+.config/waybar/style.css:}
+.config/waybar/style.css:button {
+.config/waybar/style.css:    /* Use box-shadow instead of border so the text isn't offset */
+.config/waybar/style.css:    box-shadow: inset 0 -3px transparent;
+.config/waybar/style.css:    /* Avoid rounded borders under each button name */
+.config/waybar/style.css:    border: none;
+.config/waybar/style.css:    border-radius: 0;
+.config/waybar/style.css:}
+.config/waybar/style.css:/* https://github.com/Alexays/Waybar/wiki/FAQ#the-workspace-buttons-have-a-strange-hover-effect */
+.config/waybar/style.css:button:hover {
+.config/waybar/style.css:    background: inherit;
+.config/waybar/style.css:    box-shadow: inset 0 -3px #ffffff;
+.config/waybar/style.css:}
+.config/waybar/style.css:/* you can set a style on hover for any module like this */
+.config/waybar/style.css:    background-color: #a37800;
+.config/waybar/style.css:}
+.config/waybar/style.css:    padding: 0 5px;
+.config/waybar/style.css:    background-color: transparent;
+.config/waybar/style.css:    color: #ffffff;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background: rgba(0, 0, 0, 0.2);
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #64727D;
+.config/waybar/style.css:    box-shadow: inset 0 -3px #ffffff;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #eb4d4b;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #64727D;
+.config/waybar/style.css:    box-shadow: inset 0 -3px #ffffff;
+.config/waybar/style.css:}
+.config/waybar/style.css:    padding: 0 10px;
+.config/waybar/style.css:    color: #ffffff;
+.config/waybar/style.css:}
+.config/waybar/style.css:    margin: 0 4px;
+.config/waybar/style.css:}
+.config/waybar/style.css:/* If workspaces is the leftmost module, omit left margin */
+.config/waybar/style.css:.modules-left > widget:first-child > #workspaces {
+.config/waybar/style.css:    margin-left: 0;
+.config/waybar/style.css:}
+.config/waybar/style.css:/* If workspaces is the rightmost module, omit right margin */
+.config/waybar/style.css:.modules-right > widget:last-child > #workspaces {
+.config/waybar/style.css:    margin-right: 0;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #000000;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #ffffff;
+.config/waybar/style.css:    color: #000000;
+.config/waybar/style.css:}
+.config/waybar/style.css:    color: #ffffff;
+.config/waybar/style.css:    background-color: #000000;
+.config/waybar/style.css:}
+.config/waybar/style.css:@keyframes blink {
+.config/waybar/style.css:    to {
+.config/waybar/style.css:        background-color: #ffffff;
+.config/waybar/style.css:        color: #000000;
+.config/waybar/style.css:    }
+.config/waybar/style.css:}
+.config/waybar/style.css:/* Using steps() instead of linear as a timing function to limit cpu usage */
+.config/waybar/style.css:    background-color: #f53c3c;
+.config/waybar/style.css:    color: #ffffff;
+.config/waybar/style.css:    animation-name: blink;
+.config/waybar/style.css:    animation-duration: 0.5s;
+.config/waybar/style.css:    animation-timing-function: steps(12);
+.config/waybar/style.css:    animation-iteration-count: infinite;
+.config/waybar/style.css:    animation-direction: alternate;
+.config/waybar/style.css:}
+.config/waybar/style.css:    padding-right: 15px;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #f53c3c;
+.config/waybar/style.css:    color: #ffffff;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #2980b9;
+.config/waybar/style.css:    color: #ffffff;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #2ecc71;
+.config/waybar/style.css:    color: #000000;
+.config/waybar/style.css:}
+.config/waybar/style.css:label:focus {
+.config/waybar/style.css:    background-color: #000000;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #000000;
+.config/waybar/style.css:    color: #ffffff;
+.config/waybar/style.css:}
+.config/waybar/style.css:  background-color: #000000;
+.config/waybar/style.css:  color: #ffffff;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #964B00;
+.config/waybar/style.css:}
+.config/waybar/style.css:  background-color: #000000;
+.config/waybar/style.css:  color: #ffffff;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #000000;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #f53c3c;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #000000;
+.config/waybar/style.css:    color: #ffffff;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #90b1b1;
+.config/waybar/style.css:    color: #2a5c45;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #fff0f5;
+.config/waybar/style.css:    color: #000000;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #f53c3c;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #66cc99;
+.config/waybar/style.css:    color: #2a5c45;
+.config/waybar/style.css:    min-width: 100px;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #66cc99;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #ffa000;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #000000;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #eb4d4b;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #000000;
+.config/waybar/style.css:}
+.config/waybar/style.css:    -gtk-icon-effect: dim;
+.config/waybar/style.css:}
+.config/waybar/style.css:    -gtk-icon-effect: highlight;
+.config/waybar/style.css:    background-color: #eb4d4b;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #2d3436;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #ecf0f1;
+.config/waybar/style.css:    color: #2d3436;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background: #000000;
+.config/waybar/style.css:    color: #ffffff;
+.config/waybar/style.css:    padding: 0 5px;
+.config/waybar/style.css:    margin: 0 5px;
+.config/waybar/style.css:    min-width: 16px;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background: #000000;
+.config/waybar/style.css:    color: #ffffff;
+.config/waybar/style.css:    padding: 0 0px;
+.config/waybar/style.css:    margin: 0 5px;
+.config/waybar/style.css:    min-width: 16px;
+.config/waybar/style.css:}
+.config/waybar/style.css:    padding: 0 5px;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background: rgba(0, 0, 0, 0.2);
+.config/waybar/style.css:}
+.config/waybar/style.css:    background: rgba(0, 0, 0, 0.2);
+.config/waybar/style.css:}
+.config/waybar/style.css:	background-color: transparent;
+.config/waybar/style.css:}
+.config/waybar/style.css:    padding: 0;
+.config/waybar/style.css:}
+.config/waybar/style.css:    padding: 0 5px;
+.config/waybar/style.css:    color: white;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #cf5700;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #1ca000;
+.config/waybar/style.css:}
+.config/waybar/style.css:    background-color: #0069d4;
+.config/waybar/style.css:}
+```
+
+TODO: env variables, monitors, keyboard layout switching...
+
 
 ### syncthing
 
