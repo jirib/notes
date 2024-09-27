@@ -5430,6 +5430,9 @@ EwIDAQAB
 -----END PUBLIC KEY-----
 ```
 
+
+#### salt-minion
+
 `salt-minion` needs first to establish a connection to a master to
 generate its key, it's *ID* is generated based on:
 
@@ -5441,7 +5444,6 @@ generate its key, it's *ID* is generated based on:
 - first public routable IP
 - first private routable IP
 - *localhost*
-
 
 ``` shell
 ...
@@ -5533,10 +5535,120 @@ local:
 ```
 
 
+##### masterless salt-minion under normal user
+
+``` shell
+$ cat ~/.config/user-tmpfiles.d/salt.conf
+v %C/salt 0755 - -
+D %C/salt/log 0755 - -
+v %h/.config/salt/pki 0755 - -
+D /run/user/%U/salt
+v %h/.local/share/salt/files 0755 - -
+v %h/.local/share/salt/pillar 0755 - -
+
+$ systemd-tmpfiles --user --create
+
+$ grep -Pv '^\s*(#|$)' .config/salt/minion
+user: jiri
+pidfile: /run/user/1000/salt/salt-minion.pid
+conf_file: /home/jiri/.config/salt/minion
+pki_dir: /home/jiri/.config/salt/pki/minion
+cachedir: /home/jiri/.cache/salt
+extension_modules: /home/jiri/.cache/salt/extmods
+sock_dir: /run/user/1000/salt/minion
+file_client: local
+file_roots:
+   base:
+     - /home/jiri/.local/share/salt/files
+pillar_roots:
+  base:
+    - /home/jiri/.local/share/salt/pillar
+log_file: /run/user/1000/salt/log/minion
+
+$ salt-call -c .config/salt/ sys.doc pkg | head
+local:
+    ----------
+    pkg.add_repo_key:
+
+            New in version 2017.7.0
+
+            Add a repo key using ``apt-key add``.
+
+            :param str path: The path of the key file to import.
+            :param str text: The key data to import, in string form.
+```
+
+An example:
+
+``` shell
+$ $ grep -H '' {top,t14s}.sls
+top.sls:base:
+top.sls:  '*':
+top.sls:    - t14s
+t14s.sls:/home/jiri/.configured:
+t14s.sls:  file.managed:
+t14s.sls:    - contents: |
+t14s.sls:        This system is configured by masterless Salt!
+t14s.sls:    - mode: 0600
+
+$ salt-call -c ~/.config/salt/ state.apply
+local:
+----------
+          ID: /home/jiri/.configured
+    Function: file.managed
+      Result: True
+     Comment: File /home/jiri/.configured updated
+     Started: 14:17:26.880663
+    Duration: 5.142 ms
+     Changes:
+              ----------
+              diff:
+                  New file
+
+Summary for local
+------------
+Succeeded: 1 (changed=1)
+Failed:    0
+------------
+Total states run:     1
+Total run time:   5.142 ms
+```
+
+
+### modules
+
+``` shell
+# listing all modules
+
+$ salt-call -c ~/.config/salt/ sys.list_modules | head
+local:
+    - acl
+    - aliases
+    - alternatives
+    - ansible
+    - apache
+    - archive
+    - artifactory
+    - aws_sqs
+    - baredoc
+
+$ salt-call -c ~/.config/salt/ sys.doc file | head
+local:
+    ----------
+    file.access:
+
+            New in version 2014.1.0
+
+            Test whether the Salt process has the specified access to the file. One of
+            the following modes must be specified:
+
+                f: Test the existence of the path
+```
+
 ### pillars
 
 Pillar is a feature of Salt to provide a minion some data, for example
-various variables used in SaLt States (SLS) files.
+various variables used in Salt States (SLS) files.
 
 For example in Ansible's [Alternative directory
 layout](https://docs.ansible.com/ansible/latest/tips_tricks/sample_setup.html#alternative-directory-layout),
@@ -5550,6 +5662,8 @@ pillar_roots:
     - /srv/pillar
 
 ```
+
+
 
 ## dns
 
