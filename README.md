@@ -4641,6 +4641,15 @@ All repositories have been refreshed.
 
 ### gtk
 
+For version 3, 4... one can customize the themes this way:
+
+``` shell
+$ gsettings set org.gnome.desktop.interface font-name 'DejaVu Sans 9'
+$ gsettings set org.gnome.desktop.interface icon-theme bloom-classic-dark
+$ gsettings set org.gnome.desktop.interface gtk-theme Arc-Dark
+```
+
+
 #### file-chrooser
 
 ``` shell
