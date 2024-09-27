@@ -5581,7 +5581,7 @@ local:
 An example:
 
 ``` shell
-$ $ grep -H '' {top,t14s}.sls
+$ grep -H '' {top,t14s}.sls
 top.sls:base:
 top.sls:  '*':
 top.sls:    - t14s
