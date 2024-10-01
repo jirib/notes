@@ -10256,6 +10256,14 @@ EOF
 
 `mbsync -V mirror`.
 
+`mbsync` does not have native proxy support but it does have `Tunnel`
+option, which can be used as a way to proxy IMAP connection - that is,
+`Tunnel` expects stdin/stdout communication:
+
+```shell
+Tunnel "socat -d0 STDIN\!\!STDOUT SOCKS4A:127.0.0.1:imap.gmail.com:993,socksport=9050"
+```
+
 ### neomutt / mutt
 
 Limiting messages in index (list of mails), for full list of patterns see
