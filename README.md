@@ -3506,6 +3506,98 @@ crm move     # careful, creates constraints
 crm resource constraints <resource> # show resource constraints
 ```
 
+##### crmsh hacks
+
+``` shell
+$ crm configure show related:Dummy
+primitive dummy Dummy \
+        op monitor timeout=20s interval=10s \
+        op_params depth=0 \
+        meta target-role=Stopped
+
+# ex script for batch editing
+
+$ cat /tmp/ex-script 
+/dummy/
+s/dummy/dummy-test/
+a
+        params state=/run/resource-agents/foobar.state fake=fake \
+
+$ function myeditor() { ex '+source /tmp/ex-script' -sc '%wq!' $@; }
+
+$ export -f myeditor
+
+$ EDITOR=myeditor crm configure edit
+
+$ crm configure show related:Dummy
+primitive dummy-test Dummy \
+        params state="/run/resource-agents/foobar.state" fake=fake \
+        op monitor timeout=20s interval=10s \
+        op_params depth=0 \
+        meta target-role=Stopped
+```
+
+Of course, `crm configure show` dump, edit and then `crm configure
+load update <file>` would be probably better ;)
+
+``` shell
+$ diff --label current --label new -u0 \
+    <(printf 'cib use cib.xml\nconfigure show\n' | crm -f -) \
+    <(printf 'cib use temp\nconfigure show\n' | crm -f -)
+--- current
++++ new
+@@ -885,0 +886 @@
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-CJP-ERS CLO-clvm GRP-CJP-ERS
+@@ -886,0 +888,2 @@
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-CJP-SAP CLO-clvm GRP-CJP-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-CRP-ERS CLO-clvm GRP-CRP-ERS
+@@ -887,0 +891,2 @@
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-CRP-SAP CLO-clvm GRP-CRP-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-M1P-ERS CLO-clvm GRP-M1P-ERS
+@@ -888,0 +894,2 @@
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-M1P-SAP CLO-clvm GRP-M1P-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-PR1-ERS CLO-clvm GRP-PR1-ERS
+@@ -889,0 +897,2 @@
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-PR1-SAP CLO-clvm GRP-PR1-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-PRX-ERS CLO-clvm GRP-PRX-ERS
+@@ -890,0 +900,2 @@
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-PRX-SAP CLO-clvm GRP-PRX-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-S1P-ERS CLO-clvm GRP-S1P-ERS
+@@ -891,0 +903,16 @@
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-S1P-SAP CLO-clvm GRP-S1P-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-W1E-SAP CLO-clvm GRP-W1E-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-W1I-SAP CLO-clvm GRP-W1I-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-W7E-SAP CLO-clvm GRP-W7E-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-W7I-SAP CLO-clvm GRP-W7I-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-W8E-SAP CLO-clvm GRP-W8E-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-W8I-SAP CLO-clvm GRP-W8I-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-W9E-SAP CLO-clvm GRP-W9E-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-W9I-SAP CLO-clvm GRP-W9I-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-WD0-SAP CLO-clvm GRP-WD0-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-WD1-SAP CLO-clvm GRP-WD1-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-WP0-SAP CLO-clvm GRP-WP0-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-WP1-SAP CLO-clvm GRP-WP1-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-WP2-SAP CLO-clvm GRP-WP2-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-WP3-SAP CLO-clvm GRP-WP3-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-WSP-ERS CLO-clvm GRP-WSP-ERS
+@@ -892,0 +920,2 @@
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-WSP-SAP CLO-clvm GRP-WSP-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-X7P-ERS CLO-clvm GRP-X7P-ERS
+@@ -893,0 +923,2 @@
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-X7P-SAP CLO-clvm GRP-X7P-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-X8P-ERS CLO-clvm GRP-X8P-ERS
+@@ -894,0 +926,2 @@
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-X8P-SAP CLO-clvm GRP-X8P-SAP
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-X9P-ERS CLO-clvm GRP-X9P-ERS
+@@ -895,0 +929 @@
++order ORD-GRP-DLM-CLVM-BEFORE-GRP-X9P-SAP CLO-clvm GRP-X9P-SAP
+@@ -917,0 +952 @@
++colocation col-vg-with-dlm inf: ( GRP-CJP-ERS GRP-CJP-NFS GRP-CJP-SAP GRP-CRP-ERS GRP-CRP-NFS GRP-CRP-SAP GRP-M1P-ERS GRP-M1P-NFS GRP-M1P-SAP GRP-PR1-ERS GRP-PR1-NFS GRP-PR1-SAP GRP-PRX-ERS GRP-PRX-NFS GRP-PRX-SAP GRP-S1P-ERS GRP-S1P-NFS GRP-S1P-SAP GRP-W1E-SAP GRP-W1I-SAP GRP-W7E-SAP GRP-W7I-SAP GRP-W8E-SAP GRP-W8I-SAP GRP-W9E-SAP GRP-W9I-SAP GRP-WD0-SAP GRP-WD1-SAP GRP-WP0-SAP GRP-WP1-SAP GRP-WP2-SAP GRP-WP3-SAP GRP-WSP-ERS GRP-WSP-NFS GRP-WSP-SAP GRP-X7P-ERS GRP-X7P-NFS GRP-X7P-SAP GRP-X8P-ERS GRP-X8P-NFS GRP-X8P-SAP GRP-X9P-ERS GRP-X9P-NFS GRP-X9P-SAP ) CLO-clvm
+```
+
+The patch might be applied to `crm configure show` dumped output, and
+reapplied via `crm configure load update <file>`.
+
 
 #### hawk web ui
 
