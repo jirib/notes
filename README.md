@@ -9270,6 +9270,14 @@ s tac /tmp/out.sla | grep -m1 -Po 'ITEXT.*CH="\K[^"]+' | xxd -a
 So, this might help if one prefers to hyphenate the text herself via
 Scribus python API, for example.
 
+To view a PDF inside Scribus, ie. a PDF image, one needs 'PostScript
+Interpreter'; that is, _ghostscript_: see, File -> Preferences ->
+External Tools.
+
+Similarly, to view printed PDF, one needs 'PDF Viewer',
+eg. `SumatraPDF.exe` on Windows: again, see External Tools in
+Preferences.
+
 
 ## hardware
 
