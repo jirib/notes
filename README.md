@@ -16092,6 +16092,64 @@ Keys 1-1 of 1 for "<email>".  Enter number(s), N)ext, or Q)uit >
 Voila!
 
 
+### SELinux
+
+How to remove a custom module:
+
+``` shell
+$ semodule -l | grep mycustompolicy
+
+$ semodule -r mycustompolicy
+
+$ semodule -l | grep mycustompolicy
+```
+
+How to define a custom module:
+
+``` shell
+$ cat > sssd_override.te <<EOF
+module sssd_override 1.0;
+
+require {
+    type sssd_t;
+        type net_conf_t;
+	    class dir watch;
+	    }
+
+# Allow sssd_t to watch net_conf_t directories
+allow sssd_t net_conf_t:dir watch;
+EOF
+
+$ checkmodule -M -m -o sssd_override.mod sssd_override.te
+$ semodule_package -o sssd_override.pp -m sssd_override.mod
+$ semodule -i sssd_override.pp
+
+$ sesearch --allow -s sssd_t -t net_conf_t -c dir | grep watch
+```
+
+SELinux status:
+
+``` shell
+$ getenforce
+Enforcing
+
+$ sestatus
+SELinux status:                 enabled
+SELinuxfs mount:                /sys/fs/selinux
+SELinux root directory:         /etc/selinux
+Loaded policy name:             targeted
+Current mode:                   enforcing
+Mode from config file:          enforcing
+Policy MLS status:              enabled
+Policy deny_unknown status:     allowed
+Memory protection checking:     requested (insecure)
+Max kernel policy version:      33
+
+$ grep -H '' /sys/fs/selinux/enforce
+/sys/fs/selinux/enforce:1
+```
+
+
 ### sudo
 
 Environment variables for commands, see
