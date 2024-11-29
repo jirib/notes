@@ -45,6 +45,30 @@ Some SAP basic vocabulary/info:
                                                                                                  ^^ instance number
   ```
 
+  Newer SAP HANA, eg. 2.0 SP 07, includes systemd-based "profile":
+
+  ``` shell
+  $ cat /usr/sap/sapservices
+  #!/bin/sh
+  systemctl --no-ask-password start SAPABC_00 # sapstartsrv pf=/usr/sap/ABC/SYS/profile/ABC_HDB00_jb153qb01
+  limit.descriptors=1048576
+
+  $ systemctl status SAPABC_00.service
+  ● SAPABC_00.service - SAP Instance SAPABC_00
+       Loaded: loaded (/etc/systemd/system/SAPABC_00.service; enabled; vendor preset: disabled)
+       Active: active (running) since Fri 2024-11-29 11:34:16 CET; 3min 34s ago
+     Main PID: 2411 (sapstartsrv)
+        Tasks: 9
+       CGroup: /SAP.slice/SAPABC_00.service
+               └─2411 /usr/sap/ABC/HDB00/exe/sapstartsrv pf=/usr/sap/ABC/SYS/profile/ABC_HDB00_jb153qb02
+  
+  Nov 29 11:34:12 jb153qb02 systemd[1]: Starting SAP Instance SAPABC_00...
+  Nov 29 11:34:16 jb153qb02 SAPABC_00[2411]: Impromptu CCC initialization by 'rscpCInit'.
+  Nov 29 11:34:16 jb153qb02 SAPABC_00[2411]:   See SAP note 1266393.
+  Nov 29 11:34:16 jb153qb02 SAPABC_00[2411]: SAP Service SAPABC_00 successfully started.
+  Nov 29 11:34:16 jb153qb02 systemd[1]: Started SAP Instance SAPABC_00.
+  ```
+  
 SUSE SAP documentation:
 [documentation.suse.com/sbp/all/](https://documentation.suse.com/sbp/all)
 
@@ -322,6 +346,41 @@ Thus, the backup first (`-i XX` is instance number)!
 bsdadm> hdbsql -u SYSTEM -d SYSTEMDB -i 00 "BACKUP DATA FOR FULL SYSTEM USING FILE ('backup')"
 Password:
 0 rows affected (overall time 67.691963 sec; server time 67.690426 sec)
+```
+
+To list backup, one can use:
+
+``` shell
+$ hdbsql SYSTEMDB=> select entry_type_name, backup_id, state_name, sys_start_time from "SYS"."M_BACKUP_CATALOG";
+ENTRY_TYPE_NAME,BACKUP_ID,STATE_NAME,SYS_START_TIME
+"complete data backup",1732811940639,"successful","2024-11-28 16:39:00.639000000"
+"log backup",1732812047893,"successful","2024-11-28 16:40:47.893000000"
+"log backup",1732812090735,"successful","2024-11-28 16:41:30.735000000"
+"log backup",1732812090926,"successful","2024-11-28 16:41:30.926000000"
+4 rows selected (overall time 17.397 msec; server time 16.913 msec)
+```
+
+Ideally, there should be a separate user for backup since SAP does not
+recommend using the SYSTEM user for routine tasks.
+
+``` shell
+abcadm> hdbsql -n localhost:30013 -u SYSTEM # or `hdbsql -u SYSTEM -d SYSTEMD'
+hdbsql SYSTEMDB=> CREATE ROLE BACKUP_ROLE;
+hdbsql SYSTEMDB=> GRANT BACKUP ADMIN,DATABASE BACKUP ADMIN,CATALOG READ,MONITORING to BACKUP_ROLE;
+hdbsql SYSTEMDB=> CREATE USER BACKUP PASSWORD "Linux123" NO FORCE_FIRST_PASSWORD_CHANGE;
+hdbsql SYSTEMDB=> ALTER USER BACKUP DISABLE PASSWORD LIFETIME;
+hdbsql SYSTEMDB=> GRANT BACKUP_ROLE to BACKUP;
+The created user and role exist only in SYSTEMDB, which is good, but not enough. The same role must exist at the tenant level and the remote user "BACKUP" should be authorized for this role.
+
+abcadm> hdbsql -i 00 -u SYSTEM
+hdbsql SID=> CREATE ROLE BACKUP_ROLE;
+hdbsql SID=> GRANT BACKUP ADMIN,CATALOG READ,MONITORING to BACKUP_ROLE;
+hdbsql SID=> CREATE USER BACKUP WITH REMOTE IDENTITY BACKUP AT DATABASE SYSTEMDB ;
+hdbsql SID=> GRANT BACKUP_ROLE to BACKUP;
+You need to set up a passwordless database connection for this user, otherwise you will have to hard-code the password in your script, which is even worse.
+
+abcadm> hdbuserstore DELETE BACKUP
+abcadm> hdbuserstore -i SET BACKUP localhost:30013@SYSTEMDB BACKUP
 ```
 
 Then re-try to initiate system replication:
@@ -880,6 +939,8 @@ $ tar xOJf /var/log/scc_oldhanae2_220511_1147.txz \
    ``` shell
    $ su - <sapadm> -s /bin/bash -c 'hdbuserstore LIST'
    ```
+   HUH? it seems `<sid>SAPDBCTRL` key is created by default!?
+   
 3. SSH works between nodes; `sudo`
    [rules](https://documentation.suse.com/sbp/all/single-html/SLES4SAP-hana-sr-guide-costopt-15/#id-allowing-sidadm-to-access-the-cluster)
    are present
