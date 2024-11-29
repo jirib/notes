@@ -17050,6 +17050,71 @@ change it per whole VM or per initiator, see [QEMU block drivers reference
                 iSCSI session parameters
 ```
 
+
+##### ppc64
+
+How to emulate pSeries/POWER ? Below, with multipath as well:
+
+``` shell
+$ qemu-system-ppc64le \
+-m 4g \
+-machine pseries,cap-cfpc=broken,cap-sbbc=broken,cap-ibs=broken \
+-smp 8 \
+-nodefaults \
+-monitor pty \
+-serial mon:stdio \
+-device virtio-rng-pci \
+-monitor telnet:127.0.0.1:55555,server,nowait \
+-device virtio-net,netdev=net0 \
+-netdev user,id=net0 \
+-nic user,hostfwd=tcp::5022-:22 \
+-vga none \
+-nographic \
+-boot c \
+-device spapr-vscsi,id=vscsi0 \
+-drive file=/dev/system/test,format=raw,id=hdisk0,if=none,file.locking=off \
+-device scsi-hd,drive=hdisk0,scsi-id=0,wwn=0x5000039afc38015c \
+-drive file=/dev/system/test,format=raw,id=hdisk1,if=none,file.locking=off \
+-device scsi-hd,drive=hdisk1,scsi-id=1,wwn=0x5000039afc38015c \
+-drive file=/dev/system/test,format=raw,id=hdisk2,if=none,file.locking=off \
+-device scsi-hd,drive=hdisk2,scsi-id=1,wwn=0x5000039afc38015c \
+-drive file=/dev/system/test,format=raw,id=hdisk3,if=none,file.locking=off \
+-device scsi-hd,drive=hdisk3,scsi-id=1,wwn=0x5000039afc38015c \
+-drive file=/dev/system/test,format=raw,id=hdisk4,if=none,file.locking=off \
+-device scsi-hd,drive=hdisk4,scsi-id=1,wwn=0x5000039afc38015c \
+-drive file=/dev/system/test,format=raw,id=hdisk5,if=none,file.locking=off \
+-device scsi-hd,drive=hdisk5,scsi-id=1,wwn=0x5000039afc38015c \
+-drive file=/dev/system/test,format=raw,id=hdisk6,if=none,file.locking=off \
+-device scsi-hd,drive=hdisk6,scsi-id=1,wwn=0x5000039afc38015c \
+-drive file=/dev/system/test,format=raw,id=hdisk7,if=none,file.locking=off \
+-device scsi-hd,drive=hdisk7,scsi-id=1,wwn=0x5000039afc38015c \
+-prom-env "boot-command=boot disk: -s verbose"
+```
+
+Booting alpinelinux/ppc64 works with the following:
+
+``` shell
+$ qemu-system-ppc64 \
+-m 4g \
+-machine pseries,cap-cfpc=broken,cap-sbbc=broken,cap-ibs=broken \
+-smp 8 \
+-nodefaults \
+-monitor pty \
+-serial mon:stdio \
+-device virtio-rng-pci \
+-monitor telnet:127.0.0.1:55555,server,nowait \
+-device virtio-net,netdev=net0 \
+-netdev user,id=net0 \
+-nic user,hostfwd=tcp::5022-:22 \
+-vga none \
+-nographic \
+-prom-env "boot-command=boot cdrom:" \
+-device spapr-vscsi,id=vscsi0 \
+-drive file=./alpine-standard-3.20.3-ppc64le.iso,format=raw,id=cdrom0,if=none \
+-device scsi-cd,drive=cdrom0,scsi-id=1
+```
+
+
 #### qemu-nbd
 
 ``` shell
