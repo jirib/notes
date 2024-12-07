@@ -4871,6 +4871,17 @@ Sink #2
 ```
 
 
+### remote desktop
+
+[freerdp](https://github.com/FreeRDP/FreeRDP) is newer alternative to
+`rdesktop`; it has nice features:
+
+``` shell
+$ printf '/u:foo\n/d:.\\\n/v:192.168.100.176\n/cert:ignore\n/auth-pkg-list:ntlm,!kerberos\n/sec:nla' | \
+    env FREERDP_ASKPASS='pass show hw/t14s/win11' /opt/freerdp-nightly/bin/xfreerdp3 /args-from:stdin
+```
+
+
 ### xdg
 
 ``` shell
