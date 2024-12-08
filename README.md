@@ -4494,13 +4494,13 @@ If a distro does not have a system package, then:
 
 ``` shell
 $ make BIN=browserpass-linux64 PREFIX=$HOME/.local DESTDIR= configure
-$ make BIN=browserpass-linux64 PREFIX=$HOME/.local DESTDIR=~/.local/stow/browserpass-linux64-3.1.0 install
-$ mv ~/.local/stow/browserpass-linux64-3.1.0/home/jiri/.local ~/.local/stow/browserpass-linux64-3.1.0/
-$ rm -rf ~/.local/stow/browserpass-linux64-3.1.0/home
-$ stow -d ~/.local/share/stow/ -t ~/ -vvv browserpass-linux64-3.1.0
+$ make BIN=browserpass-linux64 PREFIX=$HOME/.local DESTDIR=~/.local/share/stow/browserpass-linux64-3.1.0 install
+$ mv ~/.local/stow/browserpass-linux64-3.1.0/home/jiri/.local/* ~/.local/stow/browserpass-linux64-3.1.0/
+$ rm -rf ~/.local/share/stow/browserpass-linux64-3.1.0/home
+$ stow -d ~/.local/share/stow/ -t ~/.local -vvv browserpass-linux64-3.1.0
 $ cd ~/.local/lib/browserpass/
-$ make BIN=browserpass-linux64 PREFIX=.local DESTDIR=/home/jiri hosts-brave-user # creates symlink
-$ make BIN=browserpass-linux64 PREFIX=.local DESTDIR=/home/jiri policies-brave-user # creates symlink
+$ make BIN=browserpass-linux64 PREFIX=.local DESTDIR=/home/jiri/ hosts-brave-user # creates symlink (replace with 'chromium' if needed)
+$ make BIN=browserpass-linux64 PREFIX=.local DESTDIR=/home/jiri/ policies-brave-user # creates symlink (replace with 'chromium' if needed)
 
 $ grep -H '' /home/jiri/.local/lib/browserpass/{hosts,policies}/chromium/com.github.browserpass.native.json
 /home/jiri/.local/lib/browserpass/hosts/chromium/com.github.browserpass.native.json:{
