@@ -5716,6 +5716,29 @@ httpd
 ```
 
 
+### svn
+
+SVN metadata are located in `.svn` directory inside a checkout repo.
+
+``` shell
+$ svn list svn://scribus.net
+branches/
+tags/
+tools/
+trunk/
+```
+
+``` shell
+# to get "upstream"
+
+$ sqlite3 .svn/wc.db << EOF
+SELECT (repository.root || '/' || nodes.local_relpath) AS full_url
+FROM repository, nodes
+WHERE nodes.parent_relpath IS NULL;
+EOF
+svn://scribus.net/
+
+
 ## devops
 
 
@@ -9288,6 +9311,25 @@ External Tools.
 Similarly, to view printed PDF, one needs 'PDF Viewer',
 eg. `SumatraPDF.exe` on Windows: again, see External Tools in
 Preferences.
+
+
+#### styles
+
+Language of a style in Scribus seem to work this way:
+
+- in the general Preferences, there's 'Document Setup - Language':
+  this influences document language of the future documents, that is,
+  of documents to be created. That is: if 'French' is in 'Preferences -
+  Document Setup - Language', then after new document creation, the
+  'Default Paragraph Style' would use 'Default Character Style'
+  'French' language.
+  
+- once a document is opened, its text language by default is
+  determined by the setting of the document creation; that is, even if
+  you update 'Document Setup' language, the styles would still have
+  the original language value; the only way to influence default
+  language of a newly created text frame, is to update existing
+  'Default Character Style' language
 
 
 ## hardware
@@ -14583,6 +14625,73 @@ journalctl --rotate --vacuum-time=0.1s # clean journal
 ```
 
 ## distributions
+
+
+### Debian
+
+#### Building Debian package from its source
+
+An example with Scribus:
+
+``` shell
+$ curl -Ls http://deb.debian.org/debian/pool/main/s/scribus/ | \
+    w3m -T text/html -dump | grep -Po 'scribus_.*\.dsc' | sort -V
+scribus_1.4.8+dfsg-1.dsc
+scribus_1.5.6.1+dfsg-2.dsc
+scribus_1.5.8+dfsg-2~bpo11+1.dsc
+scribus_1.5.8+dfsg-4.dsc
+scribus_1.6.2+dfsg-1.dsc
+
+$ dget -ux http://deb.debian.org/debian/pool/main/s/scribus/scribus_1.6.2+dfsg-1.dsc
+...
+dpkg-source: info: extracting scribus in scribus-1.6.2+dfsg
+dpkg-source: info: unpacking scribus_1.6.2+dfsg.orig.tar.xz
+dpkg-source: info: unpacking scribus_1.6.2+dfsg-1.debian.tar.xz
+dpkg-source: info: using patch list from debian/patches/series
+dpkg-source: info: applying remove_non-free_file.patch
+
+$ $ ls -1F scribus-1.6.2+dfsg/
+AppImage-package/
+AUTHORS
+BUILDING
+BUILDING_win32_cmake.txt
+BUILDING_win32_msvc.txt
+bundle.sh
+ChangeLog
+cmake/
+CMakeLists_Apple.cmake
+CMakeLists_Dependencies.cmake
+CMakeLists_Directories.cmake
+CMakeLists.txt
+cmake_uninstall.cmake.in
+config.h.cmake
+configure*
+ConfigureChecks.cmake
+COPYING
+debian/
+devel-doc/
+dtd/
+fparser.txt
+LINKS
+NEWS
+PACKAGING
+README
+README_150Manual
+README.MacOSX
+README.md
+resources/
+scribus/
+Scribus.app/
+scribus.appdata.xml.in
+scribus.desktop.in
+scribus.install.targets
+scribus.kdevprj
+scribus.lsm
+Scribus.pro
+scribus.xml
+TODO
+TRANSLATION
+
 
 ### RHEL
 
