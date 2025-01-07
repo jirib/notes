@@ -9330,6 +9330,47 @@ It seems this is what is supported in the URI:
   - `share`: Shared script directory (eg. `/usr/lib/libreoffice/share/Scripts/python/`).
   - `application`: Application-specific location (rarely used).
 
+*NOTE*: `application` doesn't mean you can specify a full path to your
+ script; it is some LO internal stuff; thus, either user or shared
+ location.
+
+And to use LibreOffice _completely_ from outside; an example:
+
+``` shell
+$ libreoffice --headless --accept="socket,host=localhost,port=2002;urp;" &
+$ cat > /tmp/in.py <<EOF
+import uno
+import unohelper
+
+def connect_to_libreoffice():
+    # Create a local context
+    local_context = uno.getComponentContext()
+
+    # Get the UnoUrlResolver
+    resolver = local_context.ServiceManager.createInstanceWithContext(
+        "com.sun.star.bridge.UnoUrlResolver", local_context
+    )
+
+    # Connect to the running LibreOffice instance
+    context = resolver.resolve("uno:socket,host=localhost,port=2002;urp;StarOffice.ComponentContext")
+    return context
+
+if __name__ == "__main__":
+    try:
+        # Connect to LibreOffice
+        context = connect_to_libreoffice()
+        smgr = context.ServiceManager
+        desktop = smgr.createInstanceWithContext("com.sun.star.frame.Desktop", context)
+
+        print("Successfully connected to LibreOffice!")
+    except Exception as e:
+        print("Error connecting to LibreOffice:", e)
+EOF
+
+$ env PYTHONPATH=/usr/lib/libreoffice/program python3 /tmp/in.py
+Successfully connected to LibreOffice!
+```
+
 
 ### scribus
 
