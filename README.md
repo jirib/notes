@@ -9303,6 +9303,34 @@ xmllint --xpath '/policymap/policy[@pattern="PDF"]' /etc/ImageMagick-7/policy.xm
 ```
 
 
+### libreoffice
+
+Running Python from LibreOffice? In headless mode? No problem!
+
+``` shell
+$ cat ~/.config/libreoffice/4/user/Scripts/python/foo.py <<EOF
+import sys
+
+def print_python_interpreter_path():
+    # Print the path of the Python interpreter
+    print("Python Interpreter Path:", sys.executable)
+EOF
+
+$ libreoffice --headless 'vnd.sun.star.script:foo.py$print_python_interpreter_path?language=Python&location=user'
+Python Interpreter Path: /usr/bin/python3
+```
+
+It seems this is what is supported in the URI:
+
+* `<script_file>`: Name of the script file (e.g., `foo.py`).
+* `<function_name>`: Name of the function to execute (e.g., `print_python_interpreter_path`).
+* `language=Python`: Specifies the script language (*Python* in this case).
+* `location=<location>`: Specifies where the script is located:
+  - `user`: User's script directory (`~/.config/libreoffice/4/user/Scripts/python/`).
+  - `share`: Shared script directory (eg. `/usr/lib/libreoffice/share/Scripts/python/`).
+  - `application`: Application-specific location (rarely used).
+
+
 ### scribus
 
 Fonts, dictionaries and hyphenations can be "imported" into Scribus via: Windows - Resource Manager. See:
