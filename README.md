@@ -5425,6 +5425,55 @@ readelf -sW <shared_library> | \
   sort -u                                                        # get global library symbols
 ```
 
+A C code with seccomp filter, an example: https://gist.github.com/fntlnz/08ae20befb91befd9a53cd91cdc6d507.
+
+``` c
+#include <errno.h>
+#include <linux/audit.h>
+#include <linux/bpf.h>
+#include <linux/filter.h>
+#include <linux/seccomp.h>
+#include <linux/unistd.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <sys/prctl.h>
+#include <unistd.h>
+
+static int install_filter(int nr, int arch, int error) {
+  struct sock_filter filter[] = {
+      BPF_STMT(BPF_LD + BPF_W + BPF_ABS, (offsetof(struct seccomp_data, arch))),
+      BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, arch, 0, 3),
+      BPF_STMT(BPF_LD + BPF_W + BPF_ABS, (offsetof(struct seccomp_data, nr))),
+      BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, nr, 0, 1),
+      BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_ERRNO | (error & SECCOMP_RET_DATA)),
+      BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_ALLOW),
+  };
+  struct sock_fprog prog = {
+      .len = (unsigned short)(sizeof(filter) / sizeof(filter[0])),
+      .filter = filter,
+  };
+  if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
+    perror("prctl(NO_NEW_PRIVS)");
+    return 1;
+  }
+  if (prctl(PR_SET_SECCOMP, 2, &prog)) {
+    perror("prctl(PR_SET_SECCOMP)");
+    return 1;
+  }
+  return 0;
+}
+
+int main() {
+  printf("hey there!\n");
+
+  install_filter(__NR_write, AUDIT_ARCH_X86_64, EPERM);
+
+  printf("something's gonna happen!!\n");
+  printf("it will not definitely print this here\n");
+  return 0;
+}
+```
+
 
 ### diff / patch
 
@@ -6641,6 +6690,31 @@ $ ls -l /.snapshots/421/snapshot/TEST
 -rw-r--r-- 1 root root 0 Oct 25 09:47 /.snapshots/421/snapshot/TEST
 ```
 
+BTRFS superblock query (for example, GRUB2 has this definition in its
+code
+https://github.com/rhboot/grub2/blob/fedora-39/grub-core/fs/btrfs.c#L262).
+
+``` c
+static grub_disk_addr_t superblock_sectors[] = { 64 * 2, 64 * 1024 * 2,
+  256 * 1048576 * 2, 1048576ULL * 1048576ULL * 2
+};
+```
+
+``` shell
+$ grep -h --only-matching --byte-offset --max-count=1 --text _BHRfS_M /dev/loop0
+1114176:_BHRfS_M
+$ echo $((1114176-65536-64))
+1048576
+
+$ wipefs /dev/loop9
+DEVICE OFFSET  TYPE  UUID                                 LABEL
+loop9  0x10040 btrfs cf5c6059-03c4-4341-ad26-1ffc3d6659a6
+
+$  printf '%d\n' 0x10040
+65600
+```
+
+
 #### disable copy-on-write (cow)
 
 > A subvolume may contain files that constantly change, such as
@@ -6652,6 +6726,7 @@ $ ls -l /.snapshots/421/snapshot/TEST
 grep '\bbtrfs\b.*nodatacow' /etc/fstab # check if cow disabled in /etc/fstab
 lsattr -d /var                         # check if cow disabled via attributes
 ```
+
 
 
 #### snapper
@@ -14547,6 +14622,23 @@ total 0
 drwxrwxrwt 1 root root 6 Dec 25 19:13 .
 drwx------ 1 root root 6 Dec 25 18:02 ..
 -rw-r--r-- 1 root root 0 Dec 25 19:13 xxx
+```
+
+To run pre-start command with root permissions, that is, prefix with `+`:
+
+```
+[Service]
+User=abcadm
+Group=sapsys
+ExecStartPre=+/usr/bin/chmod 700 /etc/hanadb_exporter
+ExecStartPre=+/usr/bin/chown -R abcadm:sapsys /etc/hanadb_exporter
+ExecStartPre=+/usr/bin/chmod o= /var/log/hanadb_exporter.log
+ExecStartPre=+/usr/bin/chown abcadm:sapsys /var/log/hanadb_exporter.log
+ExecStart=
+ExecStart=/usr/bin/hanadb_exporter --identifier %i --daemon
+PrivateTmp=yes
+ProtectHome=read-only
+ProtectSystem=full
 ```
 
 
