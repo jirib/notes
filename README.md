@@ -15436,6 +15436,9 @@ zypper patch # updates only affected/vulnerable packages
 
 ### cups
 
+SUSE has an awesome reading about
+[CUPS](https://en.opensuse.org/SDB:CUPS_in_a_Nutshell#The_Filter_.28includes_the_Driver.29).
+
 ``` shell
 cupsd -t                     # test configuration
 cupsctl --[no-]debug-logging # enable/disable debug logging
@@ -15478,6 +15481,33 @@ man cupsd.conf | egrep -A 1 'MaxJobs(PerPrinter)* number' | fmt -w80
             per printer.  The default is "0" which allows up to MaxJobs jobs
             per printer.
 ```
+
+CUPS does convertion via filters; an example:
+
+``` shell
+$ grep -m1 -P '^<.*Printer \w+>$' /etc/cups/printers.conf
+<DefaultPrinter hp>
+
+$ grep -P '(cupsFilter|PCFileName)' /etc/cups/ppd/hp.ppd
+*cupsFilter: "application/vnd.cups-postscript 0 hpps"
+*PCFileName: "HPCM3530.PPD"
+```
+
+A different PPD:
+
+``` shell
+$ grep -iP '(DeviceID|JCLTo|NickName|PCFileName|filter)' CM353PDF.PPD
+*% PDF mode, using CUPS with the OpenPrinting CUPS Filters package
+*PCFileName:    "CM353PDF.PPD"
+*ShortNickName: "HP Color LaserJet CM3530 MFP"
+*NickName:      "HP Color LaserJet CM3530 MFP PDF"
+*1284DeviceID: "MFG:Hewlett-Packard;CMD:PJL,BIDI-ECP,PCLXL,PCL,PDF,PJL,POSTSCRIPT;MDL:HP Color LaserJet CM3530 MFP;CLS:PRINTER;DES:Hewlett-Packard Color LaserJet CM3530 MFP;DRV:DPDF,R0,M0;"
+*JCLToPDFInterpreter: "@PJL ENTER LANGUAGE = PDF <0A>"
+*cupsFilter: "application/vnd.cups-pdf 0 -"
+*cupsFilter2: "application/pdf application/vnd.cups-pdf 0 pdftopdf"
+```
+
+
 #### tips
 
 - https://access.redhat.com/solutions/305283
