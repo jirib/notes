@@ -6554,6 +6554,28 @@ Warning! - _autofs_ makes a distinction about "maptype", thus if
 `auto.master(5)` "maptype" is not a script but "plain" `autofs(5)`
 automounter map, then the "maptype" file should not be executable.
 
+A workaround to create a mountpoint before the actual mount; an
+executable map file is used!
+
+``` shell
+$ grep -Pv '^\s*(#|$)' /etc/auto.master
+/etc/auto.master:+auto.master
+/etc/auto.master:/run/autofs auto.removable
+
+$ ls -l /etc/auto.removable
+-rwxr-xr-x 1 root root 147 Jan 30 15:57 /etc/auto.removable
+
+$ cat /etc/auto.removable
+#!/bin/sh
+
+case $1 in
+    000-1ES162)
+        mkdir -p /run/autofs
+        echo -fstype=xfs :/dev/disk/by-id/scsi-SST1000VX_000-1ES162_3000CCCCBBBBAAAA
+        ;;
+esac
+```
+
 ``` shell
 # /etc/auto.smb is an executable as shipped by SLES RPM
 
