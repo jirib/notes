@@ -7508,6 +7508,69 @@ Logged issues:
 
 ### XFS
 
+An example of an impact done with `lvreduce` on the XFS filesystem,
+which does not (yet) support shrinking.
+
+``` shell
+mount: /var/lib/pgsql: can't read superblock on /dev/mapper/vg00-sumalv1
+```
+
+`/var/mapper/vg00-sumalv1` is `/dev/dm-2`:
+
+``` shell
+2025-02-10T13:03:17.195773+03:00 example01 kernel: [   82.424459][T40684] SGI XFS with ACLs, security attributes, quota, no debug enabled
+2025-02-10T13:03:17.200028+03:00 example01 kernel: [   82.429009][T40683] attempt to access beyond end of device
+2025-02-10T13:03:17.200039+03:00 example01 kernel: [   82.429009][T40683] dm-2: rw=4096, want=908066816, limit=750780416
+2025-02-10T13:03:17.200041+03:00 example01 kernel: [   82.429013][T40683] XFS (dm-2): last sector read failed
+2025-02-10T13:03:17.208032+03:00 example01 kernel: [   82.433619][T40683] XFS (dm-3): Mounting V5 Filesystem
+2025-02-10T13:03:19.476042+03:00 example01 kernel: [   84.720203][T40683] XFS (dm-3): Ending clean mount
+2025-02-10T13:03:19.516018+03:00 example01 kernel: [   84.760709][T40683] XFS (dm-4): Mounting V5 Filesystem
+2025-02-10T13:03:19.648043+03:00 example01 kernel: [   84.895215][T40683] XFS (dm-4): Ending clean mount
+```
+
+Where `limit` is current `dm-2` size and `want` is the original size
+(in 512 blocks); see below for the original size.
+
+``` shell
+$ echo '(750780416*512)/2^30' | bc
+358
+
+$ lvs | grep sumalv1
+  sumalv1    vg00 -wi-a----- 358.00g
+```
+
+``` shell
+$ grep -A 2 -P 'description.*sumalv1' /etc/lvm/archive/vg00*
+description = "Created *before* executing 'lvextend -L +50G /dev/vg00/sumalv1'"
+creation_host = "example01"      # Linux example01 5.14.21-150400.24.128-default #1 SMP PREEMPT_DYNAMIC Wed Aug 7 10:28:44 UTC 2024 (a6f23d4) x86_64
+creation_time = 1727760026      # Tue Oct  1 08:20:26 2024
+--
+description = "Created *before* executing 'lvextend -L +100G /dev/vg00/sumalv1'"
+creation_host = "example01"      # Linux example01 5.14.21-150400.24.136-default #1 SMP PREEMPT_DYNAMIC Wed Oct 2 09:41:54 UTC 2024 (adc7c83) x86_64
+creation_time = 1729694847      # Wed Oct 23 17:47:27 2024
+--
+description = "Created *before* executing 'lvreduce -L -75G /dev/vg00/sumalv1'"
+creation_host = "example01"      # Linux example01 5.14.21-150400.24.136-default #1 SMP PREEMPT_DYNAMIC Wed Oct 2 09:41:54 UTC 2024 (adc7c83) x86_64
+creation_time = 1729695434      # Wed Oct 23 17:57:14 2024
+```
+
+Oops, `lvreduce`? That's the culprit!
+
+Some LVM archive file math from `/etc/lvm/archive/vg00_00026-751798520.vg`:
+
+``` shell
+$ awk '
+NR > 3 && !/^[[:blank:]]*(#|$)/ && /sumalv1/{flag=1;}
+/sumalv2/{flag=0}
+flag && /extent_count = [0-9]+/ { sum += $3 }
+END { print "Total size: ", sum * 4* 2^20 / 512 }
+' < /etc/lvm/archive/vg00_00026-751798520.vg
+Total size:  908066816
+```
+
+So, LVM archive file saves the original size before the action was
+executed.
+
 An attempt to mount XFS outside of LVM:
 
 ``` shell
