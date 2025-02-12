@@ -15776,6 +15776,7 @@ x install.sh
 x installation.pdf
 
 $ bash ./install.sh
+```
 
 
 #### texlive
