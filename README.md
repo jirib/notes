@@ -15735,7 +15735,50 @@ testovic-39             root              2048   Thu 27 Jun 2024 04:02:01 PM CES
 ```
 
 
-### texlive
+### tex
+
+Terminology as I understand it sofar (that is, it might be inappropriate):
+
+- TeX: typesetting (low-level - instructions - or primitives ??? -
+  working with "boxes", internally, everything is a box: a letter,
+  word, line, paragraph...)  system, or programming language, by
+  Donald Knuth
+  
+- TeX engines: adaptations/modifications of TeX (pdfTeX, XeTeX,
+  LuaTeX...); apart from LuaTex, they do not affect the language
+  itself, mostly handling input/output files, etc...
+
+- TeX formats: collection of TeX commands, macros (eg. Plain TeX -
+  from Knuth himself, LaTeX, ConTeXt - but not only that) and programs
+  that load large macros collections into format files (predumped
+  memory images of TeX) before calling the actual "`tex`" engine
+
+- ConTeXt: macros, a format, a collection of tools/scripts, an
+  interface; that is, it is more an eco-system; it differs from LaTeX
+  in philosofy: unlike LaTeX, it does not limit flexibility due to
+  simplifying the use of TeX or isolating the user from typesetting
+  details, that is, it gives the user absolute and complete control
+  over typesetting.
+
+
+#### context
+
+``` shell
+$ mkdir -p ~/.local/stow/context2025
+$ ln -s context2025 ~/.local/stow/context
+$ cd $_
+$ curl -Ls https://lmtx.pragma-ade.com/install-lmtx/context-linux-64.zip | bsdtar -xvf -
+x bin/
+x bin/mtxrun
+x bin/mtx-install.lua
+x bin/mtxrun.lua
+x install.sh
+x installation.pdf
+
+$ bash ./install.sh
+
+
+#### texlive
 
 idea taken from [Void
 Linux](https://github.com/void-linux/void-packages/blob/master/srcpkgs/texlive2021-bin/template),
@@ -15779,6 +15822,8 @@ pdfseparate <pdf_file1> temp-%04d-file1.pdf
 pdfseparate <pdf_file2> temp-%04d-file2.pdf
 pdfjam temp-*-*.pdf --nup 2x1 --landscape --outfile <out_file>
 ```
+
+
 
 ## security
 
