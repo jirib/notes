@@ -15735,7 +15735,7 @@ testovic-39             root              2048   Thu 27 Jun 2024 04:02:01 PM CES
 ```
 
 
-### tex
+### TeX
 
 Terminology as I understand it sofar (that is, it might be inappropriate):
 
@@ -15761,7 +15761,7 @@ Terminology as I understand it sofar (that is, it might be inappropriate):
   over typesetting.
 
 
-#### context
+#### ConTeXt
 
 ``` shell
 $ mkdir -p ~/.local/stow/context2025
