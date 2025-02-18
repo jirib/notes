@@ -6204,9 +6204,64 @@ https://developer.hashicorp.com/packer/docs/configure#configure-the-cache-direct
 
 ### salt
 
+Terminology cheat sheet:
+
 - *salt master*: management server
 - *salt minion*: managed client
 - *salt SSH*: to manage clients over SSH withour minion
+- *`salt-call`: runs Salt commands locally on a minion, without
+   requiring a master
+- *grains*: static system information
+- *pillar*: secure, structured data for minions
+- *reactor*: watches for events and triggers automated responses
+- *beacons*: monitors minion activity (CPU load, file changes, etc...)
+   and sends events to the master
+
+
+#### salt on Debian
+
+The official docs is [Install Salt
+DEBs](https://docs.saltproject.io/salt/install-guide/en/latest/topics/install-by-operating-system/linux-deb.html#install-salt-debs),
+but I prefer other format of sources list.
+
+``` shell
+$ curl -fsSL https://packages.broadcom.com/artifactory/api/security/keypair/SaltProjectKey/public | \
+    gpg --dearmor > /etc/apt/keyrings/saltproject-public.gpg
+$ curl -fsSL https://github.com/saltstack/salt-install-guide/releases/latest/download/salt.sources | \
+    awk -f <(cat <<'EOF'
+BEGIN
+{
+    format="deb [signed-by=/etc/apt/keyrings/saltproject-public.gpg] %s %s %s\n"
+}
+/^(URIs|Suites|Components):/
+{
+    if (/^S/)
+        s=$NF
+    else if (/^C/)
+        c=$NF
+    else
+        u=$NF
+}
+END
+{
+    printf(format, u, s, c)
+}
+EOF
+) | tee /etc/apt/sources.list.d/saltproject.list
+```
+
+Version 3006 is the LTS for now, so let's pin it:
+
+``` shell
+$ cat > /etc/apt/preferences.d/salt-pin-3006 <<EOF
+Package: salt-*
+Pin: version 3006.*
+Pin-Priority: 900
+EOF
+```
+
+
+#### salt on SLES
 
 Default `/etc/salt/master` on SLES:
 
@@ -6216,6 +6271,8 @@ user: salt
 syndic_user: salt
 
 ```
+
+#### salt-master
 
 Starting `salt-master` for the first time generates PKI certificates:
 
@@ -6393,7 +6450,42 @@ local:
 ```
 
 
-##### masterless salt-minion under normal user
+##### masterless salt-minion
+
+To use Salt without a server is to use Salt Standalone Mode via
+`salt-call'.
+
+###### under root
+
+``` shell
+$ sed -i 's/^#* *file_client:.*/file_client: local/' /etc/salt/minion
+
+$ systemctl  restart salt-minion.service
+
+$ salt-call --local test.ping
+local:
+    True
+
+$ salt-call --local cmd.run 'uptime'
+local:
+     16:17:01 up 1 day,  4:11, 15 users,  load average: 0.36, 0.63, 0.45
+```
+
+Just an example...
+
+``` shell
+$ salt-call --local pkg.install salt-master
+local:
+    ----------
+    salt-master:
+        ----------
+        new:
+            3006.9
+        old:
+```
+
+
+###### under normal user
 
 ``` shell
 $ cat ~/.config/user-tmpfiles.d/salt.conf
@@ -15135,6 +15227,84 @@ journalctl --rotate --vacuum-time=0.1s # clean journal
 
 
 ### Debian
+
+#### APT
+
+APT preferences influencing (version) preference, pinning...
+
+``` shell
+$ cat /etc/apt/preferences.d/99salt-pin-3006 
+Package: salt-*
+Pin: version 3006.*
+Pin-Priority: 900
+```
+
+The preference `99salt-pin-3006` files create after the `salt-minion`
+package (with higher version) was installed:
+
+``` shell
+$ apt policy salt-minion
+salt-minion:
+  Installed: 3007.1
+  Candidate: 3007.1
+  Version table:
+ *** 3007.1 500
+        500 https://packages.broadcom.com/artifactory/saltproject-deb stable/main amd64 Packages
+        100 /var/lib/dpkg/status
+     3007.0 500
+        500 https://packages.broadcom.com/artifactory/saltproject-deb stable/main amd64 Packages
+     3006.9 900
+        500 https://packages.broadcom.com/artifactory/saltproject-deb stable/main amd64 Packages
+     3006.8 900
+        500 https://packages.broadcom.com/artifactory/saltproject-deb stable/main amd64 Packages
+     3006.7 900
+        500 https://packages.broadcom.com/artifactory/saltproject-deb stable/main amd64 Packages
+     3006.6 900
+        500 https://packages.broadcom.com/artifactory/saltproject-deb stable/main amd64 Packages
+     3006.5 900
+        500 https://packages.broadcom.com/artifactory/saltproject-deb stable/main amd64 Packages
+     3006.4 900
+        500 https://packages.broadcom.com/artifactory/saltproject-deb stable/main amd64 Packages
+     3006.3 900
+        500 https://packages.broadcom.com/artifactory/saltproject-deb stable/main amd64 Packages
+     3006.2 900
+        500 https://packages.broadcom.com/artifactory/saltproject-deb stable/main amd64 Packages
+     3006.1 900
+        500 https://packages.broadcom.com/artifactory/saltproject-deb stable/main amd64 Packages
+     3006.0 900
+        500 https://packages.broadcom.com/artifactory/saltproject-deb stable/main amd64 Packages
+```
+
+To increase verbosity of APT, here, an example:
+
+``` shell
+$ apt -o Debug::pkgAcquire=true install salt-minion=3006.9 salt-common=3006.9
+Reading package lists... Done
+Building dependency tree... Done
+Reading state information... Done
+The following packages were automatically installed and are no longer required:
+  asymptote-doc dvisvgm ethtool fonts-gfs-artemisia fonts-gfs-baskerville fonts-gfs-bodoni-classic fonts-gfs-didot fonts-gfs-didot-classic fonts-gfs-gazis fonts-gfs-neohellenic
+  fonts-gfs-olga fonts-gfs-porson fonts-gfs-solomos fonts-gfs-theokritos hdparm libalgorithm-c3-perl libbit-vector-perl libcarp-clan-perl libclass-c3-perl libclass-c3-xs-perl
+  libcommons-logging-java libcrypt-rc4-perl libdate-calc-perl libdate-calc-xs-perl libdevel-globaldestruction-perl libdigest-perl-md5-perl libdist-checkconflicts-perl libeval-closure-perl
+  libfontbox-java libgsl27 libgslcblas0 libipc-shareable-perl libjcode-pm-perl liblog-dispatch-perl liblog-log4perl-perl libmime-charset-perl libmro-compat-perl libnamespace-autoclean-perl
+  libole-storage-lite-perl libparams-validationcompiler-perl libparse-recdescent-perl libpdfbox-java libpotrace0 libptexenc1 libsombok3 libspecio-perl libspreadsheet-parseexcel-perl
+  libspreadsheet-writeexcel-perl libstring-crc32-perl libteckit0 libtexlua53-5 libtexluajit2 libunicode-linebreak-perl libunicode-map-perl libyaml-tiny-perl libzzip-0-13 lmodern
+  preview-latex-style ps2eps rfkill tcl tex-common tex-gyre tk xzdec
+Use 'apt autoremove' to remove them.
+Fetching https://packages.broadcom.com/artifactory/saltproject-deb/pool/salt-common_3006.9_amd64.deb
+ to /var/cache/apt/archives/partial/salt-common_3006.9_amd64.deb
+ Queue is: https:packages.broadcom.com
+Fetching https://packages.broadcom.com/artifactory/saltproject-deb/pool/salt-minion_3006.9_amd64.deb
+ to /var/cache/apt/archives/partial/salt-minion_3006.9_amd64.deb
+ Queue is: https:packages.broadcom.com
+The following packages will be DOWNGRADED:
+  salt-common salt-minion
+0 upgraded, 0 newly installed, 2 downgraded, 0 to remove and 7 not upgraded.
+Need to get 34.3 MB of archives.
+After this operation, 10.6 MB disk space will be freed.
+Do you want to continue? [Y/n]
+```
+
 
 #### Building Debian package from its source
 
