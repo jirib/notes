@@ -584,7 +584,8 @@ config: pa_type(krbtgt/DOMAIN01.EXAMPLE.COM@DOMAIN01.EXAMPLE.COM) = 2
         Addresses: (none)
 ```
 
-#### server
+
+##### sshd
 
 When using kerberos with `sshd` on a machine conntected to AD/Samba/Winbind,
 `yast samba-client` should take care of *ALMOST* all settings but there's a need
@@ -592,9 +593,7 @@ to *fix* `/etc/krb5.conf`; because a user uses *DOMAIN\username* when
 authenticating to SSH daemon, but *kerberos* does not know anything about
 *DOMAIN\\* part, thus there's need to strip it via `auth_to_local`.
 
-```
-# sshd
-
+``` shell
 $ sshd -T | grep -Pi '^(gss|kerberos|password|chal|pam)'
 kerberosauthentication no
 kerberosorlocalpasswd yes
@@ -606,9 +605,11 @@ gssapistrictacceptorcheck no
 gssapistorecredentialsonrekey no
 passwordauthentication no
 challengeresponseauthentication yes
+```
 
-# modified krb5.conf, see comments inline
+Modified krb5.conf, see comments inline
 
+``` shell
 $ cat /etc/krb5.conf
 [libdefaults]
         dns_canonicalize_hostname = false
@@ -645,9 +646,11 @@ $ cat /etc/krb5.conf
                 proxiable = false
                 minimum_uid = 1
         }
+```
 
-# what does the manpage says?
+What does the manpage says?
 
+``` shell
 $ man krb5.conf | col -b | \
   sed -n '/^ *auth_to_local *$/,/^ *auth_to_local_names/{/^ *auth_to_local_name/q;p}' | \
   fmt -w 80
@@ -699,6 +702,7 @@ $ man krb5.conf | col -b | \
               always get the local name guest.
 ```
 
+
 ##### troubleshooting
 
 - `KRB5_TRACE=/dev/stdout` env var
@@ -716,6 +720,43 @@ $ man krb5.conf | col -b | \
      s153sam01.example.net
      ```
   Details at https://web.mit.edu/kerberos/krb5-1.13/doc/admin/princ_dns.html .
+
+
+#### krb5 server
+
+MIT KRB5 supports "passthrough authentication", that is, KDC (Kerberos
+Key Distribution Center) delegates password verification to an
+external store.
+
+MIT KRB5 supports PKINIT (Public Key Cryptography for Initial
+Authentication), this enabled to authenticate users based on their
+X.509 certificates instead of a traditional password.
+
+*WARNING*: untested!!!
+
+```
+# PKINIT server example
+[realms]
+EXAMPLE.COM = {
+    ...
+    pkinit_anchors = FILE:/etc/krb5kdc/ca.crt
+    pkinit_identity = FILE:/etc/krb5kdc/kdc.crt,/etc/krb5kdc/kdc.key
+    pkinit_indicator = TLS-Client-Auth
+}
+```
+
+```
+# PKINIT client example
+[libdefaults]
+    default_realm = EXAMPLE.COM
+    pkinit_identities = FILE:/etc/krb5/user.crt,/etc/krb5/user.key
+```
+
+``` shell
+$ kinit -X X509_user_identity=FILE:/etc/krb5/user.crt,/etc/krb5/user.key user@EXAMPLE.COM
+```
+
+This way, the KDC validates the user's certificate and issues a TGT.
 
 
 ### nscd, nss-pam-ldapd, pam_ldap
@@ -5884,6 +5925,89 @@ httpd
 ```
 
 
+#### pdb
+
+``` python
+(Pdb) l 110,113
+110  ->         if IMPORT_PAGE_EXTRACTOR: # in self.site.config:
+111                 content = IMPORT_PAGE_EXTRACTOR(node)
+112             else:
+113                 content = node.prettify()
+
+(Pdb) p bool(IMPORT_PAGE_EXTRACTOR)
+True
+
+(Pdb) p IMPORT_PAGE_EXTRACTOR
+<function CommandImportPage._import_page.<locals>.<lambda> at 0x7f093b64ab60>
+
+(Pdb) import inspect
+(Pdb) p inspect.getsource(IMPORT_PAGE_EXTRACTOR)
+'        IMPORT_PAGE_EXTRACTOR = lambda node: BeautifulSoup(node.decode_contents(), "html.parser").prettify()\n'
+
+(Pdb) !IMPORT_PAGE_EXTRACTOR = None
+(Pdb) p bool(IMPORT_PAGE_EXTRACTOR)
+False
+
+(pdb) n
+(Pdb) l 110,113
+110             if IMPORT_PAGE_EXTRACTOR: # in self.site.config:
+111                 content = IMPORT_PAGE_EXTRACTOR(node)
+112             else:
+113  ->             content = node.prettify()
+```
+
+So, here, an example how to make a lamba-based variable `None`; that
+is, change the code flow in the condition.
+
+Now, breakpoints:
+
+``` python
+(Pdb) l 69
+ 64         doc_usage = "[options] page_url [page_url,...]"
+ 65         doc_purpose = "import arbitrary web pages"
+ 66  
+ 67         def _execute(self, options, args):
+ 68             import pdb;pdb.set_trace()
+ 69  ->         """Import a Page."""
+ 70             if BeautifulSoup is None:
+ 71                 utils.req_missing(['bs4'], 'use the import_page plugin')
+ 72  
+ 73             urls = []
+ 74             selector = None
+
+(Pdb) l 86,90
+ 86             if not urls:
+ 87                 LOGGER.error(f'No page URL or file path provided.')
+ 88  
+ 89             for url in args:
+ 90                 self._import_page(url, selector, extractor)
+
+(Pdb) b 86
+Breakpoint 1 at /home/jiri/.nikola/plugins/import_page/import_page.py:86
+
+(Pdb) b
+Num Type         Disp Enb   Where
+1   breakpoint   keep yes   at /home/jiri/.nikola/plugins/import_page/import_page.py:86
+
+(Pdb) c
+> /home/jiri/.nikola/plugins/import_page/import_page.py(86)_execute()
+-> if not urls:
+
+(Pdb) l 86
+ 81                 elif arg == "-e" and args:
+ 82                     extractor = args.pop(0)
+ 83                 else:
+ 84                     urls.append(arg)  # Assume it's a page URL
+ 85  
+ 86 B->         if not urls:
+ 87                 LOGGER.error(f'No page URL or file path provided.')
+ 88  
+ 89             for url in args:
+ 90                 self._import_page(url, selector, extractor)
+ 91  
+```
+
+
 ### svn
 
 SVN metadata are located in `.svn` directory inside a checkout repo.
@@ -9857,6 +9981,24 @@ Devices which are system consoles can be queried via:
 ``` shell
 $ cat /sys/devices/virtual/tty/console/active
 ttyS1 tty0
+```
+
+Getting info about kernel console:
+
+``` shell
+$ cat /proc/cmdline | grep -o 'console=[^ ]*' # empty in my case
+
+$ cat /proc/consoles # W=write, EC=echo and console deice
+tty0                 -WU (EC  p  )    4:7
+
+$ ls -l /dev/console
+crw------- 1 root root 5, 1 Feb 16 10:06 /dev/console # 5,1 is primary console
+
+$ dmesg | grep -iP 'printk:.*console'
+[    0.053131] printk: legacy console [tty0] enabled
+
+$ cat /proc/sys/kernel/printk 4 # columns: default level, min level, max level
+4       4       1       7
 ```
 
 
@@ -19589,6 +19731,126 @@ $ grep -IRHPv '^\s*(#|$)' /etc/davfs2/{secrets,davfs2.conf}
 /etc/davfs2/davfs2.conf:trust_ca_cert server2.pem
 /etc/davfs2/davfs2.conf:trust_server_cert server2.pem
 ```
+
+### nikola
+
+``` shell
+$ pipx install nikola
+$ pipx runpip nikola install 'nikola[extras]'
+
+$ nikola init mysite # 'mysite' is the final directory
+$ cd mysite
+
+$ nikola build
+$ ls -1 output/
+archive.html
+assets
+categories
+galleries
+images
+index.html
+listings
+robots.txt
+rss.xml
+sitemapindex.xml
+sitemap.xml
+
+$ w3m -dump http://localhost:8000
+Skip to main content
+My Nikola Site
+
+  • Archive
+  • Tags
+  • RSS feed
+
+Contents © 2025 Nikola Tesla - Powered by Nikola
+```
+
+Configuration is a Python script:
+
+``` shell
+$ grep -Pv '^\s*(#|$)' conf.py  | head
+import time
+BLOG_AUTHOR = "Nikola Tesla"  # (translatable)
+BLOG_TITLE = "My Nikola Site"  # (translatable)
+SITE_URL = "http://t14s.example.com/"
+BLOG_EMAIL = "n.tesla@example.com"
+BLOG_DESCRIPTION = "This is a demo site for Nikola."  # (translatable)
+DEFAULT_LANG = "en"
+TRANSLATIONS = {
+    DEFAULT_LANG: "",
+}
+```
+
+Content of `mysite`:
+
+``` shell
+$ ls -1F
+cache/
+conf.py
+files/
+galleries/
+images/
+listings/
+output/
+pages/
+posts/
+__pycache__/
+```
+
+$ find p{ages,osts}/
+pages/
+posts/
+```
+
+Create a new page with hacks...
+
+``` shell
+$ tmpfile=$(mktemp)
+$ curl -sL -X POST lipsum.com/feed/json | jq -r '.feed.lipsum' | \
+    tr '\n' 'X' | sed 's/X.*//' > $tmpfile
+
+$ env EDITOR="fold -w80" nikola new_page -t 'About Me' -a 'Jiri Belka' -f markdown -i $tmpfile -e
+Importing Existing Page
+-----------------------
+
+Title: About Me
+Scanning posts........done!
+[2025-02-17 16:21:04] INFO: new_page: Your page's text is at: pages/about-me.md
+<!--
+.. title: About Me
+.. slug: about-me
+.. date: 2025-02-17 16:21:04 UTC+01:00
+.. tags: 
+.. category: 
+.. link: 
+.. description: 
+.. type: text
+.. author: Jiri Belka
+-->
+
+Lorem ipsum dolor sit amet, consectetur adipiscing elit. Maecenas dapibus arcu v
+el mauris euismod, in semper enim ornare. Fusce laoreet, enim ultricies tempor b
+landit, nisl felis tempor enim, vel consequat tortor nisi a mi. Maecenas loborti
+s arcu sit amet quam dictum, ut mollis nulla pretium. Praesent at quam ut ligula
+ congue ultricies. Duis ex dui, dignissim at lorem vel, porta auctor ipsum. Aliq
+uam erat volutpat. Duis commodo, libero in eleifend condimentum, dolor turpis ul
+trices justo, et tempor sapien ligula eget orci. Cras tempus pulvinar arcu, pulv
+inar gravida elit fermentum ut. Donec dignissim dignissim nibh, nec auctor lorem
+ auctor scelerisque. Aenean erat turpis, elementum sit amet faucibus quis, effic
+itur non odio. Duis auctor erat id ultrices viverra. Sed in lorem eget ligula co
+nvallis consequat. Suspendisse feugiat lorem et libero sagittis porttitor. Suspe
+ndisse urna lacus, mollis sed diam vel, dapibus tincidunt metus. Nam accumsan ia
+culis lorem, quis posuere velit elementum tempus. Aenean at felis eu arcu sceler
+isque eleifend sit amet nec erat.
+
+$ nikola build
+$ ls -1 output/pages/about-me/
+index.html
+index.md
+```
+
+Funny.
 
 
 ## windows
