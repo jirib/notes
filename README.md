@@ -15357,6 +15357,106 @@ After this operation, 10.6 MB disk space will be freed.
 Do you want to continue? [Y/n]
 ```
 
+##### APT signing keys
+
+``` shell
+# only omitting lines with hashes
+$ sed '/^SHA/,/BEGIN PGP SIGNATURE/{/BEGIN PGP SIGNATURE/!d}' /var/lib/apt/lists/deb.debian.org_debian_dists_bookworm-updates_InRelease
+-----BEGIN PGP SIGNED MESSAGE-----
+Hash: SHA256
+
+Origin: Debian
+Label: Debian
+Suite: stable-updates
+Version: 12-updates
+Codename: bookworm-updates
+Date: Thu, 20 Feb 2025 02:21:00 UTC
+Valid-Until: Thu, 27 Feb 2025 02:21:00 UTC
+Acquire-By-Hash: yes
+No-Support-for-Architecture-all: Packages
+Architectures: all amd64 arm64 armel armhf i386 mips64el mipsel ppc64el s390x
+Components: main contrib non-free-firmware non-free
+Description: Debian 12 - Updates
+-----BEGIN PGP SIGNATURE-----
+
+iQIzBAEBCAAdFiEEpyNohvPMyq0Uiif4DphATThvodkFAme2kacACgkQDphATThv
+odmvjQ/+M2SCVokYpBOaZfmgizpN8Ua78MGxC+sR5SPZHknhjGqZM5I2gXASARMu
+Xqqrwgux/FAgmB/6r8lFYXIjGLAgweBK7W+zLzO+9YJ86iP3S4znhsQTLiSWy8Bx
+kQAojA0x4ViV0YQmvTRZqLKBMl6HtYe2hnMxqxGyjqgwh+IgvxVd7eeTm7+4rGAS
+4XA8QN7wbfS8izdcEtcV7ezfxhTwoCM7jWv5vb40peCcWYmJk0tZVYKR5LfG4Y3a
+KePikb5vQjFpMB7bqULSNFZNbQHvoXxVzVQ7zv//X9bX272tHtF/TbG7RK2XKqdE
+CtuGns4RggPkQTtVKdIcmpoSzJbezQx6flaBHnCyEE44n6ujTjBI2hqJPM42B4KI
+ZHecAZ84fSJJ6+PZTLQWV13FxrhLzwC7m2uphmu55ZnV8deU0aBdNbUWWSCGH3Rq
+LhYrp601x0T/Yp77twPyUX8XRws23NXTzU9x+KbfncJyBZjJcJePSqZNyYE8lqii
+l4SaRP1zVEQZGr0MQ2Xs4u8VnlytWWpg93vfgjkeUWW1S1ilDUmMwFnb+y/raXsR
+U74fnbsLO7OqGZYQpqfmNp012VfC1RzL851+/Vqe5a1fcxsStgg9WC+Q3z0UI79d
+8133toRgnIjgY8LSZmkfZ71h0LjdkJw5oLmk91Cmg6Vb55QqCMKJAjMEAQEIAB0W
+IQRMtQGQIHtHWKP3Onlu0Oe4JkPhMQUCZ7aRxQAKCRBu0Oe4JkPhMZYfD/0csB76
+lOTpEn18+3A6VvEfBEVD5O3BsY5pDdGbQeQeXf1FzU21zBgOePtBoqiyjU5WLkxo
+3j0AYJJKsSZ9HPM8+oa0ulfvIuZTBa/rQqMsr05egK6vyBEq/h+Q4+IlcQ50sSmW
+/EzNPf0ns/79Nn3qnJKupz1LAze7t5g4tra/sRY3OjKMYqGVR80P9ahrBo6Xna11
+xQWrSBTw2aGoh0IySnuJKBv4JNT6uN/TFYngXDnfg26aPPDXjKnTIk5IuOWNq2Rr
+lLx9CPLfwgxeYEIMnGZm61+RXaKE1sHO60KLAuHnAFALw1ZZ/4OpWYNiYQQLF7j8
+SoradnOCTFPKty+1LwqfC+J8gQe/qGaR5upzmfbHbUOneWvpBdEVxhmjrfsgykR7
+YtEX+Ggm9YCC63IZqs/ZmGY2dD4aoyQw2sAvbg48Vfb9DxrmF2MNsUbqeSIzQhfj
+WBOHs4akdIuDZY7914xFGh+fNE15N1JFu+99XC/dkFXUx3PMbxwXj/u6GGElY1jt
+vbLEkfLZvBu40m2rcl00sy5KaARWBavDgXd9IvnSbTVxgS37c4GTbkAJ9IYtB4U6
+41EU8xkRtnrnyyPIqlFznvvNwiYHLceeSaHgFq5tyAserRJjuOB39Sec3zEqN36E
+tELsiGmJW7F+OcMAEycTLYpnDsk6KcOusb7bug==
+=YT4a
+-----END PGP SIGNATURE-----
+
+$ sed -n '/BEGIN PGP SIGNATURE/,$p' /var/lib/apt/lists/deb.debian.org_debian_dists_bookworm-updates_InRelease | \
+    gpg -n --list-packets
+# off=0 ctb=89 tag=2 hlen=3 plen=563
+:signature packet: algo 1, keyid 0E98404D386FA1D9
+        version 4, created 1740018087, md5len 0, sigclass 0x01
+        digest algo 8, begin of digest af 8d
+        hashed subpkt 33 len 21 (issuer fpr v4 A7236886F3CCCAAD148A27F80E98404D386FA1D9)
+        hashed subpkt 2 len 4 (sig created 2025-02-20)
+        subpkt 16 len 8 (issuer key ID 0E98404D386FA1D9)
+        data: [4094 bits]
+# off=566 ctb=89 tag=2 hlen=3 plen=563
+:signature packet: algo 1, keyid 6ED0E7B82643E131
+        version 4, created 1740018117, md5len 0, sigclass 0x01
+        digest algo 8, begin of digest 96 1f
+        hashed subpkt 33 len 21 (issuer fpr v4 4CB50190207B4758A3F73A796ED0E7B82643E131)
+        hashed subpkt 2 len 4 (sig created 2025-02-20)
+        subpkt 16 len 8 (issuer key ID 6ED0E7B82643E131)
+        data: [4093 bits]
+```
+
+See `signature`, `keyid` and `issuer fpr` (this is full keyid, see
+last 16 digits). Thus, it has two signatures, by two keys.
+
+``` shell
+$ curl -s "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x0E98404D386FA1D9" | gpg -n 2>/dev/null
+pub   rsa4096 2021-01-17 [SC] [expires: 2029-01-15]
+      1F89983E0081FDE018F3CC9673A4F27B8DD47936
+uid           Debian Archive Automatic Signing Key (11/bullseye) <ftpmaster@debian.org>
+sub   rsa4096 2021-01-17 [S] [expires: 2029-01-15]
+
+$ curl -s "https://keyserver.ubuntu.com/pks/lookup?op=get&search=0x6ED0E7B82643E131" | gpg -n 2>/dev/null
+pub   rsa4096 2023-01-21 [SC] [expires: 2031-01-19]
+      B8B80B5B623EAB6AD8775C45B7C5D7D6350947F8
+uid           Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.org>
+sub   rsa4096 2023-01-21 [S] [expires: 2031-01-19]
+
+$ export GNUPGHOME=$(mktemp -d)
+
+$ gpg --keyserver keyserver.ubuntu.com --search-keys 0E98404D386FA1D9
+gpg: data source: http://185.125.188.27:11371
+(1)     Debian Archive Automatic Signing Key (11/bullseye) <ftpmaster@debian.o
+          4096 bit RSA key 73A4F27B8DD47936, created: 2021-01-17
+Keys 1-1 of 1 for "0E98404D386FA1D9".  Enter number(s), N)ext, or Q)uit >
+
+$ gpg --keyserver keyserver.ubuntu.com --search-keys 6ED0E7B82643E131
+gpg: data source: http://185.125.188.27:11371
+(1)     Debian Archive Automatic Signing Key (12/bookworm) <ftpmaster@debian.o
+          4096 bit RSA key B7C5D7D6350947F8, created: 2023-01-21
+Keys 1-1 of 1 for "6ED0E7B82643E131".  Enter number(s), N)ext, or Q)uit >
+```
+
 
 #### Building Debian package from its source
 
@@ -15885,7 +15985,7 @@ awk '/^#==\[ Command \]=+#$/ {getline;print NR,$0}' sysfs.txt
 #### zypper
 
 
-#### installing
+##### installing
 
 To run `zypper` non-interactively do:
 
@@ -15951,6 +16051,51 @@ i | libopenssl1_1 | Secure Sockets and Transport Layer Security | package
 zypper lp
 zypper pchk
 zypper patch # updates only affected/vulnerable packages
+```
+
+##### zypper/rpm signing keys
+
+``` shell
+$ rpm -qa --qf '%{NAME}-%{VERSION}-%{RELEASE} %{SUMMARY}\n' gpg-pubkey | grep -i 'suse package signing key'
+gpg-pubkey-39db7c82-66c5d91a gpg(SuSE Package Signing Key <build@suse.de>)
+
+# let's remove gpg-pubkey
+$ rpm -e $(rpm -qa --qf '%{NAME}-%{VERSION}-%{RELEASE} %{SUMMARY}\n' gpg-pubkey | grep -i 'suse package signing key' | cut -d' ' -f1)
+$ rpm -qa --qf '%{NAME}-%{VERSION}-%{RELEASE} %{SUMMARY}\n' gpg-pubkey | grep -i 'suse package signing key' | wc -l
+0
+
+# clean cache
+$ zypper cc -a
+$ ls -1 /var/cache/zypp/raw/*15*SP*/repodata/repomd.xml.key
+ls: cannot access '/var/cache/zypp/raw/*15*SP*/repodata/repomd.xml.key': No such file or directory
+
+# refresh to obtain the keys
+$ zypper --gpg-auto-import-keys refresh
+
+$ ls -1 /var/cache/zypp/raw/*15*SP*/repodata/repomd.xml.key
+/var/cache/zypp/raw/Basesystem_Module_15_SP3_x86_64:SLE-Module-Basesystem15-SP3-Pool/repodata/repomd.xml.key
+/var/cache/zypp/raw/Basesystem_Module_15_SP3_x86_64:SLE-Module-Basesystem15-SP3-Updates/repodata/repomd.xml.key
+/var/cache/zypp/raw/Desktop_Applications_Module_15_SP3_x86_64:SLE-Module-Desktop-Applications15-SP3-Pool/repodata/repomd.xml.key
+/var/cache/zypp/raw/Desktop_Applications_Module_15_SP3_x86_64:SLE-Module-Desktop-Applications15-SP3-Updates/repodata/repomd.xml.key
+/var/cache/zypp/raw/Development_Tools_Module_15_SP3_x86_64:SLE-Module-DevTools15-SP3-Pool/repodata/repomd.xml.key
+/var/cache/zypp/raw/Development_Tools_Module_15_SP3_x86_64:SLE-Module-DevTools15-SP3-Updates/repodata/repomd.xml.key
+/var/cache/zypp/raw/SAP_Applications_Module_15_SP3_x86_64:SLE-Module-SAP-Applications15-SP3-Pool/repodata/repomd.xml.key
+/var/cache/zypp/raw/SAP_Applications_Module_15_SP3_x86_64:SLE-Module-SAP-Applications15-SP3-Updates/repodata/repomd.xml.key
+/var/cache/zypp/raw/Server_Applications_Module_15_SP3_x86_64:SLE-Module-Server-Applications15-SP3-Pool/repodata/repomd.xml.key
+/var/cache/zypp/raw/Server_Applications_Module_15_SP3_x86_64:SLE-Module-Server-Applications15-SP3-Updates/repodata/repomd.xml.key
+/var/cache/zypp/raw/SUSE_Linux_Enterprise_High_Availability_Extension_15_SP3_x86_64:SLE-Product-HA15-SP3-Pool/repodata/repomd.xml.key
+/var/cache/zypp/raw/SUSE_Linux_Enterprise_High_Availability_Extension_15_SP3_x86_64:SLE-Product-HA15-SP3-Updates/repodata/repomd.xml.key
+/var/cache/zypp/raw/SUSE_Linux_Enterprise_Server_for_SAP_Applications_15_SP3_x86_64:SLE-Product-SLES_SAP15-SP3-Pool/repodata/repomd.xml.key
+/var/cache/zypp/raw/SUSE_Linux_Enterprise_Server_for_SAP_Applications_15_SP3_x86_64:SLE-Product-SLES_SAP15-SP3-Updates/repodata/repomd.xml.key
+
+$ rpm -qa --qf '%{NAME}-%{VERSION}-%{RELEASE} %{SUMMARY}\n' gpg-pubkey | grep -i 'suse package signing key' | wc -l
+1
+
+$ gpg -n -v /var/cache/zypp/raw/Basesystem_Module_15_SP3_x86_64:SLE-Module-Basesystem15-SP3-Updates/repodata/repomd.xml.key 2>/dev/null
+pub   rsa2048 2013-01-31 [SC] [expires: 2028-10-02]
+      FEAB502539D846DB2C0961CA70AF9E8139DB7C82
+uid           SuSE Package Signing Key <build@suse.de>
+sig        70AF9E8139DB7C82 2024-08-21   [selfsig]
 ```
 
 
