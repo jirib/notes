@@ -15414,6 +15414,28 @@ ptoptions=+reg_ssl_verify reg_ssl_verify=0
 That is, do NOT expect that `reg_server_cert_finterprint` makes the TLS cert trusted!!!
 
 
+#### SLES linuxrc
+
+`linuxrc`'s `ptoptions` boot parameter causes addition/removal from
+`/etc/install.inf` in the installer environment:
+
+``` shell
+# grep rdinit /etc/install.inf
+Cmdline: splash=silent rdinit=/vtoy/vtoy
+```
+
+- customized boot with `ptoptions=+rdinit'
+
+``` shell
+# grep rdinit /etc/install.inf
+rdinit: /vtoy/vtoy
+```
+
+As can be seen, `rdinit` was removed from `Cmdline`, that's cool
+because such a parameter impacts the final boot after the installation
+is completed.
+
+
 #### usb installation
 
 Hack to make a bootable USB from an ISO:
