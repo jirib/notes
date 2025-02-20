@@ -15368,7 +15368,7 @@ Scribus.pro
 scribus.xml
 TODO
 TRANSLATION
-
+```
 
 ### RHEL
 
