@@ -12753,6 +12753,58 @@ libcurl4 /usr/share/licenses/libcurl4 drwxr-xr-x
 libcurl4 /usr/share/licenses/libcurl4/COPYING -rw-r--r--
 ```
 
+Getting RPM GPG pub keyid of running kernel:
+
+``` shell
+$ rpm -q --qf '%{NAME}-%{VERSION}-%{RELEASE} %{SIGPGP:pgpsig}\n' kernel-default | \
+    grep -Po "$(uname -r | cut -d'-' -f1-2)"'.*\K(\w+){8}$'
+39db7c82
+
+$ rpm -qa gpg-pubkey | grep 39db7c82
+gpg-pubkey-39db7c82-66c5d91a
+
+$ rpm -qi gpg-pubkey-39db7c82-66c5d91a | sed -n '/Packager/,$p'
+Packager    : SuSE Package Signing Key <build@suse.de>
+Summary     : gpg(SuSE Package Signing Key <build@suse.de>)
+Description :
+-----BEGIN PGP PUBLIC KEY BLOCK-----
+Version: rpm-4.11.2 (NSS-3)
+
+mQENBFEKlmsBCADbpZZbbSC5Zi+HxCR/ynYsVxU5JNNiSSZabN5GMgc9Z0hxeXxp
+YWvFoE/4n0+IXIsp83iKvxf06Eu8je/DXp0lMqDZu7WiT3XXAlkOPSNV4akHTDoY
+91SJaZCpgUJ7K1QXOPABNbREsAMN1a7rxBowjNjBUyiTJ2YuvQRLtGdK1kExsVma
+hieh/QxpoDyYd5w/aky3z23erCoEd+OPfAqEHd5tQIa6LOosa63BSCEl3milJ7J9
+vDmoGPAoS6ui7S2R5X4/+PLN8Mm2kOBrFjhmL93LX0mrGCMxsNsKgP6zabYKQEb8
+L028SXvl7EGoA+Vw5Vd3wIGbM73PfbgNrXjfABEBAAG0KFN1U0UgUGFja2FnZSBT
+aWduaW5nIEtleSA8YnVpbGRAc3VzZS5kZT6JAVMEEwEIAD0CGwMGCwkIBwMCBBUC
+CAMEFgIDAQIeAQIXgBYhBP6rUCU52EbbLAlhynCvnoE523yCBQJmxdkaBQkdeMEv
+AAoJEHCvnoE523yCsyEH/1NZhXtgIa4kFCZdWhPhXPvqz7IkIm62yXpS3Iseivbm
+rxzQNXNlQVLnaOOKZX4nEUyh1lr+w18PGlb1yIdMjQqt04hwFgCU+q99cTfrAHG5
+jzirSq9I2iBjn+zARCjLzJsD+dH7JGfEMm0lxtPyMRoNJ6bq8eEkjEtKxDOg0iTE
+vQ4eboRlR0a8hH06tauPfeWx6Ri6hIobN3TNdCY/RQe4WeyYL8vEog3c7uYYag/V
+iMFfj8QzRHgkkcCE9W3TTfr1K/h8AGZTW0uJH4YQhl2HqUsspKmicZIbK/W9M87l
+HUyO8EgreF1MuKsg1GWxV2OikZAJKMcNs6EhzLWUWHs=
+=5hye
+-----END PGP PUBLIC KEY BLOCK-----
+
+Distribution: (none)
+
+$ rpm -qi gpg-pubkey-39db7c82-66c5d91a | sed -n '/Packager/,$p' | gpg -n --with-fingerprint
+pub  2048R/39DB7C82 2013-01-31 [expires: 2028-10-02]
+      Key fingerprint = FEAB 5025 39D8 46DB 2C09  61CA 70AF 9E81 39DB 7C82
+uid                            SuSE Package Signing Key <build@suse.de>
+
+# eh, scraping works now.. maybe won't work in the future...
+$ curl -Ls https://www.suse.com/support/security/keys/ | \
+    w3m -T text/html -dump | \
+    sed -ne '/SUSE Linux Enterprise 12/,/END/{/END/q;p}' | \
+    gpg -n --with-fingerprint
+pub  2048R/39DB7C82 2013-01-31 [expires: 2028-10-02]
+      Key fingerprint = FEAB 5025 39D8 46DB 2C09  61CA 70AF 9E81 39DB 7C82
+uid                            SuSE Package Signing Key <build@suse.de>
+```
+
+
 ## storage
 
 See [List of partition identifiers for PCs](https://www.win.tue.nl/~aeb/partitions/partition_types-1.html).
