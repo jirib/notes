@@ -6214,6 +6214,24 @@ $ PACKER_lOG=1 packer build -debug...
 ...
 ```
 
+An ungly hack to allow an installation from a disk image, that is, a
+copy of an usb bootable media; note, it's not an installation with a
+backing image!
+
+``` hcl
+source "qemu" "root_iso" {
+  iso_url = "/data/install/__temp__/usb.img"
+...
+  qemuargs             = [
+  ...
+          ["-device", "ahci,id=ahci0"],
+          ["-device", "ide-hd,drive=sata0,bus=ahci0.1"],
+          ["-device", "ide-hd,drive=sata1,bus=ahci0.2"],
+          ["-drive", "if=none,file=/data/install/__temp__/usb.img,id=sata0,cache=writeback,discard=ignore,format=raw,file.locking=off"], <---+--- same as iso_url
+          ["-drive", "if=none,file=/data/install/__temp__/out/Linux-SLES15SP6-Minimal,id=sata1,cache=writeback,discard=ignore,format=qcow2,file.locking=off"] <---+--- as vm_name
+  ]
+```
+
 
 ### salt
 
