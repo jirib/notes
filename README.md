@@ -6201,6 +6201,19 @@ Packer cache is located at `./packer_cache` by default, or
 `PACKER_CACHE_DIR` environment variable, see:
 https://developer.hashicorp.com/packer/docs/configure#configure-the-cache-directory.
 
+To debug Packer/boot of a VM, one might do:
+
+- add `-monitor telnet:127.0.0.1:5555,server,nowait` to `qemuargs`
+- add `-S` to `qemuargs` (starts QEMU in stopped mode)
+
+```
+$ PACKER_lOG=1 packer build -debug...
+...
+==> qemu.root_iso: Overriding default Qemu arguments with qemuargs template option...
+2025/02/21 09:09:14 packer-plugin-qemu_v1.1.0_x5.0_linux_amd64 plugin: 2025/02/21 09:09:14 Executing /usr/libexec/qemu-kvm: []string{"-name", "Linux-SLES15SP6-Minimal", "-chardev", "socket,id=vtpm,path=/tmp/2901371886/vtpm.sock", "-machine", "type=q35,accel=kvm", "-vga", "virtio", "-serial", "file:/tmp/ttyS0.log", "-vnc", "127.0.0.1:52", "-m", "2048M", "-cpu", "host", "-device", "virtio-scsi-pci,id=scsi0", "-device", "scsi-hd,bus=scsi0.0,drive=drive0", "-device", "virtio-net,netdev=user.0", "-device", "tpm-tis,tpmdev=tpm0", "-smp", "2", "-tpmdev", "emulator,id=tpm0,chardev=vtpm", "-drive", "if=none,file=/data/install/__temp__/out/Linux-SLES15SP6-Minimal,id=drive0,cache=writeback,discard=ignore,format=qcow2", "-drive", "file=/data/install/__temp__/usb.img,media=cdrom", "-drive", "file=ovmf-x86_64-smm-suse-code.bin,if=pflash,unit=0,format=raw,readonly=on", "-drive", "file=/data/install/__temp__/out/efivars.fd,if=pflash,unit=1,format=raw", "-netdev", "user,id=user.0,hostfwd=tcp::2313-:22"}
+...
+```
+
 
 ### salt
 
