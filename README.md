@@ -19968,7 +19968,38 @@ $ xl list | grep alpine
 alpine01                                     7   256     1     -b----       4.4
 
 $ ps -eo pid,args  | grep -P '^\d+ qemu-dm-7'
-11350 qemu-dm-7 -machine pc-0.10,accel=xen,max-ram-below-4g=4026531840,allow-unassigned=true,trad_compat=True -vnc unix:/var/run/xen/vnc-7,lock-key-sync=off -monitor null -pidfile /var/run/xen/qemu-dm-7.pid -xen-domid 7 -m size=248 -boot order=cdn -usb -device usb-tablet,port=2 -smp 1,maxcpus=1 -serial pty -display none -nodefaults -trace enable=xen_platform_log -sandbox on,obsolete=deny,elevateprivileges=allow,spawn=deny,resourcecontrol=deny -S -global PIIX4_PM.revision_id=0x1 -global ide-hd.ver=0.10.2 -global piix3-ide-xen.subvendor_id=0x5853 -global piix3-ide-xen.subsystem_id=0x0001 -global piix3-usb-uhci.subvendor_id=0x5853 -global piix3-usb-uhci.subsystem_id=0x0001 -global rtl8139.subvendor_id=0x5853 -global rtl8139.subsystem_id=0x0001 -parallel null -qmp unix:/var/run/xen/qmp-libxl-7,server,nowait -qmp unix:/var/run/xen/qmp-event-7,server,nowait -device xen-platform,addr=3,device-id=0x0001,revision=0x2,class-id=0x0100,subvendor_id=0x5853,subsystem_id=0x0001 -drive file=/dev/sm/backend/9cd6a591-b9d2-32d3-3051-79a0ca6d4962/7461b3ff-001c-4b56-ada9-6e73bc78db44,if=none,id=ide1-cd1,auto-read-only=off,read-only=on,format=raw -device ide-cd,drive=ide1-cd1,bus=ide.1,unit=1 -drive file=/dev/sm/backend/02504265-dde6-dd00-2bfd-273d8b219639/893ce470-01fe-47b0-8649-71ba22a42819,if=none,id=ide0-hd0,auto-read-only=off,format=raw -device ide-hd,drive=ide0-hd0,bus=ide.0,unit=0,bios-chs-trans=forcelba -drive file=/dev/sm/backend/02504265-dde6-dd00-2bfd-273d8b219639/c0da21e6-9a4d-41cf-8ab5-2b615a009718,if=none,id=ide0-hd1,auto-read-only=off,format=raw -device ide-hd,drive=ide0-hd1,bus=ide.0,unit=1,bios-chs-trans=forcelba -drive file=/dev/sm/backend/02504265-dde6-dd00-2bfd-273d8b219639/cd9821c6-96be-44f4-9c87-33178daf784f,if=none,id=ide1-hd0,auto-read-only=off,format=raw -device ide-hd,drive=ide1-hd0,bus=ide.1,unit=0,bios-chs-trans=forcelba -device rtl8139,netdev=tapnet0,mac=72:11:a1:77:59:b9,addr=4 -netdev tap,id=tapnet0,fd=7 -device VGA,vgamem_mb=8,addr=2,romfile=,rombar=1,subvendor_id=0x5853,subsystem_id=0x0001,qemu-extended-regs=false -vnc-clipboard-socket-fd 4 -xen-domid-restrict -chroot /var/xen/qemu/root-7 -runas 65542:997
+11350 qemu-dm-7 -machine
+pc-0.10,accel=xen,max-ram-below-4g=4026531840,allow-unassigned=true,trad_compat=True
+-vnc unix:/var/run/xen/vnc-7,lock-key-sync=off -monitor null -pidfile
+/var/run/xen/qemu-dm-7.pid -xen-domid 7 -m size=248 -boot order=cdn
+-usb -device usb-tablet,port=2 -smp 1,maxcpus=1 -serial pty -display
+none -nodefaults -trace enable=xen_platform_log -sandbox
+on,obsolete=deny,elevateprivileges=allow,spawn=deny,resourcecontrol=deny
+-S -global PIIX4_PM.revision_id=0x1 -global ide-hd.ver=0.10.2 -global
+piix3-ide-xen.subvendor_id=0x5853 -global
+piix3-ide-xen.subsystem_id=0x0001 -global
+piix3-usb-uhci.subvendor_id=0x5853 -global
+piix3-usb-uhci.subsystem_id=0x0001 -global rtl8139.subvendor_id=0x5853
+-global rtl8139.subsystem_id=0x0001 -parallel null -qmp
+unix:/var/run/xen/qmp-libxl-7,server,nowait -qmp
+unix:/var/run/xen/qmp-event-7,server,nowait -device
+xen-platform,addr=3,device-id=0x0001,revision=0x2,class-id=0x0100,subvendor_id=0x5853,subsystem_id=0x0001
+-drive
+file=/dev/sm/backend/9cd6a591-b9d2-32d3-3051-79a0ca6d4962/7461b3ff-001c-4b56-ada9-6e73bc78db44,if=none,id=ide1-cd1,auto-read-only=off,read-only=on,format=raw
+-device ide-cd,drive=ide1-cd1,bus=ide.1,unit=1 -drive
+file=/dev/sm/backend/02504265-dde6-dd00-2bfd-273d8b219639/893ce470-01fe-47b0-8649-71ba22a42819,if=none,id=ide0-hd0,auto-read-only=off,format=raw
+-device ide-hd,drive=ide0-hd0,bus=ide.0,unit=0,bios-chs-trans=forcelba
+-drive
+file=/dev/sm/backend/02504265-dde6-dd00-2bfd-273d8b219639/c0da21e6-9a4d-41cf-8ab5-2b615a009718,if=none,id=ide0-hd1,auto-read-only=off,format=raw
+-device ide-hd,drive=ide0-hd1,bus=ide.0,unit=1,bios-chs-trans=forcelba
+-drive
+file=/dev/sm/backend/02504265-dde6-dd00-2bfd-273d8b219639/cd9821c6-96be-44f4-9c87-33178daf784f,if=none,id=ide1-hd0,auto-read-only=off,format=raw
+-device ide-hd,drive=ide1-hd0,bus=ide.1,unit=0,bios-chs-trans=forcelba
+-device rtl8139,netdev=tapnet0,mac=72:11:a1:77:59:b9,addr=4 -netdev
+tap,id=tapnet0,fd=7 -device
+VGA,vgamem_mb=8,addr=2,romfile=,rombar=1,subvendor_id=0x5853,subsystem_id=0x0001,qemu-extended-regs=false
+-vnc-clipboard-socket-fd 4 -xen-domid-restrict -chroot
+/var/xen/qemu/root-7 -runas 65542:997
 
 $ ls -l /proc/11350/exe
 lrwxrwxrwx 1 65542 cgred 0 Feb 26 12:12 /proc/11350/exe -> /usr/lib64/xen/bin/qemu-system-i386
