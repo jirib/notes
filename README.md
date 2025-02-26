@@ -19956,8 +19956,8 @@ about to get started...
 
 #### XCP-ng
 
-The ISO installation creates only the Xen dom0 - virt host; it has an
-OVA file for the mgmt VM.
+The ISO installation creates only the Xen dom0 - virt host; it deploys
+a mgmt VM on top of itself.
 
 ``` shell
 $ /usr/lib64/xen/bin/qemu-system-i386 -version
