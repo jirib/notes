@@ -6008,6 +6008,22 @@ Num Type         Disp Enb   Where
 ```
 
 
+#### python project management tools
+
+##### python requirements.txt
+
+This is the simplest approach:
+
+``` shell
+$ python -m venv .venv
+$ pip install pyyaml remote_pdb
+$ pip freeze > requirements.txt
+cat requirements.txt 
+PyYAML==6.0.2
+remote-pdb==2.1.0
+```
+
+
 ### svn
 
 SVN metadata are located in `.svn` directory inside a checkout repo.
@@ -19937,6 +19953,99 @@ mapping kernel into physical memory
 about to get started...
 ...
 ```
+
+#### XCP-ng
+
+The ISO installation creates only the Xen dom0 - virt host; it has an
+OVA file for the mgmt VM.
+
+``` shell
+$ /usr/lib64/xen/bin/qemu-system-i386 -version
+QEMU emulator version 4.2.1
+Copyright (c) 2003-2019 Fabrice Bellard and the QEMU Project developers
+
+$ xl list | grep alpine
+alpine01                                     7   256     1     -b----       4.4
+
+$ ps -eo pid,args  | grep -P '^\d+ qemu-dm-7'
+11350 qemu-dm-7 -machine pc-0.10,accel=xen,max-ram-below-4g=4026531840,allow-unassigned=true,trad_compat=True -vnc unix:/var/run/xen/vnc-7,lock-key-sync=off -monitor null -pidfile /var/run/xen/qemu-dm-7.pid -xen-domid 7 -m size=248 -boot order=cdn -usb -device usb-tablet,port=2 -smp 1,maxcpus=1 -serial pty -display none -nodefaults -trace enable=xen_platform_log -sandbox on,obsolete=deny,elevateprivileges=allow,spawn=deny,resourcecontrol=deny -S -global PIIX4_PM.revision_id=0x1 -global ide-hd.ver=0.10.2 -global piix3-ide-xen.subvendor_id=0x5853 -global piix3-ide-xen.subsystem_id=0x0001 -global piix3-usb-uhci.subvendor_id=0x5853 -global piix3-usb-uhci.subsystem_id=0x0001 -global rtl8139.subvendor_id=0x5853 -global rtl8139.subsystem_id=0x0001 -parallel null -qmp unix:/var/run/xen/qmp-libxl-7,server,nowait -qmp unix:/var/run/xen/qmp-event-7,server,nowait -device xen-platform,addr=3,device-id=0x0001,revision=0x2,class-id=0x0100,subvendor_id=0x5853,subsystem_id=0x0001 -drive file=/dev/sm/backend/9cd6a591-b9d2-32d3-3051-79a0ca6d4962/7461b3ff-001c-4b56-ada9-6e73bc78db44,if=none,id=ide1-cd1,auto-read-only=off,read-only=on,format=raw -device ide-cd,drive=ide1-cd1,bus=ide.1,unit=1 -drive file=/dev/sm/backend/02504265-dde6-dd00-2bfd-273d8b219639/893ce470-01fe-47b0-8649-71ba22a42819,if=none,id=ide0-hd0,auto-read-only=off,format=raw -device ide-hd,drive=ide0-hd0,bus=ide.0,unit=0,bios-chs-trans=forcelba -drive file=/dev/sm/backend/02504265-dde6-dd00-2bfd-273d8b219639/c0da21e6-9a4d-41cf-8ab5-2b615a009718,if=none,id=ide0-hd1,auto-read-only=off,format=raw -device ide-hd,drive=ide0-hd1,bus=ide.0,unit=1,bios-chs-trans=forcelba -drive file=/dev/sm/backend/02504265-dde6-dd00-2bfd-273d8b219639/cd9821c6-96be-44f4-9c87-33178daf784f,if=none,id=ide1-hd0,auto-read-only=off,format=raw -device ide-hd,drive=ide1-hd0,bus=ide.1,unit=0,bios-chs-trans=forcelba -device rtl8139,netdev=tapnet0,mac=72:11:a1:77:59:b9,addr=4 -netdev tap,id=tapnet0,fd=7 -device VGA,vgamem_mb=8,addr=2,romfile=,rombar=1,subvendor_id=0x5853,subsystem_id=0x0001,qemu-extended-regs=false -vnc-clipboard-socket-fd 4 -xen-domid-restrict -chroot /var/xen/qemu/root-7 -runas 65542:997
+
+$ ls -l /proc/11350/exe
+lrwxrwxrwx 1 65542 cgred 0 Feb 26 12:12 /proc/11350/exe -> /usr/lib64/xen/bin/qemu-system-i386
+```
+
+Another details:
+
+``` shell
+$ xl list | grep alpine
+alpine01                                     9   256     1     -b----       0.6
+
+$ ps -eo pid,args  | grep -P '^\d+ qemu-dm-9' | grep -oP 'drive \w+=\K[^,]+'
+/dev/sm/backend/9cd6a591-b9d2-32d3-3051-79a0ca6d4962/7461b3ff-001c-4b56-ada9-6e73bc78db44
+/dev/sm/backend/02504265-dde6-dd00-2bfd-273d8b219639/c0da21e6-9a4d-41cf-8ab5-2b615a009718
+
+$ ps -eo pid,args  | grep -P '^\d+ qemu-dm-9' | grep -oP 'drive \w+=\K[^,]+' | xargs -I {} fdisk -l {} 2>/dev/null
+
+Disk /dev/sm/backend/9cd6a591-b9d2-32d3-3051-79a0ca6d4962/7461b3ff-001c-4b56-ada9-6e73bc78db44: 66 MB, 66060288 bytes, 129024 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+Disk label type: dos
+Disk identifier: 0x124bb11a
+
+                                                                                     Device Boot      Start         End      Blocks   Id  System
+/dev/sm/backend/9cd6a591-b9d2-32d3-3051-79a0ca6d4962/7461b3ff-001c-4b56-ada9-6e73bc78db44p1   *           0      129023       64512    0  Empty
+/dev/sm/backend/9cd6a591-b9d2-32d3-3051-79a0ca6d4962/7461b3ff-001c-4b56-ada9-6e73bc78db44p2             308        3187        1440   ef  EFI (FAT-12/16/32)
+
+Disk /dev/sm/backend/02504265-dde6-dd00-2bfd-273d8b219639/c0da21e6-9a4d-41cf-8ab5-2b615a009718: 2147 MB, 2147483648 bytes, 4194304 sectors
+Units = sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+$ strings /dev/sm/backend/9cd6a591-b9d2-32d3-3051-79a0ca6d4962/7461b3ff-001c-4b56-ada9-6e73bc78db44 | head
+fSfQ
+xpu
+isolinux.bin missing or corrupt.
+f`f1
+{fRfP
+Operating system load error.
+EFI PART
+2025021@
+0031455
+2025021@
+```
+
+So, the first is the ISO, while XCP-ng doing some fancy tricks.
+
+Each VM disk seems to be, in fact, a LV:
+
+``` shell
+$ xe vm-disk-list vm=alpine01 | grep -A 4 VDI | grep -P '(uuid|size)' | \
+    perl -pe 's#(\d{2,})#sprintf("%.2f", $1 / 2**20)#ge if /virtual-size/i'
+uuid ( RO)             : d633713d-db6b-48e7-aadf-9f5d6db4d44a
+     virtual-size ( RO): 30.00
+uuid ( RO)             : dad63f15-8420-498d-813a-eaf6f6c4c3c2
+     virtual-size ( RO): 2048.00
+uuid ( RO)             : a21607bf-5f02-46e2-98f9-3a0bffeb9214
+     virtual-size ( RO): 20.00
+uuid ( RO)             : b555fcac-0f3c-4e3c-9896-3a05cc78a410
+     virtual-size ( RO): 1024.00
+
+$ xe vm-disk-list vm=alpine01 | grep -A 4 VDI | grep -Po 'uuid.*: \K(.*)' | sort | nl
+     1  a21607bf-5f02-46e2-98f9-3a0bffeb9214
+     2  b555fcac-0f3c-4e3c-9896-3a05cc78a410
+     3  d633713d-db6b-48e7-aadf-9f5d6db4d44a
+     4  dad63f15-8420-498d-813a-eaf6f6c4c3c2
+
+$ lvs --noheading -o name | grep -P '('"$(xe vm-disk-list vm=alpine01 | \
+    grep -A 4 VDI | \
+    grep -Po 'uuid.*: \K(.*)' | sort | tr '\n' '|' | sed 's/|$//')"')' | nl
+     1    VHD-a21607bf-5f02-46e2-98f9-3a0bffeb9214
+     2    VHD-b555fcac-0f3c-4e3c-9896-3a05cc78a410
+     3    VHD-d633713d-db6b-48e7-aadf-9f5d6db4d44a
+     4    VHD-dad63f15-8420-498d-813a-eaf6f6c4c3c2
+```
+
 
 #### Xen on KVM
 
