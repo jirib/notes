@@ -12927,6 +12927,56 @@ querying disk/hardware details...
       wwid                = "naa.600c0ff00050dfdcaffd435e01000000"
 ```
 
+Cloning a partition table with `sfdisk` while using auto-calculation of size:
+
+``` shell
+$ sfdisk -d /dev/xvde
+sfdisk: /dev/xvde: does not contain a recognized partition table
+
+$ sfdisk -d /dev/xvda | \
+    sed -e '/^device/d' -e '/^label-id/d' -e '/lba/d' -e '/xvda[34]/d' -e '/xvda2/s/size=\s\+[0-9]\+/size=+/' | \
+    sfdisk /dev/xvde
+Checking that no-one is using this disk right now ... OK
+
+Disk /dev/xvde: 1 GiB, 1073741824 bytes, 2097152 sectors
+Units: sectors of 1 * 512 = 512 bytes
+Sector size (logical/physical): 512 bytes / 512 bytes
+I/O size (minimum/optimal): 512 bytes / 512 bytes
+
+>>> Script header accepted.
+>>> Script header accepted.
+>>> Script header accepted.
+>>> Created a new GPT disklabel (GUID: 75E47120-470A-4059-8319-93A35C9A26B7).
+/dev/xvde1: Created a new partition 1 of type 'BIOS boot' and of size 8 MiB.
+/dev/xvde2: Created a new partition 2 of type 'Linux filesystem' and of size 1014 MiB.
+/dev/xvde3: Done.
+
+New situation:
+Disklabel type: gpt
+Disk identifier: 75E47120-470A-4059-8319-93A35C9A26B7
+
+Device     Start     End Sectors  Size Type
+/dev/xvde1  2048   18431   16384    8M BIOS boot
+/dev/xvde2 18432 2095103 2076672 1014M Linux filesystem
+
+The partition table has been altered.
+Calling ioctl() to re-read partition table.
+Syncing disks.
+
+$ sfdisk -d /dev/xvde
+label: gpt
+label-id: 75E47120-470A-4059-8319-93A35C9A26B7
+device: /dev/xvde
+unit: sectors
+first-lba: 2048
+last-lba: 2097118
+sector-size: 512
+
+/dev/xvde1 : start=        2048, size=       16384, type=21686148-6449-6E6F-744E-656564454649, uuid=23FA7D6F-4257-4F59-AC34-46F51C4CDA78
+/dev/xvde2 : start=       18432, size=     2076672, type=0FC63DAF-8483-4772-8E79-3D69D8477DE4, uuid=42758F36-B866-418E-B1A3-73371BBE8FFF, attrs="LegacyBIOSBootable"
+```
+
+
 ### bcache
 
 [bcache](https://www.kernel.org/doc/html/latest/admin-guide/bcache.html)
