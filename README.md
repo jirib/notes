@@ -16103,6 +16103,37 @@ awk '/^#==\[ Command \]=+#$/ {getline;print NR,$0}' sysfs.txt
 ```
 
 
+#### YaST
+
+YaST ruby debugger:
+
+``` shell
+$ zypper in 'rubygem(byebug)'
+$ Y2DEBUGGER=1 yast2 sap_ha
+```
+
+``` shell
+# in other terminal
+$ byebug -R 3344
+Connecting to byebug server...
+Connected.
+Return value is: nil
+
+[70, 79] in /usr/lib64/ruby/vendor_ruby/2.5.0/yast/debugger.rb
+   70:         byebug
+   71:         # Now you can inspect the current state in the debugger,
+   72:         # or use "next" to continue.
+   73:         # Use "help" command to see the available commands, see more at
+   74:         # https://github.com/deivid-rodriguez/byebug/blob/master/GUIDE.md
+=> 75:       end
+   76: 
+   77:       # start the Ruby debugger if "Y2DEBUGGER" environment
+   78:       # variable is set to "1", "remote" or "manual" (the test is case
+   79:       # insensitive, "y2debugger" variable can be also used)
+(byebug)
+```
+
+
 #### zypper
 
 
