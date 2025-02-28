@@ -16133,6 +16133,68 @@ Return value is: nil
 (byebug)
 ```
 
+``` shell
+(byebug) break SapHA::SemanticChecks#hana_is_running
+*** Warning: breakpoint source is not yet defined
+Created breakpoint 1 at SapHA::SemanticChecks:hana_is_running
+(byebug) info breakpoints
+Num Enb What
+1   y   at SapHA::SemanticChecks:hana_is_running
+(byebug) c
+(byebug) 
+Stopped by breakpoint 1 at /usr/share/YaST2/lib/sap_ha/semantic_checks.rb:270
+
+(byebug) frame
+--> #0  SapHA::SemanticChecks.hana_is_running(system_id#String, instance_number#String, nodes#Array) at /usr/share/YaST2/lib/sap_ha/semantic_checks.rb:270
+
+[265, 274] in /usr/share/YaST2/lib/sap_ha/semantic_checks.rb
+   265:       shown_value = hide_value ? "" : value
+   266:       report_error(flag, message || "The value must be a non-empty string", field_name, shown_value)
+   267:     end
+   268: 
+   269:     def hana_is_running(system_id, instance_number, nodes)
+=> 270:       flag = true
+   271:       message = ''
+   272:       my_ips = SapHA::System::Network.ip_addresses
+   273:       procname = "hdb.sap#{system_id.upcase}_HDB#{instance_number}"
+   274:       if @no_test
+
+(byebug) display system_id
+1: system_id = "ABC"
+(byebug) display instance_number
+2: instance_number = "00"
+(byebug) display nodes
+3: nodes = ["192.168.252.253", "192.168.252.190"]
+(byebug) display SapHA::System::Network.ip_addresses
+6: SapHA::System::Network.ip_addresses = ["192.168.252.253"]
+(byebug) display "hdb.sap#{system_id.upcase}_HDB#{instance_number}"
+8: "hdb.sap#{system_id.upcase}_HDB#{instance_number}" = "hdb.sapABC_HDB00"
+(byebug) display @no_test
+9: @no_test = nil
+(byebug) n
+1: system_id = "ABC"
+2: instance_number = "00"
+3: nodes = ["192.168.252.253", "192.168.252.190"]
+4: flag = true
+5: message = ""
+6: SapHA::System::Network.ip_addresses = ["192.168.252.253"]
+7: procname = "hdb.sapABC_HDB00"
+8: "hdb.sap#{system_id.upcase}_HDB#{instance_number}" = "hdb.sapABC_HDB00"
+9: @no_test = nil
+
+[283, 292] in /usr/share/YaST2/lib/sap_ha/semantic_checks.rb
+   283:             flag = false
+   284:             message += "<br>No SAP HANA #{system_id} is running on #{node}"
+   285:           end
+   286:         end
+   287:       end
+=> 288:       report_error(flag, message, '', '')
+   289:     end
+   290: 
+   291:     # Check if string is a block device
+   292:     # @param value [String] device path
+```
+
 
 #### zypper
 
