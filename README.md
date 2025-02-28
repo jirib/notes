@@ -6661,6 +6661,30 @@ pillar_roots:
 ```
 
 
+### XML
+
+XML Entity Includes allow including an external XML file:
+
+``` shell
+$ jiri@t14s:/tmp$ nl server.xml | sed -n -e '1,4p' -e '/\&connector1-config/p'
+     1  <?xml version="1.0" encoding="UTF-8"?>
+     2  <!DOCTYPE server-xml [
+     3        <!ENTITY connector1-config SYSTEM "include.xml">
+     4      ]>
+    67      &connector1-config;
+$ cat include.xml 
+    <Connector port="9999" protocol="HTTP/1.1"
+               connectionTimeout="20000"
+               redirectPort="9998" />
+	       
+$ xsltproc --output - valve.xslt server.xml | sed -n -e '1,4p' -e '/port="999[89]"/p'
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+    <Connector port="9999" protocol="HTTP/1.1" connectionTimeout="20000" redirectPort="9998"/>
+```
+
 
 ## dns
 
