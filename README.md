@@ -928,87 +928,158 @@ Terminology:
 
 OSes or distroes vary how they handle OpenLDAP, here SLES related info.
 
-SLES makes it a little bit complicated:
+Since OpenLDAP 2.3 there's a _Configuration Backend (cn=config)_, it's
+also called _online configuration_ or _dynamic configuration_.
+
+On SLES, check `/etc/openldap/slapd.conf.olctemplate`, this is way to
+migrate from `slapd.conf` to _olc_.
 
 ``` shell
-$ grep -Pv '^\s*($|#)' /etc/sysconfig/openldap
-OPENLDAP_START_LDAP="no"
-OPENLDAP_START_LDAPS="yes"
+$ grep -P '^[\w_]+="[^"]+"' /etc/sysconfig/openldap 
+OPENLDAP_START_LDAP="yes"
+OPENLDAP_START_LDAPS="no"
 OPENLDAP_START_LDAPI="yes"
-OPENLDAP_SLAPD_PARAMS=""
 OPENLDAP_USER="ldap"
 OPENLDAP_GROUP="ldap"
 OPENLDAP_CHOWN_DIRS="yes"
-OPENLDAP_LDAP_INTERFACES=""
-OPENLDAP_LDAPS_INTERFACES=""
-OPENLDAP_LDAPI_INTERFACES=""
 OPENLDAP_REGISTER_SLP="no"
-OPENLDAP_KRB5_KEYTAB=""
-OPENLDAP_CONFIG_BACKEND="files"
+OPENLDAP_CONFIG_BACKEND="ldap"
 OPENLDAP_MEMORY_LIMIT="yes"
 ```
 
-Check what is default `slapd.conf`:
+OpenLDAP 2.5 [Quick-Start
+Guide](https://www.openldap.org/doc/admin25/quickstart.html) says to
+start with `slapd.ldif`; however, there are some things that need to
+be modified:
 
 ``` shell
-$ grep -Pv '^\s*($|#)' /etc/openldap/slapd.conf
+$ sed \
+  -e 's|%LOCALSTATEDIR%|/tmp|;s|/run||;s|%MODULEDIR%|/usr/lib64/openldap|'\
+  -e '/#dn: cn=module,cn=config/,+4 s/^#//' \
+  -e '/^olcModuleload:/a\olcModuleload: pw-sha2.la' \
+  -e 's|%SYSCONFDIR%|/etc/openldap|;s|openldap-data|slapd.d|' \
+  /usr/share/doc/packages/openldap2/slapd.ldif.default | \
+  grep -Pv '^\s*#' | sed '/^$/N;/^\n$/D' | tee /tmp/input
+dn: cn=config
+objectClass: olcGlobal
+cn: config
+olcArgsFile: /tmp/slapd.args
+olcPidFile: /tmp/slapd.pid
+
+dn: cn=module,cn=config
+objectClass: olcModuleList
+cn: module
+olcModulepath:  /usr/lib64/openldap
+olcModuleload:  back_mdb.la
+olcModuleload: pw-sha2.la
+
+dn: cn=schema,cn=config
+objectClass: olcSchemaConfig
+cn: schema
+
+include: file:///etc/openldap/schema/core.ldif
+
+dn: olcDatabase=frontend,cn=config
+objectClass: olcDatabaseConfig
+objectClass: olcFrontendConfig
+olcDatabase: frontend
+
+dn: olcDatabase=mdb,cn=config
+objectClass: olcDatabaseConfig
+objectClass: olcMdbConfig
+olcDatabase: mdb
+olcDbMaxSize: 1073741824
+olcSuffix: dc=my-domain,dc=com
+olcRootDN: cn=Manager,dc=my-domain,dc=com
+olcRootPW: secret
+olcDbDirectory: /tmp/slapd.d
+olcDbIndex: objectClass eq
+
+dn: olcDatabase=monitor,cn=config
+objectClass: olcDatabaseConfig
+olcDatabase: monitor
+olcRootDN: cn=config
+olcMonitoring: FALSE
 ```
 
-First we need a password, OpenLDAP rootpw:
+Let's add `pw-sha2.so` module as well:
 
 ``` shell
-$ install -m 600 /dev/null /root/.ldappw
-$ vi /root/.ldappw
+$ slapadd -n 0 -F /tmp/slapd.d/ -l /tmp/input  -v
+added: "cn=config" (00000001)
+added: "cn=module{0},cn=config" (00000001)
+added: "cn=schema,cn=config" (00000001)
+added: "cn={0}core,cn=schema,cn=config" (00000001)
+added: "olcDatabase={-1}frontend,cn=config" (00000001)
+added: "olcDatabase={1}mdb,cn=config" (00000001)
+added: "olcDatabase={2}monitor,cn=config" (00000001)
+Closing DB...
 
-$ slappasswd -T /root/.ldappw
-{SSHA}iqKe4WidL7RnQsIKjRMsfOhaKcXv2wNs
+$ cat > /tmp/in <<EOF
+dn: olcDatabase={-1}frontend,cn=config
+changetype: modify
+replace: olcPasswordHash
+olcPasswordHash: {SSHA512}
+olcPasswordHash: {SSHA}
+EOF
+
+$ slapmodify -F /tmp/slapd.d/ -l /tmp/in -b cn=config -v
+modify: "olcDatabase={-1}frontend,cn=config" (00000001)
+Closing DB...
 ```
 
-Then, an example configuration to start with:
+Another way is to exploin `slapd.conf`:
 
 ``` shell
-$ cat /etc/openldap/slapd.conf
-loglevel        492
-pidfile         /run/slapd/slapd.pid
-argsfile        /run/slapd/slapd.args
-include /etc/openldap/schema/core.schema
-include /etc/openldap/schema/cosine.schema
-include /etc/openldap/schema/inetorgperson.schema
-include /etc/openldap/schema/rfc2307bis.schema
-include /etc/openldap/schema/yast.schema
-include /usr/share/doc/packages/samba/examples/LDAP/samba.schema
-modulepath /usr/lib64/openldap
-moduleload back_mdb.la
-access to dn.base=""
-        by * read
-access to dn.base="cn=Subschema"
-        by * read
-access to attrs=userPassword,userPKCS12
-        by self write
-        by * auth
-access to attrs=shadowLastChange
-        by self write
-        by * read
-access to *
-        by * read
-TLSProtocolMin 3.3
-TLSCipherSuite HIGH+TLSv1.2+kECDHE+aECDSA!AES!SHA384!SHA256
-TLSCACertificateFile /etc/openldap/example.com.crt
-TLSCertificateFile /etc/openldap/example.com.crt
-TLSCertificateKeyFile /etc/openldap/example.com.key
-disallow bind_anon
-require authc
-database     mdb
-suffix       "dc=example,dc=com"
-rootdn       "cn=Manager,dc=example,dc=com"
-rootpw       {SSHA}r+sjFrnEg2okiTc0WzWHsN1oUm6bZ9Ha
-directory    /var/lib/ldap
-index        objectClass eq
-lastmod      on
+$ sed \
+  -e 's|%LOCALSTATEDIR%|/var|;s|%MODULEDIR%|/usr/lib64/openldap|' \
+  -e 's|%SYSCONFDIR%|/etc/openldap|;s|/openldap-data|/lib/ldap|' \
+  -e 's|^# module|module|;s|back_bdb|back_mdb|' \
+  -e '/^moduleload.*back_mdb/a\moduleload pw-sha2.la' \
+  -e '/back_ldap/d' ./servers/slapd/slapd.conf | \
+  grep -Pv '^\s*#' | sed '/^$/N;/^\n$/D' | tee /tmp/input
+
+include         /etc/openldap/schema/core.schema
+
+pidfile         /var/run/slapd.pid
+argsfile        /var/run/slapd.args
+
+modulepath      /usr/lib64/openldap
+moduleload      back_mdb.la
+moduleload pw-sha2.la
+
+database config
+
+database        mdb
+maxsize         1073741824
+suffix          "dc=my-domain,dc=com"
+rootdn          "cn=Manager,dc=my-domain,dc=com"
+rootpw          secret
+directory       /var/lib/ldap
+index   objectClass     eq
+
+database monitor
 ```
 
-NOTE: If `slapd` fails to start and it seems to be related to TLS,
-check permissions!
+``` shell
+$ slaptest -f /tmp/input -v -F /tmp/slapd.d/
+config file testing succeeded
+
+# same pw-sha2.so modification as above
+$ slapmodify -F /tmp/slapd.d/ -l /tmp/in -b cn=config -v
+modify: "olcDatabase={-1}frontend,cn=config" (00000001)
+Closing DB...
+```
+
+It is also possible to hash the password instead of using one in
+plain-text:
+
+``` shell
+$ slappasswd -o module-path=/usr/lib64/openldap -o module-load=pw-sha2.so -h '{SSHA512}'
+New password: 
+Re-enter new password: 
+{SSHA512}lJAE6VzkKWCaTV99hRuJQt9HyvoYJ8Gxrwhi/E9NSrhSxuS/KHpeS4HvrhcZfM6L0rCkblQPU4colX7yAKyC6yd
+```
 
 For log levels see https://www.openldap.org/doc/admin24/slapdconfig.html.
 
@@ -1022,37 +1093,9 @@ LISTEN 0 128 [::]:636 [::]:* users:(("slapd",pid=4936,fd=8))
 priority!  See
 https://www.openldap.org/doc/admin24/access-control.html#Access%20Control%20Common%20Examples.
 
-
-#### online configuration
-
-Since OpenLDAP 2.3 there's a _Configuration Backend (cn=config)_, it's
-also called _online configuration_ or _dynamic configuration_.
-
-On SLES, check `/etc/openldap/slapd.conf.olctemplate`, this is way to
-migrate from `slapd.conf` to _olc_.
-
-``` shell
-$ grep -Pv '^\s*(#|$)' /etc/sysconfig/openldap
-OPENLDAP_START_LDAP="yes"
-OPENLDAP_START_LDAPS="yes"
-OPENLDAP_START_LDAPI="yes"
-OPENLDAP_SLAPD_PARAMS=""
-OPENLDAP_USER="ldap"
-OPENLDAP_GROUP="ldap"
-OPENLDAP_CHOWN_DIRS="yes"
-OPENLDAP_LDAP_INTERFACES=":2389"
-OPENLDAP_LDAPS_INTERFACES=":2636"
-OPENLDAP_LDAPI_INTERFACES=""
-OPENLDAP_REGISTER_SLP="no"
-OPENLDAP_KRB5_KEYTAB=""
-OPENLDAP_CONFIG_BACKEND="ldap"
-OPENLDAP_MEMORY_LIMIT="yes"
-```
-
 See [OpenLDAP Quick-Start
 Guide](https://www.openldap.org/doc/admin25/quickstart.html) for
 details.
-
 
 An example of changing `slapd` configuration with _online_
 (`OPENLDAP_CONFIG_BACKEND="ldap"`) configuration:
