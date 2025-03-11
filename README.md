@@ -926,13 +926,11 @@ Terminology:
 
 #### server
 
-OSes or distroes vary how they handle OpenLDAP, here SLES related info.
+OSes or distroes vary how they handle OpenLDAP, here "mostly" SLES
+related info.
 
 Since OpenLDAP 2.3 there's a _Configuration Backend (cn=config)_, it's
 also called _online configuration_ or _dynamic configuration_.
-
-On SLES, check `/etc/openldap/slapd.conf.olctemplate`, this is way to
-migrate from `slapd.conf` to _olc_.
 
 ``` shell
 $ grep -P '^[\w_]+="[^"]+"' /etc/sysconfig/openldap 
@@ -1028,7 +1026,7 @@ modify: "olcDatabase={-1}frontend,cn=config" (00000001)
 Closing DB...
 ```
 
-Another way is to exploin `slapd.conf`:
+Another way is to exploit `slapd.conf`:
 
 ``` shell
 $ sed \
