@@ -2308,6 +2308,12 @@ $ syslinux -d syslinux -i /dev/sda1
 ### azure
 
 ``` shell
+$ asdf plugin add azure-client
+$ asdf install azure-client latest
+$ asdf global azure-cli 2.70.0
+```
+
+``` shell
 $ az login
 ```
 
