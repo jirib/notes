@@ -956,6 +956,7 @@ $ sed \
   -e '/#dn: cn=module,cn=config/,+4 s/^#//' \
   -e '/^olcModuleload:/a\olcModuleload: pw-sha2.la' \
   -e 's|%SYSCONFDIR%|/etc/openldap|;s|openldap-data|slapd.d|' \
+  -e '/olcDbMaxSize/d' \
   /usr/share/doc/packages/openldap2/slapd.ldif.default | \
   grep -Pv '^\s*#' | sed '/^$/N;/^\n$/D' | tee /tmp/input
 dn: cn=config
@@ -986,7 +987,6 @@ dn: olcDatabase=mdb,cn=config
 objectClass: olcDatabaseConfig
 objectClass: olcMdbConfig
 olcDatabase: mdb
-olcDbMaxSize: 1073741824
 olcSuffix: dc=my-domain,dc=com
 olcRootDN: cn=Manager,dc=my-domain,dc=com
 olcRootPW: secret
@@ -1000,8 +1000,6 @@ olcRootDN: cn=config
 olcMonitoring: FALSE
 ```
 
-Let's add `pw-sha2.so` module as well:
-
 ``` shell
 $ slapadd -n 0 -F /tmp/slapd.d/ -l /tmp/input  -v
 added: "cn=config" (00000001)
@@ -1012,7 +1010,11 @@ added: "olcDatabase={-1}frontend,cn=config" (00000001)
 added: "olcDatabase={1}mdb,cn=config" (00000001)
 added: "olcDatabase={2}monitor,cn=config" (00000001)
 Closing DB...
+```
 
+Let's try `olcPasswordHash`, used in `pw-sha2` module:
+
+``` shell
 $ cat > /tmp/in <<EOF
 dn: olcDatabase={-1}frontend,cn=config
 changetype: modify
@@ -1026,7 +1028,7 @@ modify: "olcDatabase={-1}frontend,cn=config" (00000001)
 Closing DB...
 ```
 
-Another way is to exploit `slapd.conf`:
+Another way is to exploit `slapd.conf` (on SLES `slapd.conf.olctemplate`):
 
 ``` shell
 $ sed \
@@ -1068,6 +1070,29 @@ $ slapmodify -F /tmp/slapd.d/ -l /tmp/in -b cn=config -v
 modify: "olcDatabase={-1}frontend,cn=config" (00000001)
 Closing DB...
 ```
+
+NOTE: order is crucial - schemas, DBs, overlays!
+
+A "schema" is built-in in
+[`servers/slapd/bconfig.c`](https://github.com/openldap/openldap/blob/fc34ad5dc8402a4f0c76f5acff64d5e91b69602b/servers/slapd/bconfig.c#L1039);
+when using `slaptest` to convert from `slapd.conf` to LDIF based
+configuration, this schema is inserted into the final LDIF:
+
+``` shell
+$ slaptest -f /etc/openldap/slapd.conf.olctemplate -F /tmp/newtest
+config file testing succeeded
+
+$ slapcat -F /tmp/newtest -n0 | grep -A 5 'dn: cn=schema,cn=config'
+dn: cn=schema,cn=config
+objectClass: olcSchemaConfig
+cn: schema
+olcObjectIdentifier: OLcfg 1.3.6.1.4.1.4203.1.12.2
+olcObjectIdentifier: OLcfgAt OLcfg:3
+olcObjectIdentifier: OLcfgGlAt OLcfgAt:0
+```
+
+This I haven't seen happen if one builds the configuration from a LDIF
+file.
 
 It is also possible to hash the password instead of using one in
 plain-text:
@@ -9916,6 +9941,132 @@ EOF
 $ env PYTHONPATH=/usr/lib/libreoffice/program python3 /tmp/in.py
 Successfully connected to LibreOffice!
 ```
+
+A Python based LibreOffice extension? An example:
+
+Jak přidat položky do menu pomocí Pythonového rozšíření:
+
+1. **Definice příkazů (commands):**
+   - Každá položka menu musí být spojena s příkazem, který definuje akci (např. spuštění funkce).
+
+2. **Registrace položek menu:**
+   - Přes XML soubor `menubar.xml` specifikujete, kam bude položka přidána.
+
+3. **Kódování akcí v Pythonu:**
+   - V Pythonu vytvoříte logiku, která bude spuštěna při kliknutí na položku.
+
+Struktura rozšíření
+
+Vytvoříme složku s následující strukturou:
+
+``` shell
+my_extension/
+├── META-INF/
+│   └── manifest.xml
+├── description.xml
+├── Addons.xcu
+├── python/
+│   ├── __init__.py
+│   ├── main.py
+├── menus/
+│   └── menubar.xml
+```
+
+Definice jednotlivých souborů
+
+1\. `manifest.xml`
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<manifest:manifest xmlns:manifest="http://openoffice.org/2001/manifest">
+    <manifest:file-entry manifest:media-type="application/vnd.sun.star.configuration-data" manifest:full-path="Addons.xcu"/>
+    <manifest:file-entry manifest:media-type="application/vnd.sun.star.uno-python" manifest:full-path="python/"/>
+    <manifest:file-entry manifest:media-type="" manifest:full-path="menus/menubar.xml"/>
+</manifest:manifest>
+```
+
+2\. `Addons.xcu`
+
+Tento soubor registruje vaše rozšíření a propojuje ho s definicí menu.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<oor:component-data xmlns:oor="http://openoffice.org/2001/registry"
+                    xmlns:lo="http://libreoffice.org/2011/extensions"
+                    oor:name="Addons" oor:package="org.example.myextension">
+    <node oor:name="AddonUI">
+        <node oor:name="org.example.myextension.commands">
+            <prop oor:name="Title" oor:type="xs:string">
+                <value>Můj příkaz</value>
+            </prop>
+        </node>
+    </node>
+</oor:component-data>
+```
+
+3\. `menubar.xml`
+
+Tento soubor definuje strukturu menu a položky, které chcete přidat.
+
+```xml
+<?xml version="1.0" encoding="UTF-8"?>
+<menu:menu xmlns:menu="http://openoffice.org/2001/menu">
+    <menu:menu-item menu:id="org.example.myextension.commands" menu:label="Můj Příkaz"/>
+</menu:menu>
+```
+
+4\. `main.py`
+
+Pythonový kód obsahuje logiku, která se provede při kliknutí na menu.
+
+```python
+import uno
+
+def my_command():
+    ctx = uno.getComponentContext()
+    smgr = ctx.ServiceManager
+    desktop = smgr.createInstanceWithContext("com.sun.star.frame.Desktop", ctx)
+    model = desktop.getCurrentComponent()
+    
+    # Zobrazení jednoduchého dialogového okna
+    msg_box = smgr.createInstanceWithContext("com.sun.star.awt.Toolkit", ctx).createMessageBox(
+        None, 0, "informationbox", 1, "Informace", "Spustil se můj příkaz!"
+    )
+    msg_box.execute()
+```
+
+Postup pro vytvoření a instalaci
+
+1. **Zabalte rozšíření:**
+   ```bash
+   zip -r my_extension.oxt *
+   ```
+
+2. **Nainstalujte rozšíření:**
+   - Otevřete LibreOffice > **Nástroje > Správce rozšíření > Přidat**.
+   - Vyberte vytvořený `.oxt` soubor a restartujte LibreOffice.
+
+3. **Testování:**
+   - Po restartu LibreOffice se v hlavním menu objeví vaše položka.
+   - Kliknutím na položku spustíte Pythonový příkaz.
+
+Rozšíření a vylepšení
+
+1. **Přidání podnabídek:**
+   - V `menubar.xml` můžete definovat hierarchii menu.
+
+2. **Přidání tlačítek na panel nástrojů:**
+   - Lze definovat podobným způsobem pomocí souborů `toolbar.xml`.
+
+3. **Více příkazů:**
+   - Registrujte více příkazů v `Addons.xcu` a vytvořte odpovídající akce v Pythonu.
+
+
+Zdroje a dokumentace:
+- **UNO API Reference:** [LibreOffice API](https://api.libreoffice.org)
+- **Příklady rozšíření:** [LibreOffice Extensions](https://wiki.documentfoundation.org/Development/Extensions)
+
+S tímto přístupem můžete snadno rozšířit funkčnost LibreOffice a přizpůsobit menu vašim potřebám! 😊
 
 
 ### scribus
