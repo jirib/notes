@@ -15997,6 +15997,65 @@ route: ipv4 default via 192.168.122.1 proto dhcp
 route: ipv4 8.8.4.0/24 via 192.168.122.2 proto boot
 ```
 
+#### osc
+
+``` shell
+$ env PAGER=cat osc list PTF:29457
+pacemaker.SUSE_SLE-15-SP5_Update
+patchinfo
+
+$ env PAGER=cat osc log PTF:29457/pacemaker.SUSE_SLE-15-SP5_Update
+----------------------------------------------------------------------------
+r5 | user1 | 2025-03-11 11:15:33 | 3a79f5bc93d2ffb859841d69fb452b60 | unknown | 
+
+PTF build PTF:29457 for example.com. Seqno: 3. Type: TEST
+
+----------------------------------------------------------------------------
+r4 | user1 | 2025-03-11 11:05:23 | 970b974c9f39225b9cc57327aefd42bc | unknown | 
+
+PTF build PTF:29457 for example.com. Seqno: 2. Type: TEST
+
+----------------------------------------------------------------------------
+r3 | user1 | 2025-03-11 10:13:36 | 241ff8808bad51b1cb6e06842175a3cb | unknown | 
+
+PTF build PTF:29457 for example.com. Seqno: 1. Type: TEST
+
+----------------------------------------------------------------------------
+r2 | user1 | 2025-03-11 10:09:25 | 7c16bb24a8ce4ef29216c198429b7bae | unknown | 
+
+Start of the L3 process
+
+Customer: example.com
+Incident: YYYYY
+Bug:      XXXXXXX
+
+
+----------------------------------------------------------------------------
+r1 | user1 | 2025-03-11 10:08:53 | d66e23590259b751536b371ced1ae32a | unknown | 
+
+<no message>
+```
+
+``` shell
+$ osc rdiff SUSE:SLE-15-SP5:Update pacemaker PTF:29457 pacemaker.SUSE_SLE-15-SP5_Update | grep -P -- '^(\-{3}|\+{3})\s'
+--- pacemaker.changes (revision 6)
++++ pacemaker.changes (revision 5)
+--- pacemaker.spec (revision 6)
++++ pacemaker.spec (revision 5)
+--- _ptf (added)
++++ _ptf (revision 5)
+--- bsc#1238519-libpe_status-consider-parents-of-an-unmanaged-resource-active-on-the-node.patch (added)
++++ bsc#1238519-libpe_status-consider-parents-of-an-unmanaged-resource-active-on-the-node.patch (revision 5)
+```
+
+``` shell
+$ osc ls | grep REQUEST:366096
+SUSE:Maintenance:REQUEST:366096
+```
+
+There's also `_servicedata` file which points to OBS internal metadata.
+
+
 #### product / registration
 
 See [TID7023490](https://www.suse.com/support/kb/doc/?id=000019341)
