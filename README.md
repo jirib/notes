@@ -483,6 +483,13 @@ uid: testovic
 
 ### kerberos
 
+* `<host>$@<REALM>` - user principal name (UPN) of the computer object, eg. in AD
+* `<host>/<FQDN>@<REALM>` - host-based keytab entry (used by `sshd` (hardcoded), it uses so-called generic "service class")
+* `<service>/<FQDN>@<REALM>` - the application uses this specific "service class"
+
+Both client and server side must "agree" on used "service class".
+
+
 #### client
 
 ``` shell
