@@ -10725,6 +10725,26 @@ kernel/panic.c:panic()
 Miracles!
 
 
+### tracing
+
+* systemtap - generated a kernel module, thus if using SecureBoot it has to be signed
+* ftrace - works out of the box
+
+``` shell
+$ readelf -s $(which lvmlockd) | awk 'NR > 3 && $4 == "FUNC" && !/UND/' | sort -k8 | nl | head
+     1     261: 0000000000009b40    34 FUNC    GLOBAL DEFAULT   16 _start
+     2     471: 0000000000026100    53 FUNC    GLOBAL DEFAULT   16 add_dev_node
+     3     409: 000000000000e990   125 FUNC    GLOBAL DEFAULT   16 alloc_lockspace
+     4     279: 000000000001dac0    99 FUNC    GLOBAL DEFAULT   16 buffer_append
+     5     482: 000000000001de00   182 FUNC    GLOBAL DEFAULT   16 buffer_append_f
+     6     420: 000000000001db30   720 FUNC    GLOBAL DEFAULT   16 buffer_append_vf
+     7     429: 000000000001df10    22 FUNC    GLOBAL DEFAULT   16 buffer_destroy
+     8     498: 000000000001df00    16 FUNC    GLOBAL DEFAULT   16 buffer_init
+     9     435: 000000000001dec0    49 FUNC    GLOBAL DEFAULT   16 buffer_line
+    10     314: 000000000001ce80   423 FUNC    GLOBAL DEFAULT   16 buffer_read
+```
+
+
 ## fadump
 
 *fadump* (Firmware Assisted Dump) is a robus crash dump mechanism using Power
