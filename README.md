@@ -1019,6 +1019,15 @@ added: "olcDatabase={2}monitor,cn=config" (00000001)
 Closing DB...
 ```
 
+If you want to add ACL for the local root user, then modify input LDIF:
+
+```
+dn: olcDatabase=config,cn=config
+objectClass: olcDatabaseConfig
+olcDatabase: config
+olcAccess: {0}to * by dn.exact=gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth manage by * break
+```
+
 Let's try `olcPasswordHash`, used in `pw-sha2` module:
 
 ``` shell
