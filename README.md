@@ -15712,6 +15712,45 @@ After this operation, 10.6 MB disk space will be freed.
 Do you want to continue? [Y/n]
 ```
 
+How not to start a daemon right after a package containing it is installed?
+Use _policy-rcd-declarative_ package:
+
+``` shell
+$ apt install policy-rcd-declarative
+
+$ grep -Pv '^\s*(#|$)' /etc/service-policy.d/99-allow.pol
+.*      start   deny
+
+$ ls -l /usr/sbin/policy-rc.d
+lrwxrwxrwx 1 root root 29 Sep 10  2020 /usr/sbin/policy-rc.d -> /etc/alternatives/policy-rc.d
+
+$ ls -l /etc/alternatives/policy-rc.d
+lrwxrwxrwx 1 root root 33 Sep 10  2020 /etc/alternatives/policy-rc.d -> /usr/sbin/policy-rc.d-declarative
+
+$ head /usr/sbin/policy-rc.d-declarative 
+#!/usr/bin/perl -w
+ 
+use strict;
+use warnings;
+ 
+use re::engine::RE2;
+ 
+my @rulefiles = <"/etc/service-policy.d/*.pol">;
+ 
+my $service = shift
+```
+
+And, the real situation:
+
+``` shell
+$ apt install 389-ds
+...
+Setting up 389-ds-base (3.1.2+dfsg1-1) ...
+/usr/sbin/policy-rc.d returned 101, not running 'start dirsrv-snmp.service'
+...
+```
+
+
 ##### APT signing keys
 
 ``` shell
