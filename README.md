@@ -31,21 +31,26 @@ use!
 #### 389ds creation from a custome config file
 
 ``` shell
+$ pwdhash -s PBKDF2-SHA512 password
+{PBKDF2-SHA512}100000$aVzevnU/i2KGIRiCaVaEmQv4ilKYTMwv$qIw3xrCTKDJ0ucAPyDHNgflen88DY++yiuIssaLc3VH8riY0DxXRKWmlyL1EyXr1qda4fE2scSUh6Z0s+G1yNg==
+```
+
+``` shell
 $ cat > ${XDG_RUNTIME_DIR}/389ds.inf <<-EOF
-> [general]
-> full_machine_name = jb154sapqe01.example.com
-> start = False
-> strict_host_checking = False
-> [slapd]
-> instance_name = EXAMPLECOM
-> port = 389
-> root_password = <password>
-> self_sign_cert = False
-> [backend-userroot]
-> create_suffix_entry = True
-> sample_entries = yes
-> suffix = dc=example,dc=com
-> EOF
+[general]
+full_machine_name = jb154sapqe01.example.com
+start = False
+strict_host_checking = False
+[slapd]
+instance_name = EXAMPLECOM
+port = 389
+root_password = {PBKDF2-SHA512}100000$aVzevnU/i2KGIRiCaVaEmQv4ilKYTMwv$qIw3xrCTKDJ0ucAPyDHNgflen88DY++yiuIssaLc3VH8riY0DxXRKWmlyL1EyXr1qda4fE2scSUh6Z0s+G1yNg==
+self_sign_cert = False
+[backend-userroot]
+create_suffix_entry = True
+sample_entries = yes
+suffix = dc=example,dc=com
+EOF
 
 $ dscreate from-file ${XDG_RUNTIME_DIR}/389ds.inf | tee ${XDG_RUNTIME_DIR}/389ds-tmpl.log
 Starting installation ...
