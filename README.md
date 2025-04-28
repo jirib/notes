@@ -46,6 +46,9 @@ instance_name = EXAMPLECOM
 port = 389
 root_password = {PBKDF2-SHA512}100000$aVzevnU/i2KGIRiCaVaEmQv4ilKYTMwv$qIw3xrCTKDJ0ucAPyDHNgflen88DY++yiuIssaLc3VH8riY0DxXRKWmlyL1EyXr1qda4fE2scSUh6Z0s+G1yNg==
 self_sign_cert = False
+# for LMDB backend, see https://tinyurl.com/523nte85
+#db_lib = mdb
+#mdb_max_size = 21474836480
 [backend-userroot]
 create_suffix_entry = True
 sample_entries = yes
@@ -389,7 +392,39 @@ $ dsctl EXAMPLECOM restart
 ```
 
 
+#### policy: password policy
+
+``` shell
+$ dsconf EXAMPLECOM pwpolicy get | grep exp
+passwordexp: off
+passwordsendexpiringtime: off
+
+$ dsconf EXAMPLECOM pwpolicy set --help | grep -P -- '^\s+--.*exp'
+  --pwdexpire PWDEXPIRE
+  --pwdsendexpiring PWDSENDEXPIRING
+  --pwptprdelayexpireat PWPTPRDELAYEXPIREAT
+
+$ dsconf EXAMPLECOM pwpolicy set --help | grep -PA1 -- '^\s+--pwdexpire'
+  --pwdexpire PWDEXPIRE
+                        Set to "on" to enable password expiration
+
+$ dsconf EXAMPLECOM pwpolicy set --pwdexpire on
+Successfully updated global password policy
+
+$ dsconf EXAMPLECOM pwpolicy get | grep exp
+passwordexp: on
+passwordsendexpiringtime: off
+```
+
 #### user, group management
+
+If you create an instance without sample entries, you need OU:
+
+``` shell
+$ dsidm EXAMPLECOM organizationalunit create --ou people
+Successfully created people
+$ dsidm EXAMPLECOM organizationalunit list
+people
 
 ``` shell
 $ dsidm EXAMPLECOM user create \
@@ -443,6 +478,31 @@ Entry State: activated
 $ getent passwd mrnobody
 mrnobody:*:100002:100002:mrnobody:/home/EXAMPLECOM/mrnobody:
 ```
+
+To expire an account password:
+
+``` shell
+$ ldapmodify -Y EXTERNAL -H ldapi://%2Frun%2Fslapd-EXAMPLECOM.socket <<EOF
+dn: uid=testovic,ou=People,dc=example,dc=com
+changetype: modify
+replace: passwordExpirationTime
+passwordExpirationTime: $(date -d now -u +"%Y%m%d%H%M%S"Z)
+EOF
+
+$ dsidm -j EXAMPLECOM user get testovic | jq -r '.attrs.passwordexpirationtime'
+[
+  "20250428160817Z"
+]
+
+$ ldapsearch -xLLL -W -D "uid=testovic,ou=people,dc=example,dc=com" -H ldap://127.0.0.1:3899 -b dc=example,dc=com -e ppolicy
+Enter LDAP Password: 
+ldap_bind: Invalid credentials (49); Password expired
+        additional info: password expired!
+```
+
+Do NOT expect to see _shadow_ aging data with `getent` when using
+SSSD, it is not implemented by design!
+
 
 ``` shell
 # memberof plugin enabled!
