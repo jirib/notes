@@ -43,12 +43,13 @@ start = False
 strict_host_checking = False
 [slapd]
 instance_name = EXAMPLECOM
-port = 389
+port = 3899
+secure_port = 6366
 root_password = {PBKDF2-SHA512}100000$aVzevnU/i2KGIRiCaVaEmQv4ilKYTMwv$qIw3xrCTKDJ0ucAPyDHNgflen88DY++yiuIssaLc3VH8riY0DxXRKWmlyL1EyXr1qda4fE2scSUh6Z0s+G1yNg==
-self_sign_cert = False
+self_sign_cert = True
 # for LMDB backend, see https://tinyurl.com/523nte85
-#db_lib = mdb
-#mdb_max_size = 21474836480
+db_lib = mdb
+mdb_max_size = 21474836480
 [backend-userroot]
 create_suffix_entry = True
 sample_entries = yes
@@ -85,9 +86,6 @@ active
 
 $ dsctl -l
 slapd-EXAMPLECOM
-
-$ ss -tnlp | grep $(systemctl show -p MainPID --value dirsrv@EXAMPLECOM.service)
-LISTEN 0      128                *:389              *:*    users:(("ns-slapd",pid=17406,fd=7))
 ```
 
 
@@ -120,67 +118,8 @@ $ dsctl EXAMPLECOM dsrc create \
 
 - `dsconf`
 - `dsctl`
+- `dsidm`
 
-
-``` shell
-$ dsidm EXAMPLECOM user create \
-  --uid=testovic \
-  --cn="testovic" \
-  --uidNumber=10000 \
-  --gidNumber=10000 \
-  --homeDirectory=/home/EXAMPLECOM/testovic \
-  --displayName='Test Testovic'
-Successfully created testovic
-
-$ dsidm EXAMPLECOM user get testovic
-dn: uid=testovic,ou=people,dc=example,dc=com
-cn: testovic
-displayName: Test Testovic
-gidNumber: 10000
-homeDirectory: /home/EXAMPLECOM/testovic
-objectClass: top
-objectClass: nsPerson
-objectClass: nsAccount
-objectClass: nsOrgPerson
-objectClass: posixAccount
-uid: testovic
-uidNumber: 10000
-
-$ dsidm EXAMPLECOM account reset_password "uid=testovic,ou=People,dc=example,dc=com" testovic123
-reset password for uid=testovic,ou=People,dc=example,dc=com
-```
-
-``` shell
-$ ldapsearch -x uid=testovic
-# extended LDIF
-#
-# LDAPv3
-# base <dc=example,dc=com> (default) with scope subtree
-# filter: uid=testovic
-# requesting: ALL
-#
-
-# testovic, people, example.com
-dn: uid=testovic,ou=people,dc=example,dc=com
-objectClass: top
-objectClass: nsPerson
-objectClass: nsAccount
-objectClass: nsOrgPerson
-objectClass: posixAccount
-uid: testovic
-cn: testovic
-displayName: Test Testovic
-uidNumber: 10000
-gidNumber: 10000
-homeDirectory: /home/EXAMPLECOM/testovic
-
-# search result
-search: 2
-result: 0 Success
-
-# numResponses: 2
-# numEntries: 1
-```
 
 ``` shell
 $ dsidm EXAMPLECOM client_config sssd.conf | grep -Pv '^\s*($|#)'
@@ -416,6 +355,13 @@ passwordexp: on
 passwordsendexpiringtime: off
 ```
 
+Or...
+
+``` shell
+$ dsconf EXAMPLECOM pwpolicy set --pwdwarning 864000 --pwdmaxage 2592000 --pwdexpire o
+```
+
+
 #### user, group management
 
 If you create an instance without sample entries, you need OU:
@@ -423,8 +369,10 @@ If you create an instance without sample entries, you need OU:
 ``` shell
 $ dsidm EXAMPLECOM organizationalunit create --ou people
 Successfully created people
+
 $ dsidm EXAMPLECOM organizationalunit list
 people
+```
 
 ``` shell
 $ dsidm EXAMPLECOM user create \
@@ -479,6 +427,66 @@ $ getent passwd mrnobody
 mrnobody:*:100002:100002:mrnobody:/home/EXAMPLECOM/mrnobody:
 ```
 
+``` shell
+$ dsidm EXAMPLECOM user create \
+  --uid=testovic \
+  --cn="testovic" \
+  --uidNumber=10000 \
+  --gidNumber=10000 \
+  --homeDirectory=/home/EXAMPLECOM/testovic \
+  --displayName='Test Testovic'
+Successfully created testovic
+
+$ dsidm EXAMPLECOM user get testovic
+dn: uid=testovic,ou=people,dc=example,dc=com
+cn: testovic
+displayName: Test Testovic
+gidNumber: 10000
+homeDirectory: /home/EXAMPLECOM/testovic
+objectClass: top
+objectClass: nsPerson
+objectClass: nsAccount
+objectClass: nsOrgPerson
+objectClass: posixAccount
+uid: testovic
+uidNumber: 10000
+
+$ dsidm EXAMPLECOM account reset_password "uid=testovic,ou=People,dc=example,dc=com" testovic123
+reset password for uid=testovic,ou=People,dc=example,dc=com
+```
+
+``` shell
+$ ldapsearch -x uid=testovic
+# extended LDIF
+#
+# LDAPv3
+# base <dc=example,dc=com> (default) with scope subtree
+# filter: uid=testovic
+# requesting: ALL
+#
+
+# testovic, people, example.com
+dn: uid=testovic,ou=people,dc=example,dc=com
+objectClass: top
+objectClass: nsPerson
+objectClass: nsAccount
+objectClass: nsOrgPerson
+objectClass: posixAccount
+uid: testovic
+cn: testovic
+displayName: Test Testovic
+uidNumber: 10000
+gidNumber: 10000
+homeDirectory: /home/EXAMPLECOM/testovic
+
+# search result
+search: 2
+result: 0 Success
+
+# numResponses: 2
+# numEntries: 1
+```
+
 To expire an account password:
 
 ``` shell
@@ -503,6 +511,60 @@ ldap_bind: Invalid credentials (49); Password expired
 Do NOT expect to see _shadow_ aging data with `getent` when using
 SSSD, it is not implemented by design!
 
+``` shell
+ag -i -C 5 getspnam sssd/src/
+sssd/src/sss_client/sss_nss.exports
+60-             _nss_sss_getservbyport_r;
+61-             _nss_sss_setservent;
+62-             _nss_sss_getservent_r;
+63-             _nss_sss_endservent;
+64-
+65:             #_nss_sss_getspnam_r;
+66-             #_nss_sss_setspent;
+67-             #_nss_sss_getspent_r;
+68-             #_nss_sss_endspent;
+69-
+70-     # everything else is local
+ 
+sssd/src/sss_client/sss_cli.h
+168-    SSS_NSS_ENDSERVENT     = 0x00A5,
+169-
+170-#if 0
+171-/* shadow */
+172-
+173:    SSS_NSS_GETSPNAM       = 0x00B1,
+174-    SSS_NSS_GETSPUID       = 0x00B2,
+175-    SSS_NSS_SETSPENT       = 0x00B3,
+176-    SSS_NSS_GETSPENT       = 0x00B4,
+177-    SSS_NSS_ENDSPENT       = 0x00B5,
+178-#endif
+--
+755-                                   uint8_t **repbuf, size_t *replen,
+756-                                   int *errnop);
+757-
+758-#if 0
+759-
+760:/* GETSPNAM Request:
+761- *
+762- * 0-X: string with name
+763- *
+764- * Replies:
+765- *
+ 
+sssd/src/util/sss_cli_cmd.c
+156-    case SSS_NSS_ENDSERVENT:
+157-        return "SSS_NSS_ENDSERVENT";
+158-
+159-#if 0
+160-    /* shadow */
+161:    case SSS_NSS_GETSPNAM:
+162:        return "SSS_NSS_GETSPNAM";
+163-    case SSS_NSS_GETSPUID:
+164-        return "SSS_NSS_GETSPUID";
+165-    case SSS_NSS_SETSPENT:
+166-        return "SSS_NSS_SETSPENT";
+167-    case SSS_NSS_GETSPENT:
+```
 
 ``` shell
 # memberof plugin enabled!
@@ -654,6 +716,212 @@ Valid starting       Expires              Service principal
         Addresses: (none)
 config: pa_type(krbtgt/DOMAIN01.EXAMPLE.COM@DOMAIN01.EXAMPLE.COM) = 2
         Addresses: (none)
+```
+
+
+#### server/kdc
+
+##### kdc with default DB backend
+
+SLES 15 SP6 is missing LMDB suppport, thus using default DB backend.
+`/etc/sysconfig/{krb5kdc,kadmind}` can `KRB5_KDC_PROFILE` (see
+`krb5.conf(5)`) defined to` override `kdc.conf` if you need to have
+multiple instances (however, untested).
+
+``` shell
+# might be helpful to set a realm explicitly
+$ grep -Pv '^\s*(#|$)' /etc/sysconfig/krb5kdc 
+KRB5KDC_ARGS="-r EXAMPLE.COM"
+
+$ cat /var/lib/kerberos/krb5kdc/kdc.conf
+[kdcdefaults]
+        kdc_ports = 750,88
+ 
+[realms]
+        EXAMPLE.COM = {
+                #database_module = lmdb
+                admin_keytab = FILE:/var/lib/kerberos/krb5kdc/example.com.kadm5.keytab
+                acl_file = /var/lib/kerberos/krb5kdc/example.com.kadm5.acl
+                dict_file = /var/lib/kerberos/krb5kdc/example.com.kadm5.dict
+                key_stash_file = /var/lib/kerberos/krb5kdc/.k5.EXAMPLE.COM
+                kdc_ports = 750,88
+                max_life = 10h 0m 0s
+                max_renewable_life = 7d 0h 0m 0s
+        }
+ 
+[dbmodules]
+        EXAMPLE.COM = {
+                #db_library = klmdb
+                database_name = /var/lib/kerberos/krb5kdc/example.com.principal
+        }
+ 
+[logging]
+        kdc = FILE:/var/log/krb5/krb5kdc.log
+        admin_server = FILE:/var/log/krb5/kadmind.log
+        debug = true
+		
+$ /usr/lib/mit/sbin/kdb5_util \
+    -r EXAMPLE.COM \
+	-d /var/lib/kerberos/krb5kdc/example.com.principal \
+	-sf /var/lib/kerberos/krb5kdc/.k5.EXAMPLE.COM \
+	create -s
+
+$ lsof -nPp $(systemctl show -P MainPID krb5kdc.service) | grep IP
+krb5kdc 2844912 root   9u     IPv4 8339974      0t0      UDP *:750 
+krb5kdc 2844912 root  10u     IPv6 8339975      0t0      UDP *:750 
+krb5kdc 2844912 root  11u     IPv4 8339978      0t0      UDP *:88 
+krb5kdc 2844912 root  12u     IPv6 8339979      0t0      UDP *:88 
+krb5kdc 2844912 root  13u     IPv4 8339982      0t0      TCP *:88 (LISTEN)
+krb5kdc 2844912 root  14u     IPv6 8339983      0t0      TCP *:88 (LISTEN)
+
+$ lsof -nPp $(systemctl show -P MainPID krb5kdc.service) | grep /var
+krb5kdc 2844912 root   3w      REG   254,3     2846  1777704 /var/log/krb5/krb5kdc.log
+krb5kdc 2844912 root   4w      REG   254,3     2846  1777704 /var/log/krb5/krb5kdc.log
+krb5kdc 2844912 root   5u      REG   254,3        0 17830758 /var/lib/kerberos/krb5kdc/example.com.principal.ok
+krb5kdc 2844912 root   6u      REG   254,3        0 17831611 /var/lib/kerberos/krb5kdc/example.com.principal.kadm5.lock
+
+$ /usr/lib/mit/sbin/kadmin.local listprincs
+K/M@EXAMPLE.COM
+kadmin/admin@EXAMPLE.COM
+kadmin/changepw@EXAMPLE.COM
+krbtgt/EXAMPLE.COM@EXAMPLE.COM
+
+$ file /var/lib/kerberos/krb5kdc/example.com.principal
+/var/lib/kerberos/krb5kdc/example.com.principal: Berkeley DB 1.85/1.86 (Btree, version 3, native byte-order)
+
+$ /usr/lib/mit/sbin/kdb5_util \
+ -d /var/lib/kerberos/krb5kdc/example.com.principal dump - demo_user@EXAMPLE.COM | \
+ tail -n -1 | tr -s '[:space:]' '\n' | head
+princ
+38
+21
+4
+2
+0
+demo_user@EXAMPLE.COM
+0
+36000
+604800
+```
+
+
+##### kdc with LDAP backend
+
+**WORK IN PROGRESS**!!!
+
+TODO:
+- clarify how passwords work for principal key and LDAP user password
+
+Now, LDAP backend:
+
+``` shell
+# on SLES, krb5-plugin-kdb-ldap package required
+
+# importing into 389-ds
+$ ldapadd -Y EXTERNAL -H ldapi://%2Frun%2Fslapd-EXAMPLECOM.socket \
+  -f /usr/share/kerberos/ldap/kerberos.ldif
+
+$ cat /var/lib/kerberos/krb5kdc/kdc.conf
+[kdcdefaults]
+        kdc_ports = 750,88
+ 
+[realms]
+        EXAMPLE.COM = {
+                database_module = ldapconf
+                admin_keytab = FILE:/var/lib/kerberos/krb5kdc/example.com.kadm5.keytab
+                acl_file = /var/lib/kerberos/krb5kdc/example.com.kadm5.acl
+                dict_file = /var/lib/kerberos/krb5kdc/example.com.kadm5.dict
+                key_stash_file = /var/lib/kerberos/krb5kdc/.k5.EXAMPLE.COM
+                kdc_ports = 750,88
+                max_life = 10h 0m 0s
+                max_renewable_life = 7d 0h 0m 0s
+        }
+ 
+[dbmodules]
+        ldapconf = {
+                db_library = kldap
+                ldap_servers = ldapi://%2Frun%2Fslapd-EXAMPLECOM.socket
+                ldap_kerberos_container_dn = cn=kerberos,dc=example,dc=com
+                ldap_kdc_sasl_mech = EXTERNAL
+                ldap_kadmind_sasl_mech = EXTERNAL
+        }
+ 
+[logging]
+        kdc = FILE:/var/log/krb5/krb5kdc.log
+        admin_server = FILE:/var/log/krb5/kadmind.log
+        debug = true
+
+$ /usr/lib/mit/sbin/kdb5_ldap_util \
+  -H ldapi://%2Frun%2Fslapd-EXAMPLECOM.socket \
+  -r EXAMPLE.COM create \
+  -subtrees dc=example,dc=com \
+  -s \
+  -sf /var/lib/kerberos/krb5kdc/.k5.EXAMPLE.COM
+Initializing database for realm 'EXAMPLE.COM'
+You will be prompted for the database Master Password.
+It is important that you NOT FORGET this password.
+Enter KDC database master key: 
+Re-enter KDC database master key to verify:
+
+$ ldapsearch -LLL -Y EXTERNAL \
+  -H ldapi://%2Frun%2Fslapd-EXAMPLECOM.socket \
+  -b cn=kerberos,dc=example,dc=com dn
+SASL/EXTERNAL authentication started
+SASL username: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+SASL SSF: 0
+dn: cn=kerberos,dc=example,dc=com
+ 
+dn: cn=EXAMPLE.COM,cn=kerberos,dc=example,dc=com
+ 
+dn: krbprincipalname=K/M@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc=example,dc=
+ com
+ 
+dn: krbprincipalname=krbtgt/EXAMPLE.COM@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos
+ ,dc=example,dc=com
+ 
+dn: krbprincipalname=kadmin/admin@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc=ex
+ ample,dc=com
+ 
+dn: krbprincipalname=kadmin/changepw@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc
+ =example,dc=com
+ 
+dn: krbprincipalname=kadmin/history@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc=
+ example,dc=com
+ 
+dn: krbprincipalname=demo_user@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc=examp
+ le,dc=com
+```
+
+
+##### kdc principals mgmt
+
+``` shell
+$ getent passwd demo_user@ldap
+demo_user:*:99998:99998:Demo User:/var/empty:/bin/false
+
+$ /usr/lib/mit/sbin/kadmin.local -q "addprinc demo_user"
+Authenticating as principal Administrator/admin@EXAMPLE.NET with password.
+No policy specified for demo_user@EXAMPLE.COM; defaulting to no policy
+Enter password for principal "demo_user@EXAMPLE.COM": 
+Re-enter password for principal "demo_user@EXAMPLE.COM": 
+Principal "demo_user@EXAMPLE.COM" created.
+
+$ su - demo_user@ldap
+
+demo_user@jb155sapqe01:~> kinit -V
+Using default cache: /tmp/krb5cc_99998
+Using principal: demo_user@EXAMPLE.COM
+Password for demo_user@EXAMPLE.COM: 
+Authenticated to Kerberos v5
+
+demo_user@jb155sapqe01:~> klist -efA
+Ticket cache: FILE:/tmp/krb5cc_99998
+Default principal: demo_user@EXAMPLE.COM
+ 
+Valid starting       Expires              Service principal
+04/30/2025 10:14:49  04/30/2025 20:14:49  krbtgt/EXAMPLE.COM@EXAMPLE.COM
+        renew until 05/07/2025 10:14:49, Flags: FRI
+        Etype (skey, tkt): aes256-cts-hmac-sha1-96, aes256-cts-hmac-sha1-96 
 ```
 
 
