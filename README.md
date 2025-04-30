@@ -362,6 +362,65 @@ $ dsconf EXAMPLECOM pwpolicy set --pwdwarning 864000 --pwdmaxage 2592000 --pwdex
 ```
 
 
+#### PAM Pass Through
+
+Most useful in AD or Kerberos integration... In the latter, 389DS uses
+*PAM Pass Through Authencation* plugin and talks to PAM for binds
+authentication.
+
+``` shell
+$ dsconf EXAMPLECOM plugin pam-pass-through-auth config \
+  "LDAP PAM PTA Config" add \
+    --exclude-suffix="cn=config" \
+	--id_map_method="RDN" \
+	--id-attr="legalName" \
+	--filter="ou=people,dc=example,dc=com pamFallback: FALSE" \
+	--incluse-suffix ou=people,dc=example,dc=com \
+	--secure="TRUE" \
+	--service="ldapserver"
+```
+
+OK, I can't figure out why 'service' cannot be something else than 'ldapserver' :-(
+
+``` shell
+# some defaults do not need to be explicitly set
+$ grep krb5 /etc/sssd/sssd.conf
+auth_provider = krb5
+krb5_realm = EXAMPLE.COM
+krb5_validate = false
+krb5_ccachedir = /tmp
+krb5_server = 127.0.0.1
+krb5_ccname_template = FILE:/tmp/krb5cc_%{uid}
+krb5_use_kdcinfo = false
+```
+
+``` shell
+$ /usr/lib/mit/sbin/kadmin.local -q 'addprinc -x dn="uid=demo_user,ou=people,dc=example,dc=com" demo_user@EXAMPLE.COM'
+...
+```
+
+Here, no *userPassword*:
+
+``` shell
+$ ldapsearch -LLL -Y EXTERNAL -H ldapi://%2Frun%2Fslapd-EXAMPLECOM.socket -b uid=demo_user,ou=people,dc=example,dc=com userPassword krbPrincipalKey
+SASL/EXTERNAL authentication started
+SASL username: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
+SASL SSF: 0
+dn: uid=demo_user,ou=people,dc=example,dc=com
+krbPrincipalKey:: MIG2oAMCAQGhAwIBAaIDAgEBowMCAQGkgZ8wgZwwVKAHMAWgAwIBAKFJMEeg
+ AwIBEqFABD4gAPViraxt01bqYggst4thWryAEMHt7cKrVDCd6vOYnqunkT19Kuip/1RR4MHFfl6Az
+ WfH6y4VF0zkoFXu2TBEoAcwBaADAgEAoTkwN6ADAgERoTAELhAA9JyIMCbSrCuDARwOid8CcnEW7o
+ gFuzm57t27KVntGUJ7els3HUgHMp7B7qc=
+```
+
+However, the bind passes!
+
+```
+2025-04-30T15:07:51.065791+00:00 jb155sapqe01 ns-slapd: pam_unix(ldapserver:auth): authentication failure; logname= uid=177 euid=177 tty= ruser= rhost=  user=demo_user
+2025-04-30T15:07:51.402648+00:00 jb155sapqe01 ns-slapd: pam_sss(ldapserver:auth): authentication success; logname= uid=177 euid=177 tty= ruser= rhost= user=demo_user
+```
+
+
 #### user, group management
 
 If you create an instance without sample entries, you need OU:
@@ -807,11 +866,6 @@ demo_user@EXAMPLE.COM
 
 ##### kdc with LDAP backend
 
-**WORK IN PROGRESS**!!!
-
-TODO:
-- clarify how passwords work for principal key and LDAP user password
-
 Now, LDAP backend:
 
 ``` shell
@@ -891,6 +945,10 @@ dn: krbprincipalname=kadmin/history@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc=
 dn: krbprincipalname=demo_user@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc=examp
  le,dc=com
 ```
+
+Most likely one would like to have one "password", that is, not to
+have one password for principal key and one as `userPassword`. See, in
+389 DS part about *PAM Pass Through Authentication*'
 
 
 ##### kdc principals mgmt
