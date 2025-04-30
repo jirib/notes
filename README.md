@@ -368,22 +368,36 @@ Most useful in AD or Kerberos integration... In the latter, 389DS uses
 *PAM Pass Through Authencation* plugin and talks to PAM for binds
 authentication.
 
-``` shell
-$ dsconf EXAMPLECOM plugin pam-pass-through-auth config \
-  "LDAP PAM PTA Config" add \
-    --exclude-suffix="cn=config" \
-	--id_map_method="RDN" \
-	--filter="ou=people,dc=example,dc=com pamFallback: FALSE" \
-	--include-suffix ou=people,dc=example,dc=com \
-	--secure="TRUE" \
-	--service="ldapserver"
-```
+OK, I can't figure out how to make this working for a suffix..., so
+modifying globally, the mapping from principal will be done via ldap
+*ENTRY* and specific attribute, value of *pamIDAttr*; why? If
+`use_fully_qualified_names` is used in SSSD, leftmost RDN in the bind
+DN won't work... (*mail* is probably not the best attribute here but
+it works for testing).
 
-OK, I can't figure out why 'service' cannot be something else than 'ldapserver' :-(
+``` shell
+$ ldapmodify -Y EXTERNAL -H ldapi://%2Frun%2Fslapd-EXAMPLECOM.socket << EOF
+dn: cn=PAM Pass Through Auth,cn=plugins,cn=config
+changetype: modify
+replace: pamIDMapMethod
+pamIDMapMethod: ENTRY
+-
+replace: pamIDAttr
+pamIDAttr: mail
+-
+replace: pamService
+pamService: ldapserver
+
+dn: uid=demo_user,ou=people,dc=example,dc=com
+changetype: modify
+replace: mail
+mail: demo_user@example.com
+EOF
+```
 
 ``` shell
 # some defaults do not need to be explicitly set
-$ grep krb5 /etc/sssd/sssd.conf
+$ grep -P '(krb5|use_f)' /etc/sssd/sssd.conf
 auth_provider = krb5
 krb5_realm = EXAMPLE.COM
 krb5_validate = false
@@ -391,6 +405,7 @@ krb5_ccachedir = /tmp
 krb5_server = 127.0.0.1
 krb5_ccname_template = FILE:/tmp/krb5cc_%{uid}
 krb5_use_kdcinfo = false
+use_fully_qualified_names
 ```
 
 ``` shell
