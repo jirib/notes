@@ -373,9 +373,8 @@ $ dsconf EXAMPLECOM plugin pam-pass-through-auth config \
   "LDAP PAM PTA Config" add \
     --exclude-suffix="cn=config" \
 	--id_map_method="RDN" \
-	--id-attr="legalName" \
 	--filter="ou=people,dc=example,dc=com pamFallback: FALSE" \
-	--incluse-suffix ou=people,dc=example,dc=com \
+	--include-suffix ou=people,dc=example,dc=com \
 	--secure="TRUE" \
 	--service="ldapserver"
 ```
