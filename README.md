@@ -6538,6 +6538,33 @@ FROM repository, nodes
 WHERE nodes.parent_relpath IS NULL;
 EOF
 svn://scribus.net/
+```
+
+SVN diff with function context:
+
+``` shell
+$ svn diff --diff-cmd=diff -x '-uNp'
+Index: scribus/ui/printdialog.cpp
+===================================================================
+--- scribus/ui/printdialog.cpp  (revision 26874)
++++ scribus/ui/printdialog.cpp  (working copy)
+@@ -501,6 +501,7 @@ void PrintDialog::storeValues()
+        {
+                m_doc->Print_Options.printerCommand = altCommand->text();
+                m_doc->Print_Options.useAltPrintCommand = true;
++               m_doc->Print_Options.toFile = false;
+        }
+        else
+                m_doc->Print_Options.useAltPrintCommand = false;
+@@ -543,6 +544,7 @@ void PrintDialog::setStoredValues(const
+        {
+                selectCommand();
+                altCommand->setText(m_doc->Print_Options.printerCommand);
++               m_doc->Print_Options.toFile = false;
+        }
+        printAllRadio->setChecked(prefs->getBool("PrintAll", true));
+        printCurrentRadio->setChecked(prefs->getBool("CurrentPage", false));
+```
 
 
 ## devops
@@ -10845,7 +10872,7 @@ enable debugging dumps of processes etc. (8), see above link for details.
 ```
 
 
-### analysis
+#### analysis
 
 NOTE: VM snapshot from VMware environement (`.vmsn` and `.vmem` files)
 can be analyzed directly with `crash` tool
