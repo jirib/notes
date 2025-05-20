@@ -4967,6 +4967,76 @@ Environment=HTTP_PROXY=http://127.0.0.1:8080 HTTPS_PROXY=https://127.0.0.1:8080 
 ```
 
 
+### podman
+
+#### podman secrets
+
+podman secrets are nice, see:
+
+``` shell
+$ podman secret ls
+ID                         NAME            DRIVER      CREATED        UPDATED
+9a50fdd4367b502dfa601ff78  rmt-server.crt  file        12 months ago  12 months ago
+21d0def4f89c551112fbb602d  rmt.conf        file        12 months ago  12 months ago
+6c7204f5e97475e18e2d1c2b8  rmt-server.key  file        12 months ago  12 months ago
+8861071cf4e95ee0d617b1f0c  rmt-ca.crt      file        12 months ago  12 months ago
+
+$ podman secret inspect rmt.conf 
+[
+    {
+        "ID": "21d0def4f89c551112fbb602d",
+        "CreatedAt": "2024-04-26T05:47:03.494575314-04:00",
+        "UpdatedAt": "2024-04-26T05:47:03.494575314-04:00",
+        "Spec": {
+            "Name": "rmt.conf",
+            "Driver": {
+                "Name": "file",
+                "Options": {
+                    "path": "/var/lib/containers/storage/secrets/filedriver"
+                }
+            },
+            "Labels": {}
+        }
+    }
+]
+
+$ jq -r '."21d0def4f89c551112fbb602d"' /var/lib/containers/storage/secrets/filedriver/secretsdata.json | base64 -d
+---
+database:
+  host: localhost
+  database: *******
+  username: *******
+  password: '******
+  adapter: mysql2
+  encoding: utf8
+  timeout: 5000
+  pool: 5
+scc:
+  username: **********
+  password: **********
+  sync_systems: true
+mirroring:
+  mirror_src: false
+  verify_rpm_checksums: false
+  dedup_method: hardlink
+http_client:
+  verbose: false
+  proxy: 
+  proxy_auth: 
+  proxy_user: 
+  proxy_password: 
+  low_speed_limit: 512
+  low_speed_time: 120
+log_level:
+  rails: debug
+  cli: debug
+web_server:
+  min_threads: 5
+  max_threads: 5
+  workers: 2
+```
+
+
 ## databases
 
 
