@@ -4971,7 +4971,8 @@ Environment=HTTP_PROXY=http://127.0.0.1:8080 HTTPS_PROXY=https://127.0.0.1:8080 
 
 #### podman secrets
 
-podman secrets are nice, see:
+podman secrets are nice, see [Exploring the new Podman secret command
+](https://web.archive.org/web/20250520114616/https://www.redhat.com/en/blog/new-podman-secrets-command).
 
 ``` shell
 $ podman secret ls
