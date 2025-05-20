@@ -15220,6 +15220,46 @@ vgrename -v rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom temp
   Volume group "rWunAT-oHmL-t3iV-6O2y-mbVT-LUfm-5UzHom" successfully renamed to "temp"
 ```
 
+
+Restoration of LVM PV, which was on raw disk, after one creates DOS
+MBR on the disk by mistake:
+
+``` shell
+# remove the mbr
+$ dd if=/dev/zero of=/dev/sdb bs=512 count=1
+
+$ ls -l /dev/sdb{,[0-9]*} # the partition device still present?
+
+$ partx -d --nr 1 /dev/sdb
+
+# get pv uuid
+$ awk '/^[ \t]*pv0/ { getline; gsub(/"/,""); print $3 }' /etc/lvm/backup/sdbvg 
+mcm2Av-hxSA-sbnb-0r8g-YZCL-nwnH-z91Elv
+
+$ pvcreate --uuid mcm2Av-hxSA-sbnb-0r8g-YZCL-nwnH-z91Elv --restorefile /etc/lvm/backup/sdbvg /dev/sdb
+  WARNING: Couldn't find device with uuid mcm2Av-hxSA-sbnb-0r8g-YZCL-nwnH-z91Elv.
+  Can't open /dev/sdb exclusively.  Mounted filesystem?
+  Can't open /dev/sdb exclusively.  Mounted filesystem?
+
+# unmount the filesystem!
+# however, still the same issue
+
+$ dmsetup ls --target linear  | grep vg
+sdbvg-lv0       (254, 0)
+
+$ dmsetup remove sdbvg-lv0
+
+$ pvcreate --uuid mcm2Av-hxSA-sbnb-0r8g-YZCL-nwnH-z91Elv --restorefile /etc/lvm/backup/sdbvg /dev/sdb
+  WARNING: Couldn't find device with uuid mcm2Av-hxSA-sbnb-0r8g-YZCL-nwnH-z91Elv.
+  Physical volume "/dev/sdb" successfully created.
+
+$ vgcfgrestore sdbvg
+  Restored volume group sdbvg.
+$ vgchange -a y sdbvg
+  1 logical volume(s) in volume group "sdbvg" now active
+```
+
+
 ### scsi
 
 :construction: work in progress!
