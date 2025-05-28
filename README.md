@@ -2529,6 +2529,74 @@ menuentry pxelinux {
   pxechainloader (tftp)/pxelinux.0
 ```
 
+An example of a PCAP with
+[TFTP](https://www.wireshark.org/docs/dfref/t/tftp.html):
+
+``` shell
+$ tshark -r /tmp/example.pcap -Y 'tftp.opcode == 1' -T fields -e tftp.source_file
+grub/shim.efi
+revocations.efi
+grub.efi
+```
+
+Extracting `grub/shim.efi`:
+
+``` shell
+$ cat > /tmp/extract.py <<EOF
+#!/usr/bin/env python3
+import sys
+from binascii import unhexlify
+
+blocks = {}
+
+# Read from stdin line-by-line
+for line in sys.stdin:
+    line = line.strip()
+    if not line:
+        continue
+    parts = line.split()
+    if len(parts) != 2:
+        continue  # skip malformed lines
+    try:
+        block = int(parts[0])
+        data = unhexlify(parts[1])
+        blocks[block] = data
+    except Exception:
+        continue  # skip invalid lines
+
+# Write blocks in order to stdout
+for block in sorted(blocks):
+    sys.stdout.buffer.write(blocks[block])
+EOF
+
+$ tshark -r /tmp/example.pcap \
+  -Y 'tftp.opcode == 3' \
+  -T fields \
+  -e tftp.block \
+  -e data.data | \
+  python3 /tmp/data.py > /tmp/shim.efi
+
+$ objdump -s -j .sbat /tmp/shim.efi
+ 
+/tmp/shim.efi:     file format pei-x86-64
+ 
+Contents of section .sbat:
+ d4000 73626174 2c312c53 42415420 56657273  sbat,1,SBAT Vers
+ d4010 696f6e2c 73626174 2c312c68 74747073  ion,sbat,1,https
+ d4020 3a2f2f67 69746875 622e636f 6d2f7268  ://github.com/rh
+ d4030 626f6f74 2f736869 6d2f626c 6f622f6d  boot/shim/blob/m
+ d4040 61696e2f 53424154 2e6d640a 7368696d  ain/SBAT.md.shim
+ d4050 2c342c55 45464920 7368696d 2c736869  ,4,UEFI shim,shi
+ d4060 6d2c312c 68747470 733a2f2f 67697468  m,1,https://gith
+ d4070 75622e63 6f6d2f72 68626f6f 742f7368  ub.com/rhboot/sh
+ d4080 696d0a73 68696d2e 736c652c 312c5355  im.shim.sle,1,SU
+ d4090 5345204c 696e7578 20456e74 65727072  SE Linux Enterpr
+ d40a0 6973652c 7368696d 2c31352e 382c6d61  ise,shim,15.8,ma
+ d40b0 696c3a73 65637572 69747940 73757365  il:security@suse
+ d40c0 2e64650a                             .de.            
+```
+
+
 #### serial console
 
 for a bloody SOL (IPMI) which is *COM3* (ie. *ttyS2* - *0x3e8*)
