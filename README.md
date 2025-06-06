@@ -16581,7 +16581,7 @@ $ grep -C 5 -m 1 '<%' autoinst.xml.erb
   <partitioning t="list">
     <drive t="map">
       <% disk = disks.reject { |d| d[:device] =~ %r{^zram} }.sort_by { |d| d[:size] }.first %>
-      <device><%= disk[:device] %></device>
+      <device>/dev/<%= disk[:device] %></device>
       <type t="symbol">CT_DISK</type>
       <use>all</use>
     </drive>
@@ -16599,7 +16599,7 @@ An example from an installation env:
   <partitioning t="list">
     <drive t="map">
       <% disk = disks.reject { |d| d[:device] =~ %r{^zram} }.sort_by { |d| d[:size] }.first %>
-      <device><%= disk[:device] %></device>
+      <device><%= disk[:udev_names].first %></device>
       <type t="symbol">CT_DISK</type>
       <use>all</use>
     </drive>
@@ -16619,6 +16619,7 @@ An example from an installation env:
   </partitioning>
   <proxy t="map">
 ```
+
 
 **NOTE**: SLES installation can be paused with *Shift-F8* key combo!!!
 
