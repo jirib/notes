@@ -16571,6 +16571,74 @@ ptoptions=+reg_ssl_verify reg_ssl_verify=0
 That is, do NOT expect that `reg_server_cert_finterprint` makes the TLS cert trusted!!!
 
 
+AutoYaST can use ERB templates that are used for embedding Ruby inside them.
+
+``` shell
+$ grep -C 5 -m 1 '<%' autoinst.xml.erb
+    </ntp_servers>
+    <ntp_sync>systemd</ntp_sync>
+  </ntp-client>
+  <partitioning t="list">
+    <drive t="map">
+      <% disk = disks.reject { |d| d[:device] =~ %r{^zram} }.sort_by { |d| d[:size] }.first %>
+      <device><%= disk[:device] %></device>
+      <type t="symbol">CT_DISK</type>
+      <use>all</use>
+    </drive>
+  </partitioning>
+```
+
+These templates **must** have `.erb` suffix!!!
+
+An example from an installation env:
+
+``` shell
+0:Linux-SLES15SP6-Minimal:~ # grep -C 5 -m1 '<device>' /download/autoinst.xml 
+    <ntp_sync>systemd</ntp_sync>
+  </ntp-client>
+  <partitioning t="list">
+    <drive t="map">
+      <% disk = disks.reject { |d| d[:device] =~ %r{^zram} }.sort_by { |d| d[:size] }.first %>
+      <device><%= disk[:device] %></device>
+      <type t="symbol">CT_DISK</type>
+      <use>all</use>
+    </drive>
+  </partitioning>
+  <proxy t="map">
+
+0:Linux-SLES15SP6-Minimal:~ # grep -C 5 -m1 '<device>' /tmp/profile/autoinst.xml 
+    <ntp_sync>systemd</ntp_sync>
+  </ntp-client>
+  <partitioning t="list">
+    <drive t="map">
+      
+      <device>vdb</device>
+      <type t="symbol">CT_DISK</type>
+      <use>all</use>
+    </drive>
+  </partitioning>
+  <proxy t="map">
+```
+
+**NOTE**: SLES installation can be paused with *Shift-F8* key combo!!!
+
+Troubleshooting AutoYaST can be done via `irb`:
+
+``` shell
+0:Linux-SLES15SP6-Minimal:~ # irb -ryast -rautoinstall/y2erb
+WARNING: Nokogiri was built against LibXML version 2.9.14, but has dynamically loaded 2.10.3
+
+irb(main):001:0> env = Y2Autoinstallation::Y2ERB::TemplateEnvironment.new
+=> #<Y2Autoinstallation::Y2ERB::TemplateEnvironment:0x00005616c11a9720>
+
+irb(main):002:0> env.disks
+=> [{:vendor=>nil, :device=>"zram1", :udev_names=>["/dev/zram1"], :model=>"Unknown", :serial=>"Unknown", :size=>2097152}, {:vendor=>nil, :device=>"vdb", :udev_names=>["/dev/vdb", "/dev/disk/by-path/pci-0000:08:00.0", "/dev/disk/by-diskseq/69", "/dev/disk/by-path/virtio-pci-0000:08:00.0"], :model=>"Unknown", :serial=>"", :size=>52428800}, {:vendor=>nil, :device=>"zram0", :udev_names=>["/dev/zram0"], :model=>"Unknown", :serial=>"Unknown", :size=>2097152}, {:vendor=>nil, :device=>"vda", :udev_names=>["/dev/vda", "/dev/disk/by-path/virtio-pci-0000:04:00.0", "/dev/disk/by-path/pci-0000:04:00.0", "/dev/disk/by-diskseq/68"], :model=>"Unknown", :serial=>"", :size=>52428800}]
+
+irb(main):003:0> env. disks.reject { |d| d[:device] =~ %r{^zram} }.sort_by { |d| d[:size] }.first
+=> {:vendor=>nil, :device=>"vdb", :udev_names=>["/dev/vdb", "/dev/disk/by-path/pci-0000:08:00.0", "/dev/disk/by-diskseq/69", "/dev/disk/by-path/virtio-pci-0000:08:00.0"], :model=>"Unknown", :serial=>"", :size=>52428800}
+```
+
+
 #### SLES linuxrc
 
 `linuxrc`'s `ptoptions` boot parameter causes addition/removal from
