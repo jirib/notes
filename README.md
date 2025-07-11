@@ -7052,6 +7052,93 @@ EwIDAQAB
 ```
 
 
+##### salt git fileserver_backend
+
+``` shell
+$ grep -RPv '^\s*(#|$)' /etc/salt/master* | sed 's/pat_.*/pat_XXXXXXXXXXXXXXXXXXXXX/'
+/etc/salt/master:user: salt
+/etc/salt/master.d/local.conf:gitfs_provider: pygit2
+/etc/salt/master.d/pillar_git.conf:ext_pillar:
+/etc/salt/master.d/pillar_git.conf:  - git:
+/etc/salt/master.d/pillar_git.conf:    - main https://github.com/jirib/salt-pillars.git:
+/etc/salt/master.d/pillar_git.conf:      - root: pillar
+/etc/salt/master.d/pillar_git.conf:      - env: base
+/etc/salt/master.d/pillar_git.conf:      - user: github_pat_XXXXXXXXXXXXXXXXXXXXX
+/etc/salt/master.d/pillar_git.conf:      - password: x-oauth-basic
+/etc/salt/master.d/fileserver_git.conf:fileserver_backend:
+/etc/salt/master.d/fileserver_git.conf:  - git
+/etc/salt/master.d/fileserver_git.conf:gitfs_base: main
+/etc/salt/master.d/fileserver_git.conf:gitfs_remotes:
+/etc/salt/master.d/fileserver_git.conf:  - "https://github.com/jirib/salt-states.git"
+```
+
+*WARNING!*: There's some odd Salt caching in
+`/var/cache/salt/master/gitfs/` and since I use _main_ branch instead
+of _master_ which is by default mapped to _base_ env, it took me long
+time to map _main_ to _master_. It has started to work via
+`gitfs_base: main` only after `rm -rf /var/cache/salt/master/gitfs/*`!
+
+An example of `/etc/motd` management:
+
+``` shell
+$ salt-run fileserver.update
+True
+
+$ salt-run fileserver.file_list base
+- motd/files/default
+- motd/init.sls
+- top.sls
+```
+
+``` shell
+$ basename -s .git "$(git config --get remote.origin.url)"
+salt-states
+
+$ git ls-tree -r HEAD --name-only
+motd/files/default
+motd/init.sls
+top.sls
+
+$ cat top.sls 
+base:
+  '*'
+    - motd
+
+$ cat motd/init.sls 
+{% set motd_text = salt['pillar.get']('motd_content', '') %}
+{% if not motd_text %}
+{% set motd_text = salt['cp.get_file_str']('salt://motd/files/default') %}
+{% endif %}
+ 
+/etc/motd:
+  file.managed:
+    - contents: {{ motd_text | yaml_encode }}
+
+$ cat motd/files/default 
+Hello world!
+
+$ basename -s .git "$(git config --get remote.origin.url)"
+salt-pillars
+
+$ git ls-tree -r HEAD --name-only
+pillar/avocado_pillar.sls
+pillar/top.sls
+
+$  head -n 9 pillar/avocado_pillar.sls
+motd_content: |
+  {% set full_text = "Welcome to " ~ grains['fqdn'] -%}
+  {% set banner_width = 70 -%}
+  {% set banner_padding = banner_width - 2 - full_text|length -%}
+ 
+  #######################################################################
+  # {{ full_text ~ (" " * banner_padding) }}#
+  # BE NICE!!! IT IS A SHARED SLL9 KVM HOST; DO NOT FORGET SELINUX !    #
+  #######################################################################
+```
+
+Above there's a hacky solution how to create fixed width motd ;)
+
+
 #### salt-minion
 
 `salt-minion` needs first to establish a connection to a master to
