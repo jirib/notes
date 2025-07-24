@@ -17720,10 +17720,18 @@ pdfseparate <pdf_file2> temp-%04d-file2.pdf
 pdfjam temp-*-*.pdf --nup 2x1 --landscape --outfile <out_file>
 ```
 
+And, for example, putting A5 on A4 landscape (that is, two A5 same
+pages on on sheet).
+
+``` shell
+$ pdfseparate -f 1 -l 2 input.pdf page%d.pdf
+$ pdfjam --nup 2x1 --paper a4paper --landscape --outfile sheet1.pdf page1.pdf page1.pdf 
+$ pdfjam --nup 2x1 --paper a4paper --landscape --outfile sheet2.pdf page2.pdf page2.pdf 
+$ pdfunite sheet1.pdf sheet2.pdf final_output.pdf
+```
 
 
 ## security
-
 
 
 ### auditd
