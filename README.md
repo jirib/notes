@@ -21761,6 +21761,10 @@ infocmp: couldn't open terminfo file /usr/share/terminfo/f/foot.
 ~> exit
 
 $ infocmp $TERM | ssh somewhere 'tic -x - -o ~/.terminfo'
+
+# or use /etc/terminfo since root's .terminfo is not read for security reasons!
+
+~root> tic -x foot.terminfo -o /etc/terminfo
 ```
 
 ## windows
