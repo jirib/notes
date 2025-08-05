@@ -21697,7 +21697,7 @@ Systems might miss `foot` terminfo, so terminal might be broken after
 ```
 $ echo $TERM
 foot
-[jiri@t14s-gen4 ~]$ infocmp $TERM
+$ infocmp $TERM
 #	Reconstructed via infocmp from file: /usr/share/terminfo/f/foot
 foot|foot terminal emulator,
 	am, bce, bw, ccc, hs, mir, msgr, npc, xenl,
