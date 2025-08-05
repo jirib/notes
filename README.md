@@ -2506,6 +2506,61 @@ $ awk -F\' '$1 == "menuentry " || $1=="submenu " {print i++ " : " $2}; /^(\t)?me
 ```
 
 
+#### grub internals
+
+##### grub on gpt/bios
+
+What makes "core.img" on GPT/BIOS?
+
+``` shell
+# diskboot.img
+
+$ stat -c '%s' /usr/share/grub2/i386-pc/diskboot.img
+512
+
+$ xxd /usr/share/grub2/i386-pc/diskboot.img | head -n2
+00000000: 5256 be1b 81e8 3901 5ebf f481 668b 2d83  RV....9.^...f.-.
+00000010: 7d08 000f 84e2 0080 7cff 0074 4666 8b1d  }.......|..tFf..
+
+$ sfdisk -d /dev/vda 2>/dev/null | grep vda1
+/dev/vda1 : start=        2048, size=       16384, type=21686148-6449-6E6F-744E-656564454649, uuid=62E78F72-C9A9-4179-8E35-7F078D1229BB
+
+$ xxd /dev/vda1 | head -n2
+00000000: 5256 be1b 81e8 3901 5ebf f481 668b 2d83  RV....9.^...f.-.
+00000010: 7d08 000f 84e2 0080 7cff 0074 4666 8b1d  }.......|..tFf..
+
+# lzma_decompressor (comments inline)
+
+$ stat -c '%s' /usr/share/grub2/i386-pc/lzma_decompress.img 
+2880
+
+$ xxd /usr/share/grub2/i386-pc/lzma_decompress.img | head -n2
+00000000: ea1c 8200 0000 0000 0000 0000 0000 0000  ................
+00000010: 0000 0000 7a07 0000 ffff ff00 fa31 c08e  ....z........1..
+
+$ xxd -s 512 /dev/vda1 | head -n2
+00000200: ea1c 8200 0000 0000 33db 0000 00c7 0100  ........3.......    <---+--- iiuc small difference is ok here, the .img is a "template"
+00000210: 8deb 0000 7a07 0000 ffff ff00 fa31 c08e  ....z........1..
+
+# a real core.img ???
+
+$ xxd -s $((512 + 2880 )) /boot/grub2/i386-pc/core.img | head -n2
+00000d40: 0044 a383 df0c b34d 0dcf b8d6 3fcd fe54  .D.....M....?..T
+00000d50: 1ccd aafa 1ff5 c09e dc2a faad 120b 09a8  .........*......
+
+$ xxd -s $((512 + 2880))  /dev/vda1 | head -n2
+00000d40: 0044 a383 df0c b34d 0dcf b8d6 3fcd fe54  .D.....M....?..T
+00000d50: 1ccd aafa 1ff5 c09e dc2a faad 120b 09a8  .........*......
+
+$ xxd -s $((512 + 2880))  /dev/vda1 | grep -m 1 -B 2 '0000 0000'
+0001d3e0: 218a 1e94 0260 06bd dba9 a46a 0903 2c11  !....`.....j..,.
+0001d3f0: efc9 5a39 6c0c fe5d 0367 8590 58e9 ee53  ..Z9l..].g..X..S
+0001d400: 0000 0000 0000 0000 0000 0000 0000 0000  ................
+
+^^ needs clarification !!!
+```
+
+
 #### pxe
 
 ``` shell
