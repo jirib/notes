@@ -6714,9 +6714,10 @@ remote-pdb==2.1.0
 
 ###### uv on Windows
 
-This is a variation of [https://github.com/astral-sh/uv#installation],
-I needed that this way, because I was setting HTTP proxy for current
-powershell session, my Windows have no direct access to Internet.
+This is a variation of [`uv`
+Installation](https://github.com/astral-sh/uv#installation), I needed
+that this way, because I was setting HTTP proxy for current powershell
+session, my Windows have no direct access to Internet.
 
 1. powershell
 
