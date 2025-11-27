@@ -6710,6 +6710,31 @@ PyYAML==6.0.2
 remote-pdb==2.1.0
 ```
 
+##### uv
+
+###### uv on Windows
+
+This is a variation of [https://github.com/astral-sh/uv#installation],
+I needed that this way, because I was setting HTTP proxy for current
+powershell session, my Windows have no direct access to Internet.
+
+1. powershell
+
+2. `Set-ExecutionPolicy RemoteSigned -scope CurrentUser`
+
+3. `(irm https://astral.sh/uv/install.ps1) -replace '\bexit\b', '#exit removed' | iex`
+
+4. `$env:Path = "C:\Users\user\.local\bin;$env:Path"`
+
+5. Use a pep 723 comfortant script, see https://realpython.com/python-script-structure/
+
+6. `uv run <python script>`
+   ```
+   PS C:\Users\user> uv run .\a5_to_a4.py input.pdf output.pdf
+   Installed 1 package in 103ms
+   Done: output.pdf
+   ```
+
 
 ### svn
 
