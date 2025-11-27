@@ -6720,22 +6720,23 @@ that this way, because I was setting HTTP proxy for current powershell
 session, my Windows have no direct access to Internet.
 
 1. powershell
-
 2. `Set-ExecutionPolicy RemoteSigned -scope CurrentUser`
-
 3. `(irm https://astral.sh/uv/install.ps1) -replace '\bexit\b', '#exit removed' | iex`
-
 4. `$env:Path = "C:\Users\user\.local\bin;$env:Path"`
-
 5. Use a [PEP 723](https://peps.python.org/pep-0723/) comfortant
-script, see https://realpython.com/python-script-structure/
-
+   script, see https://realpython.com/python-script-structure/
 6. `uv run <python script>`
    ```
    PS C:\Users\user> uv run .\a5_to_a4.py input.pdf output.pdf
    Installed 1 package in 103ms
    Done: output.pdf
    ```
+
+One can also run it under [`mise`](https://mise.jdx.dev/getting-started.html).
+
+1. `winget install jdx.mise`
+2. `mise use -g uv@latest`
+3. `mise exec -- uv run <script>`
 
 
 ### svn
