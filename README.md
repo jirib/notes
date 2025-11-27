@@ -6726,7 +6726,8 @@ powershell session, my Windows have no direct access to Internet.
 
 4. `$env:Path = "C:\Users\user\.local\bin;$env:Path"`
 
-5. Use a pep 723 comfortant script, see https://realpython.com/python-script-structure/
+5. Use a [PEP 723](https://peps.python.org/pep-0723/) comfortant
+script, see https://realpython.com/python-script-structure/
 
 6. `uv run <python script>`
    ```
