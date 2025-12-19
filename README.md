@@ -17546,6 +17546,31 @@ man cupsd.conf | egrep -A 1 'MaxJobs(PerPrinter)* number' | fmt -w80
             per printer.
 ```
 
+Adding a printer via CLI:
+
+``` shell
+$ systemctl is-active cups
+active
+
+# listing supported uris
+$ lpinfo -v
+network ipps
+network lpd
+network https
+network ipp
+network http
+network socket
+network smb
+
+# listing supported models
+$ lpinfo -m
+Postscript-level1.ppd.gz Generic PostScript level 1 Printer Foomatic/Postscript (recommended)
+Postscript-level2.ppd.gz Generic PostScript level 2 Printer Foomatic/Postscript (recommended)
+Postscript.ppd.gz Postscript Generic postscript printer
+raw Raw Queue
+everywhere IPP Everywhere
+```
+
 CUPS does convertion via filters; an example:
 
 ``` shell
@@ -19158,6 +19183,34 @@ EOD
         SSLCertificateKeyFile /etc/apache2/ssl.csr/CA.key
         SSLCertificateChainFile /etc/apache2/ssl.csr/example.com.txt
     </VirtualHost>
+```
+
+`awk` using external command and working with its output:
+
+``` awk
+# an example showing content of relevant initramfs files, that is,
+# parsing listing output and if real file try to show its content if
+# not empty
+
+$ lsinitrd | awk '
+/^(d|l)/ { next;}
+!/(etc\/(cmdline.d[^[:space:]]+$|systemd[^[:space:]]+(\.device(\.d.*$)?)))/ { next;}
+{
+    cmd1 = sprintf("lsinitrd -f \"%s\"", $NF)
+    cmd1 | getline out1
+    close(cmd1)
+    if (out1 != "") {
+        printf("# %s\n%s\n", $NF, out1)
+    }
+}'
+# etc/cmdline.d/00-btrfs.conf
+ rd.driver.pre=btrfs
+# etc/cmdline.d/95resume.conf
+ resume=UUID=16382811-4011-4745-bc15-f5ea3f84d773
+# etc/cmdline.d/95root-dev.conf
+ root=UUID=d0c229fb-f298-4147-919b-8317cb863e79 rootfstype=btrfs rootflags=rw,relatime,ssd,discard=async,space_cache,subvolid=266,subvol=/@/.snapshots/1/snapshot,subvol=@/.snapshots/1/snapshot
+# etc/systemd/system/dev-disk-by\x2duuid-715D\x2d8BBE.device.d/timeout.conf
+[Unit]
 ```
 
 
