@@ -19853,6 +19853,31 @@ btrfsvol:/dev/sda2/@/.snapshots/2/snapshot: btrfs
 ><fs> exit
 ```
 
+``` shell
+><fs> sh "rpm -qa --qf '%{NAME}-%{VERSION}\n' *tools* *snmp*| sort"
+compat-usrmerge-tools-84.87
+dbus-1-tools-1.14.10
+dosfstools-4.2
+glib2-tools-2.78.6
+kexec-tools-2.0.27
+libpwquality-tools-1.4.5
+libqmi-tools-1.32.4
+libsolv-tools-base-0.7.34
+libvmtools0-13.0.0
+libxml2-tools-2.11.6
+microos-tools-2.21+git24
+net-tools-2.10
+open-vm-tools-13.0.0
+p11-kit-tools-0.25.3
+python311-setools-4.4.3
+python311-setuptools-70.0.0
+selinux-tools-3.5
+suse-module-tools-16.0.43
+suse-module-tools-scriptlets-16.0.43
+thin-provisioning-tools-0.9.0
+tpm2.0-tools-5.7
+```
+
 Or...
 
 ``` shell
