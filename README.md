@@ -17025,6 +17025,61 @@ ps auxww | grep 'puma .*\[rmt\]$' # main rmt pid
 > _rmt     25199  1.3  0.5 281652 87396 ?        Ssl  14:54   0:01 puma 5.3.2 (tcp://127.0.0.1:4224) [rmt]
 ```
 
+Export RMT data/settings/repos:
+
+``` shell
+$ rmt-cli export data /mnt   
+I, [2026-01-14T14:19:28.481153 #223]  INFO -- : Exporting data from SCC to /mnt
+I, [2026-01-14T14:19:28.481224 #223]  INFO -- : Exporting products
+I, [2026-01-14T14:19:28.481250 #223]  INFO -- : Loading product data from SCC
+I, [2026-01-14T14:19:40.326513 #223]  INFO -- : Loading product data from SCC
+I, [2026-01-14T14:20:07.634814 #223]  INFO -- : Exporting repositories
+I, [2026-01-14T14:20:07.634888 #223]  INFO -- : Loading repository data from SCC
+I, [2026-01-14T14:20:18.495096 #223]  INFO -- : Exporting subscriptions
+I, [2026-01-14T14:20:18.495170 #223]  INFO -- : Loading subscription data from SCC
+I, [2026-01-14T14:20:18.573574 #223]  INFO -- : Exporting orders
+
+$ find /mnt -ls
+      128      0 drwxr-xr-x   2 _rmt     nginx         213 Jan 14 14:20 /mnt
+      131      0 -rw-r--r--   1 _rmt     nginx           0 Jan 14 13:44 /mnt/.mounted
+      132   7284 -rw-r--r--   1 _rmt     nginx     7458003 Jan 14 14:19 /mnt/organizations_products.json
+      133  11992 -rw-r--r--   1 _rmt     nginx    12278786 Jan 14 14:20 /mnt/organizations_products_unscoped.json
+      134   1964 -rw-r--r--   1 _rmt     nginx     2007997 Jan 14 14:20 /mnt/organizations_repositories.json
+      135     20 -rw-r--r--   1 _rmt     nginx       18772 Jan 14 14:20 /mnt/organizations_subscriptions.json
+      136      4 -rw-r--r--   1 _rmt     nginx           2 Jan 14 14:20 /mnt/organizations_orders.json
+$ rmt-cli export settings /mnt
+Settings saved at /mnt/repos.json.
+$ find /mnt -ls
+      128      0 drwxr-xr-x   2 _rmt     nginx         231 Jan 14 14:20 /mnt
+      131      0 -rw-r--r--   1 _rmt     nginx           0 Jan 14 13:44 /mnt/.mounted
+      132   7284 -rw-r--r--   1 _rmt     nginx     7458003 Jan 14 14:19 /mnt/organizations_products.json
+      133  11992 -rw-r--r--   1 _rmt     nginx    12278786 Jan 14 14:20 /mnt/organizations_products_unscoped.json
+      134   1964 -rw-r--r--   1 _rmt     nginx     2007997 Jan 14 14:20 /mnt/organizations_repositories.json
+      135     20 -rw-r--r--   1 _rmt     nginx       18772 Jan 14 14:20 /mnt/organizations_subscriptions.json
+      136      4 -rw-r--r--   1 _rmt     nginx           2 Jan 14 14:20 /mnt/organizations_orders.json
+      137     12 -rw-r--r--   1 _rmt     nginx        9665 Jan 14 14:20 /mnt/repos.json
+
+# exporting 'repos' seem to export into export "root"
+$ rmt-cli export repos /mnt
+...snipped...
+
+$ jq -r '.[].url' /export/repos.json | grep -Po '\.com/\K(.*)' | head
+SUSE/Updates/SLE-SERVER/12-SP5/x86_64/update/
+SUSE/Updates/SLE-SERVER-INSTALLER/12-SP5/x86_64/update/
+SUSE/Products/SLE-SERVER/12-SP5/x86_64/product/
+SUSE/Updates/RES/8/x86_64/update/
+SUSE/Updates/RES-AS/8/x86_64/update/
+SUSE/Updates/RES-CB/8/x86_64/update/
+SUSE/Updates/SLE-Product-WE/15-SP5/x86_64/update/
+SUSE/Products/SLE-Product-WE/15-SP5/x86_64/product/
+SUSE/Updates/SLL/9/x86_64/update/
+SUSE/Updates/SLL-AS/9/x86_64/update/
+
+$ ls /export/SUSE/
+Updates
+```
+
+
 #### SUSE customer center (SCC)
 
 a little and stupid wrapper for SCC/swagger [API](
