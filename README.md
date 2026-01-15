@@ -5092,6 +5092,25 @@ Environment=HTTP_PROXY=http://127.0.0.1:8080 HTTPS_PROXY=https://127.0.0.1:8080 
 
 ### podman
 
+``` shell
+$ podman ps --format {{.<tab>
+{{.AutoRemove}}                                                  {{.ImageID}}                                                     {{.PodName}}
+{{.CGROUPNS}}                                                    {{.Image}}                                                       {{.Pod}}
+{{.CIDFile}}                                                     {{.IsInfra}}                                                     {{.Ports}}
+{{.Cgroup}}                                                      {{.Label                                                         {{.Restarts}}
+{{.Command}}                                                     {{.Labels.                                                       {{.RunningFor}}
+{{.Created.                                                      {{.ListContainer.                                                {{.Size}}
+{{.CreatedAt}}                                                   {{.MNT}}                                                         {{.StartedAt}}
+{{.CreatedHuman}}                                                {{.Mounts}}                                                      {{.State}}
+{{.ExitCode}}                                                    {{.NET}}                                                         {{.Status}}
+{{.ExitedAt}}                                                    {{.Namespaces.                                                   {{.USERNS}}
+{{.Exited}}                                                      {{.Names}}                                                       {{.UTS}}
+{{.ExposedPorts.                                                 {{.Networks}}                                                    {{.User}}
+{{.ID}}                                                          {{.PIDNS}}                                                       
+{{.IPC}}                                                         {{.Pid}}                                                         
+```
+
+
 #### podman secrets
 
 podman secrets are nice, see [Exploring the new Podman secret command
