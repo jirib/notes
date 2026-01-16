@@ -10666,6 +10666,10 @@ xmllint --xpath '/policymap/policy[@pattern="PDF"]' /etc/ImageMagick-7/policy.xm
 
 ### libreoffice
 
+- `$HOME/.config/libreoffice/4/user/backup`: super important
+  directory! If you, by a mistake, delete a file, you might be
+  successful to find it here!!!
+
 Running Python from LibreOffice? In headless mode? No problem!
 
 ``` shell
