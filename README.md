@@ -2127,6 +2127,20 @@ password, instead of `BORG_PASSHRASE`, as the latter might leak in the
 logs.
 
 
+### plakar
+
+``` shell
+$ $ plakar info -errors cde5730e
+/home/jiri/.mozilla/firefox/sgofny49.default/cert9.db: open /home/jiri/.mozilla/firefox/sgofny49.default/cert9.db: permission denied
+/home/jiri/.mozilla/firefox/sgofny49.default/key4.db: open /home/jiri/.mozilla/firefox/sgofny49.default/key4.db: permission denied
+/home/jiri/.mozilla/firefox/sgofny49.default/pkcs11.txt: open /home/jiri/.mozilla/firefox/sgofny49.default/pkcs11.txt: permission denied
+```
+
+Check the backup for errors!
+
+- `~/.plakar` is used as default kloset store
+
+
 ### rear
 
 [Rear](https://github.com/rear/rear) is not ready to use tool, it's
