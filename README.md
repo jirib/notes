@@ -6558,6 +6558,45 @@ See https://www.perl.com/pub/2004/08/09/commandline.html/.
              the contents of CONNECT.  */
   ```
 
+#### CPAN
+
+How to add a lib/module into a Perl application, or generally, how to use CPAN:
+
+``` shell
+# here using `cpan' to add `Mail::SPF' into `~vscan' user home directory
+vscan@jb125qb02:~> rm -rf .cpan perl*
+vscan@jb125qb02:~> cpan
+...
+Would you like to configure as much as possible automatically? [yes]
+...
+What approach do you want?  (Choose 'local::lib', 'sudo' or 'manual')
+ [local::lib]
+...
+Would you like me to automatically choose some CPAN mirror
+sites for you? (This means connecting to the Internet) [yes]
+...
+
+cpan[1]> install Mail::SPF
+...
+cpan[1]> exit
+
+vscan@jb125qb02:~> PATH="/var/spool/amavis/perl5/bin${PATH:+:${PATH}}"; export PATH; \
+  PERL5LIB="/var/spool/amavis/perl5/lib/perl5${PERL5LIB:+:${PERL5LIB}}"; export PERL5LIB; \
+  PERL_LOCAL_LIB_ROOT="/var/spool/amavis/perl5${PERL_LOCAL_LIB_ROOT:+:${PERL_LOCAL_LIB_ROOT}}"; \
+  export PERL_LOCAL_LIB_ROOT; \
+  PERL_MB_OPT="--install_base \"/var/spool/amavis/perl5\""; export PERL_MB_OPT; \
+  PERL_MM_OPT="INSTALL_BASE=/var/spool/amavis/perl5"; export PERL_MM_OPT;
+
+vscan@jb125qb02:~> perl -I$HOME/perl5/lib/perl5 -MMail::SPF -e1; echo $?
+0
+
+# a way to "extend" Amavisd to use this perl lib path
+
+$ head -n2 /etc/amavisd.conf 
+use strict;
+use lib '/var/spool/amavis/perl5/lib/perl5';
+```
+
 
 ### php
 
