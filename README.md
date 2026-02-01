@@ -14,7 +14,7 @@
 - [Linux](linux.md)
   - [SUSE Linux products](suse-linux.md)
 - [Logging & Monitoring](logging.md)
-- [Networking](network.mg)
+- [Networking](network.md)
 - [NFS](nfs.md)
 - [Samba](samba.md)
 - [SUMA/SMLM](suma.md)
