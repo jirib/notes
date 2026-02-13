@@ -60,16 +60,82 @@ EOF
 ```
 
 
-### Salt on SLES
-
-Default `/etc/salt/master` on SLES:
+### Salt on Fedora
 
 ``` shell
-$ grep -Pv '^\s*(#|$)' /etc/salt/master
-user: salt
-syndic_user: salt
+$ rpm -qa salt\* | xargs -I {} sh -c 'rpm -ql $1 | cut -d"/" -f1-4' -- {} \
+  | sort -u | grep -Pv '(/etc|/usr/share/(fish|man)|/usr/lib/systemd)' | xargs ls -ld
+drwxr-xr-x. 7 root root 4096 Feb 13 16:28 /opt/saltstack/salt
+lrwxrwxrwx. 1 root root   24 Feb 13 16:28 /usr/bin/salt -> /opt/saltstack/salt/salt
+lrwxrwxrwx. 1 root root   29 Feb 13 16:28 /usr/bin/salt-call -> /opt/saltstack/salt/salt-call
+lrwxrwxrwx. 1 root root   27 Feb 13 16:28 /usr/bin/salt-cp -> /opt/saltstack/salt/salt-cp
+lrwxrwxrwx. 1 root root   28 Feb 13 16:28 /usr/bin/salt-key -> /opt/saltstack/salt/salt-key
+lrwxrwxrwx. 1 root root   31 Feb 13 16:28 /usr/bin/salt-master -> /opt/saltstack/salt/salt-master
+lrwxrwxrwx. 1 root root   31 Feb 13 16:28 /usr/bin/salt-minion -> /opt/saltstack/salt/salt-minion
+lrwxrwxrwx. 1 root root   28 Feb 13 16:28 /usr/bin/salt-pip -> /opt/saltstack/salt/salt-pip
+lrwxrwxrwx. 1 root root   30 Feb 13 16:28 /usr/bin/salt-proxy -> /opt/saltstack/salt/salt-proxy
+lrwxrwxrwx. 1 root root   28 Feb 13 16:28 /usr/bin/salt-run -> /opt/saltstack/salt/salt-run
+lrwxrwxrwx. 1 root root   23 Feb 13 16:28 /usr/bin/spm -> /opt/saltstack/salt/spm
+drwxr-xr-x. 4 root root   34 Feb 13 16:28 /var/cache/salt
+drwxr-xr-x. 2 root root   45 Feb 13 16:28 /var/log/salt
+drwxr-xr-x. 4 root root   80 Feb 13 16:29 /var/run/salt
 
+$ find /opt/saltstack/salt/ -path '*/bin/python*' -type f
+/opt/saltstack/salt/bin/python3.10
+/opt/saltstack/salt/bin/python3.10-config
+
+$/opt/saltstack/salt/bin/python3.10 -c 'import sys; print(sys.path)'
+['', '/opt/saltstack/salt/extras-3.10', '/opt/saltstack/salt/lib/python310.zip', '/opt/saltstack/salt/lib/python3.10', '/opt/saltstack/salt/lib/python3.10/lib-dynload', '/opt/saltstack/salt/lib/python3.10/site-packages']
 ```
+
+The Salt project ships Salt with its python version.
+
+### Salt on SLES
+
+If one is using upstream Salt, then it is a bit funny since they ship
+all versions in the same repo and `zypper` doesn't support
+exclude/include:
+
+``` shell
+$ curl -fsSL https://github.com/saltstack/salt-install-guide/releases/latest/download/salt.repo | sed -rn -e '1,/^$/{/^$/q; s/-*repo[^]]+//ig;/^(exclude|enabled_metadata|skip|prio)/d;p}' | tee /etc/zypp/repos.d/salt.repo 
+[salt]
+name=Salt 
+baseurl=https://packages.broadcom.com/artifactory/saltproject-rpm/
+enabled=1
+gpgcheck=1
+gpgkey=https://packages.broadcom.com/artifactory/api/security/keypair/SaltProjectKey/public
+
+$ zypper -v in --details -r salt-repo-3006-lts 'salt-minion<3007' 'salt-master<3007'
+
+# no surprises, same as on Fedora
+$ rpm -qa salt\* | xargs -I {} sh -c 'rpm -ql $1 | cut -d"/" -f1-4' -- {} | \
+  sort -u | grep -Pv '(/etc|/usr/share/(fish|man)|/usr/lib/systemd)' | xargs ls -ld
+drwxr-xr-x. 1 root root 290 Feb 13 17:30 /opt/saltstack/salt
+lrwxrwxrwx. 1 root root  24 Feb 13 17:30 /usr/bin/salt -> /opt/saltstack/salt/salt
+lrwxrwxrwx. 1 root root  29 Feb 13 17:30 /usr/bin/salt-call -> /opt/saltstack/salt/salt-call
+lrwxrwxrwx. 1 root root  27 Feb 13 17:30 /usr/bin/salt-cp -> /opt/saltstack/salt/salt-cp
+lrwxrwxrwx. 1 root root  28 Feb 13 17:30 /usr/bin/salt-key -> /opt/saltstack/salt/salt-key
+lrwxrwxrwx. 1 root root  31 Feb 13 17:30 /usr/bin/salt-master -> /opt/saltstack/salt/salt-master
+lrwxrwxrwx. 1 root root  31 Feb 13 17:30 /usr/bin/salt-minion -> /opt/saltstack/salt/salt-minion
+lrwxrwxrwx. 1 root root  28 Feb 13 17:30 /usr/bin/salt-pip -> /opt/saltstack/salt/salt-pip
+lrwxrwxrwx. 1 root root  30 Feb 13 17:30 /usr/bin/salt-proxy -> /opt/saltstack/salt/salt-proxy
+lrwxrwxrwx. 1 root root  28 Feb 13 17:30 /usr/bin/salt-run -> /opt/saltstack/salt/salt-run
+lrwxrwxrwx. 1 root root  23 Feb 13 17:30 /usr/bin/spm -> /opt/saltstack/salt/spm
+drwxr-xr-x. 1 root root  24 Feb 13 17:30 /var/cache/salt
+drwxr-xr-x. 1 root root  30 Feb 11 01:00 /var/log/salt
+drwxr-xr-x. 3 root root  60 Feb 13 17:30 /var/run/salt
+
+$ zypper al salt salt-master salt-minion
+Specified locks have been successfully added.
+$ zypper ll
+
+# | Name        | Type    | Repository | Comment
+--+-------------+---------+------------+--------
+1 | salt        | package | (any)      | 
+2 | salt-master | package | (any)      | 
+3 | salt-minion | package | (any)      | 
+```
+
 
 ### salt-master
 
