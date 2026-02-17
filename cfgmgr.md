@@ -657,7 +657,7 @@ Note that the GIT branch is checked out only when it is actually needed, for exa
 after calling:
 
 ``` shell
-salt-call pillar.ls
+$ salt-call pillar.ls
 local:
     - motd_content
 ```
