@@ -63,6 +63,8 @@ EOF
 ### Salt on Fedora
 
 ``` shell
+$ dnf install salt salt-minion salt-master
+
 $ rpm -qa salt\* | xargs -I {} sh -c 'rpm -ql $1 | cut -d"/" -f1-4' -- {} \
   | sort -u | grep -Pv '(/etc|/usr/share/(fish|man)|/usr/lib/systemd)' | xargs ls -ld
 drwxr-xr-x. 7 root root 4096 Feb 13 16:28 /opt/saltstack/salt
@@ -134,6 +136,53 @@ $ zypper ll
 1 | salt        | package | (any)      | 
 2 | salt-master | package | (any)      | 
 3 | salt-minion | package | (any)      | 
+```
+
+### Salt PIP libs
+
+There might not be all python libs needed!
+
+``` shell
+$ salt-pip list | grep -ic git
+0
+
+$ salt-pip install --root-user-action ignore pygit2
+Requirement already satisfied: pygit2 in /opt/saltstack/salt/extras-3.10 (1.18.2)
+Requirement already satisfied: cffi>=1.17.0 in /opt/saltstack/salt/lib/python3.10/site-packages (from pygit2) (2.0.0)
+Requirement already satisfied: pycparser in /opt/saltstack/salt/lib/python3.10/site-packages (from cffi>=1.17.0->pygit2) (2.21)
+
+$ salt-pip list | grep -i git
+pygit2             1.18.2
+```
+
+
+### Salt Grains
+
+- static, system-level facts
+- calculated at minion start time
+- defined in Python or `/etc/salt/grains`
+
+``` shell
+$ salt-call --local grains.items --out json | jq '.local | with_entries(select(.key | match("^os")))'
+{
+  "os": "Fedora",
+  "os_family": "RedHat",
+  "oscodename": "",
+  "osfullname": "Fedora Linux",
+  "osrelease": "43",
+  "osarch": "x86_64",
+  "osrelease_info": [
+    43
+  ],
+  "osmajorrelease": 43,
+  "osfinger": "Fedora Linux-43"
+}
+```
+
+``` shell
+$ salt-call --local grains.get os
+local:
+    Fedora
 ```
 
 
@@ -212,6 +261,16 @@ EwIDAQAB
 
 
 ### salt git fileserver_backend
+
+- using x-oauth personal token
+
+``` shell
+# validation
+$ read -s TOKEN
+github_pat_XXXX
+
+$ curl -L -H "Authorization: Bearer ${TOKEN}" https://api.github.com/repos/<user>/<repo>
+```
 
 ``` shell
 $ grep -RPv '^\s*(#|$)' /etc/salt/master* | sed 's/pat_.*/pat_XXXXXXXXXXXXXXXXXXXXX/'
@@ -553,10 +612,71 @@ local:
 Pillar is a feature of Salt to provide a minion some data, for example
 various variables used in Salt States (SLS) files.
 
+- using GIT backend
+
+Note: I'm using x-oauth personal token here.
+
+``` shell
+# validation
+$ read -s TOKEN
+github_pat_XXXX
+
+$ curl -L -H "Authorization: Bearer ${TOKEN}" https://api.github.com/repos/<user>/<repo>
+```
+
+``` shell
+$ grep -Pv '^\s*(#|$)' /etc/salt/master{,.d/{local,pillar_git}.conf}
+/etc/salt/master:user: salt
+/etc/salt/master.d/local.conf:gitfs_provider: pygit2
+/etc/salt/master.d/pillar_git.conf:ext_pillar:
+/etc/salt/master.d/pillar_git.conf:  - git:
+/etc/salt/master.d/pillar_git.conf:      - main https://github.com/jirib/salt-pillars:
+/etc/salt/master.d/pillar_git.conf:          - root: pillar
+/etc/salt/master.d/pillar_git.conf:          - env: base
+/etc/salt/master.d/pillar_git.conf:          - user: github_pat_XXXX
+/etc/salt/master.d/pillar_git.conf:          - password: x-oauth-basic
+```
+
+``` shell
+$ systemctl restart salt-master
+
+# if git repo was recently updated
+$ salt-run fileserver.update
+```
+
+GIT data are cached in `/var/cache/salt/master/git_pillar`.
+
+``` shell
+$ cat /var/cache/salt/master/git_pillar/remote_map.txt 
+# git_pillar_remote map as of 17 Feb 2026 13:29:51.649877
+M5v5FS7Ih4FoPxRGranJ00N824FI3c7Sp8OsAHJ4UlQ= = main https://github.com/jirib/salt-pillars
+8oM4Bd+Cs0xSyFesj6JOFLuPF21oYGJWEBpYvMXqIGM= = main https://github.com/jirib/salt-inventory
+```
+
+Note that the GIT branch is checked out only when it is actually needed, for example,
+after calling:
+
+``` shell
+salt-call pillar.ls
+local:
+    - motd_content
+```
+
+``` shell
+$ awk '/salt-pillars/ { print $1 }' /var/cache/salt/master/git_pillar/remote_map.txt | \
+  xargs -I {} sh -c 'su -s /bin/sh salt -c "git -C /var/cache/salt/master/git_pillar/$1/_ branch --show-current"' -- {}
+main
+
+$ awk '/salt-pillars/ { print $1 }' /var/cache/salt/master/git_pillar/remote_map.txt | \
+  xargs -I {} sh -c 'su -s /bin/sh salt -c "git -C /var/cache/salt/master/git_pillar/$1/_ rev-parse HEAD"' -- {}
+2a35d5541e61c271b8ac4f83dffa13ce7bb91a48
+```
+
+- using filesystem
+
 For example in Ansible's [Alternative directory
 layout](https://docs.ansible.com/ansible/latest/tips_tricks/sample_setup.html#alternative-directory-layout),
 one would in inventories define data/variables for hosts, groups... Similar could be done with *pillar*.
-
 
 ``` shell
 $ grep -Pv '^\s*(#|$)' /etc/salt/master | sed -n '/^pillar/,/^[a-z]/p'
