@@ -135,6 +135,81 @@ domains = ldap
 homedir_substring = /home
 ```
 
+### 389 DS TLS management
+
+To use 389 DS TLS certs outside itself, eg. with OpenLDAP tools, on should export it:
+
+``` shell
+$ dsctl -l
+slapd-EXAMPLECOM
+$ cd /etc/dirsrv/slapd-EXAMPLECOM/
+$ certutil -L -d .
+
+Certificate Nickname                                         Trust Attributes
+                                                             SSL,S/MIME,JAR/XPI
+
+Self-Signed-CA                                               CT,, 
+Server-Cert                                                  u,u,u
+```
+
+``` shell
+$ certutil -L -d . -n 'Server-Cert' -a | tee /tmp/server.pem
+$ certutil -L -d . -n 'Self-Signed-CA' -a | tee /tmp/ca.pem
+
+$ openssl verify -CAfile /tmp/ca.pem /tmp/server.pem 
+/tmp/server.pem: OK
+
+$ cat /tmp/server.pem /tmp/ca.pem > /etc/pki/trust/anchors/389ds.crt
+$ update-ca-certificates
+
+$ awk -v cmd='openssl x509 -noout -subject -startdate -enddate -ext subjectAltName -noout' '/BEGIN/ {close(cmd)}; { print | cmd }' \
+    /etc/ssl/ca-bundle.pem 2>/dev/null | grep 'L=389d'
+subject=C=AU, ST=Queensland, L=389ds, O=testing, CN=ssca.389ds.example.com
+```
+
+If not exported and added into either system-wide trust store or
+OpenLDAP client configuration, then the following would happen:
+
+``` shell
+# first, let's show the 389 DS instance cert is not present in the system-wide
+# trust store
+
+$ awk -v cmd='openssl x509 -noout -subject -startdate -enddate -ext subjectAltName -noout' '/BEGIN/ {close(cmd)}; { print | cmd }' \
+    /etc/ssl/ca-bundle.pem 2>/dev/null | grep -c 'L=389ds'
+0
+
+$ ldapsearch -d 9 -ZZ -xLLL -f /root/.ldappw -D 'cn=Directory Manager' -H ldaps://$(hostname -f):636 -b dc=example,dc=com
+ldap_url_parse_ext(ldaps://avocado.example.com:636)
+ldap_create
+ldap_url_parse_ext(ldaps://avocado.example.com:636/??base)
+ldap_extended_operation_s
+ldap_extended_operation
+ldap_send_initial_request
+ldap_new_connection 1 1 0
+ldap_int_open_connection
+ldap_connect_to_host: TCP avocado.example.com:636
+ldap_new_socket: 4
+ldap_prepare_socket: 4
+ldap_connect_to_host: Trying 10.156.233.50:636
+ldap_pvt_connect: fd: 4 tm: -1 async: 0
+attempting to connect: 
+connect success
+TLS trace: SSL_connect:before SSL initialization
+TLS trace: SSL_connect:SSLv3/TLS write client hello
+TLS trace: SSL_connect:SSLv3/TLS write client hello
+TLS trace: SSL_connect:SSLv3/TLS read server hello
+TLS trace: SSL_connect:TLSv1.3 read encrypted extensions
+TLS trace: SSL_connect:SSLv3/TLS read server certificate request
+TLS certificate verification: depth: 1, err: 19, subject: /C=AU/ST=Queensland/L=389ds/O=testing/CN=ssca.389ds.example.com, issuer: /C=AU/ST=Queensland/L=389ds/O=testing/CN=ssca.389ds.example.com
+TLS certificate verification: Error, self-signed certificate in certificate chain
+TLS trace: SSL3 alert write:fatal:unknown CA
+TLS trace: SSL_connect:error in error
+TLS: can't connect: error:0A000086:SSL routines::certificate verify failed (self-signed certificate in certificate chain).
+ldap_err2string
+ldap_start_tls: Can't contact LDAP server (-1)
+	additional info: error:0A000086:SSL routines::certificate verify failed (self-signed certificate in certificate chain)
+```
+
 
 ### external TLS in 389ds
 
