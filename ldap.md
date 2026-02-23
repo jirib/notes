@@ -105,14 +105,16 @@ $ dsctl EXAMPLECOM dsrc create \
 
 
 ``` shell
-$ dsidm EXAMPLECOM client_config sssd.conf | grep -Pv '^\s*($|#)'
-[domain/ldap]
+$ domain=example.com
+$ dsidm EXAMPLECOM client_config sssd.conf | grep -Pv '^\s*(#|$)' | \
+     perl -pe 's/^domains = ldap/domains = '"$domain"'/;s/\/ldap/\/'"$domain"'/'
+[domain/example.com]
 cache_credentials = True
 id_provider = ldap
 auth_provider = ldap
 access_provider = ldap
 chpass_provider = ldap
-ldap_schema = rfc2307
+ldap_schema = rfc2307bis
 ldap_search_base = dc=example,dc=com
 ldap_uri = ldapi://%2fvar%2frun%2fslapd-EXAMPLECOM.socket
 ldap_tls_reqcert = demand
@@ -130,10 +132,15 @@ ignore_group_members = False
 [sssd]
 services = nss, pam, ssh, sudo
 config_file_version = 2
-domains = ldap
+domains = example.com
 [nss]
 homedir_substring = /home
 ```
+
+Do not forget that `nsswitch.conf` and PAM needs to be configured for
+`sss` and something should be creating ldap user home directory if it
+does not exist.
+
 
 ### 389 DS TLS management
 
