@@ -178,7 +178,7 @@ $ awk -v cmd='openssl x509 -noout -subject -startdate -enddate -ext subjectAltNa
     /etc/ssl/ca-bundle.pem 2>/dev/null | grep -c 'L=389ds'
 0
 
-$ ldapsearch -d 9 -ZZ -xLLL -f /root/.ldappw -D 'cn=Directory Manager' -H ldaps://$(hostname -f):636 -b dc=example,dc=com
+$ ldapsearch -d 9 -Z -xLLL -y /root/.ldappw -D 'cn=Directory Manager' -H ldaps://$(hostname -f):636 -b dc=example,dc=com
 ldap_url_parse_ext(ldaps://avocado.example.com:636)
 ldap_create
 ldap_url_parse_ext(ldaps://avocado.example.com:636/??base)
@@ -1490,7 +1490,18 @@ olcTLSProtocolMin: 3.3
 
 ### OpenLDAP tools
 
-OpenLDAP utils use `/etc/openldap/ldap.conf` configuration, see `ldap.conf(5)`.
+OpenLDAP utils use `/etc/openldap/ldap.conf` configuration, see
+`ldap.conf(5)`. An example:
+
+``` shell
+$ cat ~/.ldaprc
+URI ldaps://avocado.example.com:636
+BINDDN cn=Directory Manager
+TLS_REQCERT hard
+BASE dc=example,dc=com
+```
+
+NOTE: in using a password file - `-y` in `ldapsearch` - do not forget to omit new line char!!!
 
 ``` shell
 $ ldapsearch -d 0 -v -x -y /root/.ldappw -D 'cn=Manager,dc=example,dc=com'
