@@ -918,6 +918,10 @@ krb5kdc 2844912 root   3w      REG   254,3     2846  1777704 /var/log/krb5/krb5k
 krb5kdc 2844912 root   4w      REG   254,3     2846  1777704 /var/log/krb5/krb5kdc.log
 krb5kdc 2844912 root   5u      REG   254,3        0 17830758 /var/lib/kerberos/krb5kdc/example.com.principal.ok
 krb5kdc 2844912 root   6u      REG   254,3        0 17831611 /var/lib/kerberos/krb5kdc/example.com.principal.kadm5.lock
+```
+
+``` shell
+# the following needs a configured krb5.conf!
 
 $ /usr/lib/mit/sbin/kadmin.local listprincs
 K/M@EXAMPLE.COM
@@ -942,6 +946,93 @@ demo_user@EXAMPLE.COM
 36000
 604800
 ```
+
+To add an external system into KRB5 database, you need:
+- principal
+- an exported keytab
+- configured client, and its keytab
+
+``` shell
+kadmin.local:  addprinc -randkey host/jb155sapqe01.example.com@EXAMPLE.COM
+No policy specified for host/jb155sapqe01.example.com@EXAMPLE.COM; defaulting to no policy
+Principal "host/jb155sapqe01.example.com@EXAMPLE.COM" created.
+
+kadmin.local:  ktadd -k /root/jb155sapqe01.keytab host/jb155sapqe01.example.com@EXAMPLE.COM
+Entry for principal host/jb155sapqe01.example.com@EXAMPLE.COM with kvno 2, encryption type aes256-cts-hmac-sha1-96 added to keytab WRFILE:/root/jb155sapqe01.keytab.
+Entry for principal host/jb155sapqe01.example.com@EXAMPLE.COM with kvno 2, encryption type aes128-cts-hmac-sha1-96 added to keytab WRFILE:/root/jb155sapqe01.keytab.
+```
+
+``` shell
+$ klist -k -te /root/jb155sapqe01.keytab 
+Keytab name: FILE:/root/jb155sapqe01.keytab
+KVNO Timestamp         Principal
+---- ----------------- --------------------------------------------------------
+   2 03/05/26 16:17:31 host/jb155sapqe01.example.com@EXAMPLE.COM (aes256-cts-hmac-sha1-96) 
+   2 03/05/26 16:17:31 host/jb155sapqe01.example.com@EXAMPLE.COM (aes128-cts-hmac-sha1-96)
+```
+
+``` shell
+$ install -o root -g root -m600 /dev/null /etc/krb5.keytab
+$ cat > jb155sapqe01.keytab > /etc/krb5.keytab
+
+$ cat /etc/krb5.conf
+ grep -Pv '^\s*(#|$)' /etc/krb5.conf
+[libdefaults]
+    default_realm = EXAMPLE.COM
+    dns_lookup_kdc = false
+    dns_lookup_realm = false
+    ticket_lifetime = 24h
+    renew_lifetime = 7d
+    forwardable = true
+    rdns = false
+    default_ccache_name = FILE:/tmp/krb5cc_%{uid}
+[domain_realm]
+    .example.com = EXAMPLE.COM
+    example.com = EXAMPLE.COM
+[logging]
+    kdc = FILE:/var/log/krb5/krb5kdc.log
+    admin_server = FILE:/var/log/krb5/kadmind.log
+    default = SYSLOG:NOTICE:DAEMON
+[realms]
+    EXAMPLE.COM = {
+        kdc = avocado.example.com
+	admin_server = avocado.example.com
+    }
+```
+
+And, OpenSSH direct integration (that is, no SSSD, the user is created locally manually!):
+
+``` shell
+$ /usr/sbin/sshd -oAuthenticationMethods=gssapi-with-mic -oGSSAPIAuthentication=yes -oPubkeyAuthentication=no -d -p 2222
+...
+debug1: authentication methods list 0: gssapi-with-mic [preauth]
+debug1: userauth-request for user testovic service ssh-connection method gssapi-with-mic [preauth]
+debug1: attempt 1 failures 0 [preauth]
+Postponed gssapi-with-mic for testovic from 192.168.252.1 port 58262 ssh2 [preauth]
+debug1: Got no client credentials
+Authorized to testovic, krb5 principal testovic@EXAMPLE.COM (krb5_kuserok)
+debug1: do_pam_account: called
+Accepted gssapi-with-mic for testovic from 192.168.252.1 port 58262 ssh2: testovic@EXAMPLE.COM
+debug1: monitor_child_preauth: user testovic authenticated by privileged process
+...
+```
+
+While the client was using:
+
+``` shell
+$ kinit testovic@EXAMPLE.COM
+Password for testovic@EXAMPLE.COM:
+
+$ klist
+Ticket cache: DIR::/run/user/0/krb5cc/tkt
+Default principal: testovic@EXAMPLE.COM
+
+Valid starting     Expires            Service principal
+03/05/26 16:48:43  03/06/26 02:48:43  krbtgt/EXAMPLE.COM@EXAMPLE.COM
+	renew until 03/06/26 16:48:43
+	
+$ ssh -Kk -p 2222 -l testovic -v jb155sapqe01.example.com
+...
 
 
 #### kdc with LDAP backend
