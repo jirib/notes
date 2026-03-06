@@ -365,6 +365,15 @@ notAfter=Aug 15 17:00:00 2029 GMT
 
 ### plugins
 
+Plugins are libs:
+
+``` shell
+$ rpm -ql 389-ds | grep -P 'plugin.*pass'
+/usr/lib64/dirsrv/plugins/libpam-passthru-plugin.so
+/usr/lib64/dirsrv/plugins/libpassthru-plugin.so
+```
+
+
 ``` shell
 $ dsconf EXAMPLECOM plugin list | grep -i memberof
 MemberOf Plugin
@@ -441,62 +450,75 @@ DN won't work... (*mail* is probably not the best attribute here but
 it works for testing).
 
 ``` shell
-$ ldapmodify -Y EXTERNAL -H ldapi://%2Frun%2Fslapd-EXAMPLECOM.socket << EOF
-dn: cn=PAM Pass Through Auth,cn=plugins,cn=config
-changetype: modify
-replace: pamIDMapMethod
-pamIDMapMethod: ENTRY
--
-replace: pamIDAttr
-pamIDAttr: mail
--
-replace: pamService
-pamService: ldapserver
+$ dsconf EXAMPLECOM plugin set 'PAM Pass Through Auth' --enabled on
 
-dn: uid=demo_user,ou=people,dc=example,dc=com
-changetype: modify
-replace: mail
-mail: demo_user@example.com
+# or...
+$ dsconf EXAMPLECOM plugin pam-pass-through-auth enable
+
+$ dsconf EXAMPLECOM plugin show 'PAM Pass Through Auth'
+dn: cn=PAM Pass Through Auth,cn=plugins,cn=config
+cn: PAM Pass Through Auth
+nsslapd-plugin-depends-on-type: database
+nsslapd-pluginDescription: none
+nsslapd-pluginEnabled: on
+nsslapd-pluginId: none
+nsslapd-pluginInitfunc: pam_passthruauth_init
+nsslapd-pluginPath: libpam-passthru-plugin
+nsslapd-pluginType: betxnpreoperation
+nsslapd-pluginVendor: none
+nsslapd-pluginVersion: none
+nsslapd-pluginloadglobal: true
+objectClass: top
+objectClass: nsSlapdPlugin
+objectClass: extensibleObject
+objectClass: pamConfig
+pamExcludeSuffix: cn=config
+pamFallback: FALSE
+pamIDAttr: notUsedWithRDNMethod
+pamIDMapMethod: RDN
+pamMissingSuffix: ALLOW
+pamSecure: TRUE
+pamService: ldapserver
+```
+
+By default `pamIDMapMathod` is set to _RDN_, that is, the leftmost RDN
+in the BIND DN, "e.g. if you bound as
+uid=richm,ou=people,dc=example,dc=com, you would pass 'richm' to PAM".
+
+Also, `pamService` is set to _ldapserver_.
+
+``` shell
+$ cat > /etc/pam.d/ldapserver <<EOF
+auth	required	pam_sss.so
+account required    pam_sss.so
 EOF
 ```
 
+SSSD-KRB5 auth needs to be set.
 ``` shell
-# some defaults do not need to be explicitly set
+# 
 $ grep -P '(krb5|use_f)' /etc/sssd/sssd.conf
 auth_provider = krb5
 krb5_realm = EXAMPLE.COM
 krb5_validate = false
-krb5_ccachedir = /tmp
 krb5_server = 127.0.0.1
-krb5_ccname_template = FILE:/tmp/krb5cc_%{uid}
 krb5_use_kdcinfo = false
-use_fully_qualified_names
 ```
 
 ``` shell
-$ /usr/lib/mit/sbin/kadmin.local -q 'addprinc -x dn="uid=demo_user,ou=people,dc=example,dc=com" demo_user@EXAMPLE.COM'
-...
-```
-
-Here, no *userPassword*:
-
-``` shell
-$ ldapsearch -LLL -Y EXTERNAL -H ldapi://%2Frun%2Fslapd-EXAMPLECOM.socket -b uid=demo_user,ou=people,dc=example,dc=com userPassword krbPrincipalKey
-SASL/EXTERNAL authentication started
-SASL username: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
-SASL SSF: 0
-dn: uid=demo_user,ou=people,dc=example,dc=com
-krbPrincipalKey:: MIG2oAMCAQGhAwIBAaIDAgEBowMCAQGkgZ8wgZwwVKAHMAWgAwIBAKFJMEeg
- AwIBEqFABD4gAPViraxt01bqYggst4thWryAEMHt7cKrVDCd6vOYnqunkT19Kuip/1RR4MHFfl6Az
- WfH6y4VF0zkoFXu2TBEoAcwBaADAgEAoTkwN6ADAgERoTAELhAA9JyIMCbSrCuDARwOid8CcnEW7o
- gFuzm57t27KVntGUJ7els3HUgHMp7B7qc=
-```
-
-However, the bind passes!
-
-```
-2025-04-30T15:07:51.065791+00:00 jb155sapqe01 ns-slapd: pam_unix(ldapserver:auth): authentication failure; logname= uid=177 euid=177 tty= ruser= rhost=  user=demo_user
-2025-04-30T15:07:51.402648+00:00 jb155sapqe01 ns-slapd: pam_sss(ldapserver:auth): authentication success; logname= uid=177 euid=177 tty= ruser= rhost= user=demo_user
+$ /usr/sbin/sssd --genconf -d10 2>&1 | \
+  sed -n '/dn: cn=example.com,cn=domain,cn=config/,/^$/{/^$/q;p}' | \
+  grep -v ldap
+dn: cn=example.com,cn=domain,cn=config
+cn: example.com
+cache_credentials: True
+enumerate: false
+ignore_group_members: False
+chpass_provider: krb5
+auth_provider: krb5
+krb5_server: 127.0.0.1
+krb5_realm: EXAMPLE.COM
+krb5_validate: false
 ```
 
 
@@ -1033,19 +1055,27 @@ Valid starting     Expires            Service principal
 	
 $ ssh -Kk -p 2222 -l testovic -v jb155sapqe01.example.com
 ...
-
+```
 
 #### kdc with LDAP backend
 
-Now, LDAP backend:
+When MIT Kerberos5 server uses LDAP backend, it queries principals in
+the LDAP DB. Thus, LDAP DB needs to be extended with Kerberos schema.
 
 ``` shell
-# on SLES, krb5-plugin-kdb-ldap package required
+$ rpm -qf /usr/share/kerberos/ldap/kerberos.ldif 
+krb5-plugin-kdb-ldap-1.21.3-160000.2.2.x86_64
 
-# importing into 389-ds
+$ rpm -qf /usr/lib64/krb5/plugins/kdb/kldap.so
+krb5-plugin-kdb-ldap-1.21.3-160000.2.2.x86_64
+```
+
+``` shell
 $ ldapadd -Y EXTERNAL -H ldapi://%2Frun%2Fslapd-EXAMPLECOM.socket \
   -f /usr/share/kerberos/ldap/kerberos.ldif
+```
 
+``` shell
 $ cat /var/lib/kerberos/krb5kdc/kdc.conf
 [kdcdefaults]
         kdc_ports = 750,88
@@ -1075,51 +1105,72 @@ $ cat /var/lib/kerberos/krb5kdc/kdc.conf
         kdc = FILE:/var/log/krb5/krb5kdc.log
         admin_server = FILE:/var/log/krb5/kadmind.log
         debug = true
+```
 
-$ /usr/lib/mit/sbin/kdb5_ldap_util \
+Now, let's create realm in LDAP DB, one needs to authentication to the
+LDAP DB and create _stash_, that is, a password for Kerberos server
+password because all user and service keys are encrypted using a
+Master Key (the _stash_ file is located in
+`/var/lib/kerberos/krb5kdc`, see `kdb.conf`).
+
+``` shell
+$ kdb5_ldap_util \
   -H ldapi://%2Frun%2Fslapd-EXAMPLECOM.socket \
-  -r EXAMPLE.COM create \
-  -subtrees dc=example,dc=com \
-  -s \
-  -sf /var/lib/kerberos/krb5kdc/.k5.EXAMPLE.COM
+  -D cn='Directory Manager' \
+  -r EXAMPLE.COM \
+  create -subtrees dc=example,dc=com
+Password for "cn=Directory Manager": 
 Initializing database for realm 'EXAMPLE.COM'
 You will be prompted for the database Master Password.
 It is important that you NOT FORGET this password.
 Enter KDC database master key: 
 Re-enter KDC database master key to verify:
-
-$ ldapsearch -LLL -Y EXTERNAL \
-  -H ldapi://%2Frun%2Fslapd-EXAMPLECOM.socket \
-  -b cn=kerberos,dc=example,dc=com dn
-SASL/EXTERNAL authentication started
-SASL username: gidNumber=0+uidNumber=0,cn=peercred,cn=external,cn=auth
-SASL SSF: 0
-dn: cn=kerberos,dc=example,dc=com
- 
-dn: cn=EXAMPLE.COM,cn=kerberos,dc=example,dc=com
- 
-dn: krbprincipalname=K/M@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc=example,dc=
- com
- 
-dn: krbprincipalname=krbtgt/EXAMPLE.COM@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos
- ,dc=example,dc=com
- 
-dn: krbprincipalname=kadmin/admin@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc=ex
- ample,dc=com
- 
-dn: krbprincipalname=kadmin/changepw@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc
- =example,dc=com
- 
-dn: krbprincipalname=kadmin/history@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc=
- example,dc=com
- 
-dn: krbprincipalname=demo_user@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc=examp
- le,dc=com
 ```
 
-Most likely one would like to have one "password", that is, not to
-have one password for principal key and one as `userPassword`. See, in
-389 DS part about *PAM Pass Through Authentication*'
+``` shell
+$ ldapsearch -d 0 -x -LLL -y /root/.ldappw -b cn=kerberos,dc=example,dc=com cn
+dn: cn=kerberos,dc=example,dc=com
+cn: kerberos
+
+dn: cn=EXAMPLE.COM,cn=kerberos,dc=example,dc=com
+cn: EXAMPLE.COM
+
+dn: krbprincipalname=K/M@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc=example,dc=
+ com
+
+dn: krbprincipalname=krbtgt/EXAMPLE.COM@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos
+ ,dc=example,dc=com
+
+dn: krbprincipalname=kadmin/admin@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc=ex
+ ample,dc=com
+
+dn: krbprincipalname=kadmin/changepw@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc
+ =example,dc=com
+
+dn: krbprincipalname=kadmin/history@EXAMPLE.COM,cn=EXAMPLE.COM,cn=kerberos,dc=
+ example,dc=com
+```
+
+Now, time to add kerberos attributes to an user entry:
+
+``` shell
+$ kadmin.local -q 'addprinc -x dn="uid=testovic,ou=people,dc=example,dc=com" testovic@EXAMPLE.COM'
+Authenticating as principal root/admin@EXAMPLE.COM with password.
+No policy specified for testovic@EXAMPLE.COM; defaulting to no policy
+Enter password for principal "testovic@EXAMPLE.COM": 
+Re-enter password for principal "testovic@EXAMPLE.COM": 
+Principal "testovic@EXAMPLE.COM" created.
+```
+
+`` shell
+$ ldapsearch -d 0 -x -LLL -y /root/.ldappw -b dc=example,dc=com uid=testovic | awk '/^krb/ { print $1 }'
+krbLoginFailedCount:
+krbPrincipalName:
+krbPrincipalKey::
+krbLastPwdChange:
+krbExtraData::
+krbExtraData::
+```
 
 
 #### kdc principals mgmt
