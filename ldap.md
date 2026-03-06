@@ -1321,25 +1321,20 @@ Valid starting       Expires              Service principal
 
 ### Kerberos-sshd intergration
 
-When using kerberos with `sshd` on a machine conntected to AD/Samba/Winbind,
+`KerberosUniqueCCache yes` is a feature from EL/Fedora... It does not
+need to be enabled for the default GSSAPI auth.
+
+``` shell
+$ cat /etc/ssh/sshd_config.d/99-krb5.conf 
+GSSAPIAuthentication yes
+KerberosUniqueCCache yes
+```
+
+When using kerberos with `sshd` on a machine conntected via Winbind to AD,
 `yast samba-client` should take care of *ALMOST* all settings but there's a need
 to *fix* `/etc/krb5.conf`; because a user uses *DOMAIN\username* when
 authenticating to SSH daemon, but *kerberos* does not know anything about
 *DOMAIN\\* part, thus there's need to strip it via `auth_to_local`.
-
-``` shell
-$ sshd -T | grep -Pi '^(gss|kerberos|password|chal|pam)'
-kerberosauthentication no
-kerberosorlocalpasswd yes
-kerberosticketcleanup yes
-gssapiauthentication yes
-gssapikeyexchange no
-gssapicleanupcredentials yes
-gssapistrictacceptorcheck no
-gssapistorecredentialsonrekey no
-passwordauthentication no
-challengeresponseauthentication yes
-```
 
 Modified krb5.conf, see comments inline
 
