@@ -1162,7 +1162,7 @@ Re-enter password for principal "testovic@EXAMPLE.COM":
 Principal "testovic@EXAMPLE.COM" created.
 ```
 
-`` shell
+``` shell
 $ ldapsearch -d 0 -x -LLL -y /root/.ldappw -b dc=example,dc=com uid=testovic | awk '/^krb/ { print $1 }'
 krbLoginFailedCount:
 krbPrincipalName:
