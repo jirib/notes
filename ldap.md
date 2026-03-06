@@ -1172,6 +1172,35 @@ krbExtraData::
 krbExtraData::
 ```
 
+And, host entry:
+
+``` shell
+$ kadmin.local -q "addprinc -randkey -x dn=cn=avocado,ou=computers,dc=example,dc=com host/avocado.example.com"
+Authenticating as principal testovic/admin@EXAMPLE.COM with password.
+No policy specified for host/avocado.example.com@EXAMPLE.COM; defaulting to no policy
+Principal "host/avocado.example.com@EXAMPLE.COM" created.
+
+$ kadmin.local listprincs
+testovic@EXAMPLE.COM
+K/M@EXAMPLE.COM
+krbtgt/EXAMPLE.COM@EXAMPLE.COM
+kadmin/admin@EXAMPLE.COM
+kadmin/changepw@EXAMPLE.COM
+kadmin/history@EXAMPLE.COM
+host/avocado.example.com@EXAMPLE.COM
+
+$ kadmin.local ktadd host/avocado.example.com@EXAMPLE.COM
+Entry for principal host/avocado.example.com@EXAMPLE.COM with kvno 3, encryption type aes256-cts-hmac-sha1-96 added to keytab FILE:/etc/krb5.keytab.
+Entry for principal host/avocado.example.com@EXAMPLE.COM with kvno 3, encryption type aes128-cts-hmac-sha1-96 added to keytab FILE:/etc/krb5.keytab.
+
+$ klist -kt
+Keytab name: FILE:/etc/krb5.keytab
+KVNO Timestamp         Principal
+---- ----------------- --------------------------------------------------------
+   3 03/06/26 20:18:49 host/avocado.example.com@EXAMPLE.COM
+   3 03/06/26 20:18:49 host/avocado.example.com@EXAMPLE.COM
+```
+
 
 ### KDC principals policies
 
