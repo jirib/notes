@@ -1173,6 +1173,91 @@ krbExtraData::
 ```
 
 
+### KDC principals policies
+
+NOTE: Minimum life is a bit stupid...
+
+``` shell
+kadmin.local:  add_policy -maxlife "90 days" -minlife "2 days" -minlength 6 user_policy
+
+kadmin.local:  getprinc testovic@EXAMPLE.COM
+Principal: testovic@EXAMPLE.COM
+Expiration date: [never]
+Last password change: Fri Mar 06 13:57:53 CET 2026
+Password expiration date: [never]
+Maximum ticket life: 0 days 10:00:00
+Maximum renewable life: 7 days 00:00:00
+Last modified: Fri Mar 06 13:57:53 CET 2026 (root/admin@EXAMPLE.COM)
+Last successful authentication: [never]
+Last failed authentication: [never]
+Failed password attempts: 0
+Number of keys: 2
+Key: vno 1, aes256-cts-hmac-sha1-96
+Key: vno 1, aes128-cts-hmac-sha1-96
+MKey: vno 1
+Attributes:
+Policy: [none]
+
+kadmin.local:  modprinc -policy user_policy testovic@EXAMPLE.COM
+Principal "testovic@EXAMPLE.COM" modified.
+
+kadmin.local:  getprinc testovic@EXAMPLE.COM
+Principal: testovic@EXAMPLE.COM
+Expiration date: [never]
+Last password change: Fri Mar 06 13:57:53 CET 2026
+Password expiration date: Thu Jun 04 14:57:53 CEST 2026
+Maximum ticket life: 0 days 10:00:00
+Maximum renewable life: 7 days 00:00:00
+Last modified: Fri Mar 06 17:11:22 CET 2026 (root/admin@EXAMPLE.COM)
+Last successful authentication: [never]
+Last failed authentication: [never]
+Failed password attempts: 0
+Number of keys: 2
+Key: vno 1, aes256-cts-hmac-sha1-96
+Key: vno 1, aes128-cts-hmac-sha1-96
+MKey: vno 1
+Attributes:
+Policy: user_policy
+```
+
+Let's try to expire a pricipal password:
+
+``` shell
+kadmin.local:  modprinc -pwexpire "2026-03-06 17:00:00" testovic@EXAMPLE.COM
+Principal "testovic@EXAMPLE.COM" modified.
+
+kadmin.local:  getprinc testovic@EXAMPLE.COM
+Principal: testovic@EXAMPLE.COM
+Expiration date: [never]
+Last password change: Fri Mar 06 13:57:53 CET 2026
+Password expiration date: Fri Mar 06 17:00:00 CET 2026
+Maximum ticket life: 0 days 10:00:00
+Maximum renewable life: 7 days 00:00:00
+Last modified: Fri Mar 06 17:15:32 CET 2026 (root/admin@EXAMPLE.COM)
+Last successful authentication: [never]
+Last failed authentication: [never]
+Failed password attempts: 0
+Number of keys: 2
+Key: vno 1, aes256-cts-hmac-sha1-96
+Key: vno 1, aes128-cts-hmac-sha1-96
+MKey: vno 1
+Attributes:
+Policy: user_policy
+```
+
+An example:
+
+``` shell
+$ kadmin.local "modpol -minlife 0 user_policy"
+
+$ kinit testovic@EXAMPLE.COM
+Password for testovic@EXAMPLE.COM: 
+Password expired.  You must change it now.
+Enter new password: 
+Enter it again: 
+```
+
+
 #### kdc principals mgmt
 
 ``` shell
