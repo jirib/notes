@@ -769,6 +769,74 @@ uid: testovic
 ```
 
 
+### 389 DS with Kerberos
+
+
+``` shell
+$ systemctl cat dirsrv@EXAMPLECOM.service | grep ^Env
+EnvironmentFile=-/etc/sysconfig/dirsrv
+EnvironmentFile=-/etc/sysconfig/dirsrv-%i
+
+$ cat /etc/sysconfig/dirsrv-EXAMPLECOM 
+KRB5_KTNAME=/etc/dirsrv/slapd-EXAMPLECOM/ds.keytab
+
+$ klist -kt /etc/dirsrv/slapd-EXAMPLECOM/ds.keytab 
+Keytab name: FILE:/etc/dirsrv/slapd-EXAMPLECOM/ds.keytab
+KVNO Timestamp           Principal
+---- ------------------- ------------------------------------------------------
+   2 03/09/2026 17:45:44 ldap/avocado.example.com@EXAMPLE.COM
+   2 03/09/2026 17:45:44 ldap/avocado.example.com@EXAMPLE.COM
+```
+
+IIUC, the first mapping wins, so...
+
+``` shell
+$ dsconf EXAMPLECOM config replace nsslapd-sasl-mapping-fallback=on
+```
+
+``` shell
+$ ldapsearch -LLL -Y EXTERNAL -b "cn=Host Kerberos Mapping,cn=mapping,cn=sasl,cn=config" 2>/dev/null
+dn: cn=Host Kerberos Mapping,cn=mapping,cn=sasl,cn=config
+objectClass: top
+objectClass: nsSaslMapping
+cn: Host Kerberos Mapping
+nsSaslMapRegexString: host/\([^\.]+).*$
+nsSaslMapBaseDNTemplate: cn=\1,ou=computers,dc=example,dc=com
+nsSaslMapFilterTemplate: (objectclass=device)
+nsSaslMapPriority: 1
+```
+
+A test...
+
+``` shell
+$ KRB5_TRACE=/dev/stderr ldapsearch -d 0 -LLL -H ldaps://avocado.example.com -Y GSSAPI -b "ou=people,dc=example,dc=com" 'uid=testovic'
+SASL/GSSAPI authentication started
+[3300] 1773082239.141601: ccselect module realm chose cache FILE:/tmp/krb5cc_mine with client principal host/susemanager.sup.scz.suse.com@EXAMPLE.COM for server principal ldap/avocado.example.com@EXAMPLE.COM
+[3300] 1773082239.141602: Getting credentials host/susemanager.sup.scz.suse.com@EXAMPLE.COM -> ldap/avocado.example.com@EXAMPLE.COM using ccache FILE:/tmp/krb5cc_mine
+[3300] 1773082239.141603: Retrieving host/susemanager.sup.scz.suse.com@EXAMPLE.COM -> krb5_ccache_conf_data/start_realm@X-CACHECONF: from FILE:/tmp/krb5cc_mine with result: -1765328243/Matching credential not found (filename: /tmp/krb5cc_mine)
+[3300] 1773082239.141604: Retrieving host/susemanager.sup.scz.suse.com@EXAMPLE.COM -> ldap/avocado.example.com@EXAMPLE.COM from FILE:/tmp/krb5cc_mine with result: 0/Success
+[3300] 1773082239.141605: Creating authenticator for host/susemanager.sup.scz.suse.com@EXAMPLE.COM -> ldap/avocado.example.com@EXAMPLE.COM, seqnum 732871016, subkey aes256-cts/0F34, session key aes256-cts/595D
+[3300] 1773082239.141607: Read AP-REP, time 1773082238.141606, subkey aes256-cts/B771, seqnum 922227832
+SASL username: host/susemanager.sup.scz.suse.com@EXAMPLE.COM
+SASL SSF: 256
+SASL data security layer installed.
+dn: uid=testovic,ou=people,dc=example,dc=com
+objectClass: top
+objectClass: nsPerson
+objectClass: nsAccount
+objectClass: nsOrgPerson
+objectClass: posixAccount
+objectClass: krbprincipalaux
+objectClass: krbTicketPolicyAux
+uid: testovic
+cn: testovic
+displayName: testovic
+uidNumber: 100002
+gidNumber: 100002
+homeDirectory: /home/EXAMPLECOM/testovic
+```
+
+
 ## Kerberos
 
 * `<host>$@<REALM>` - user principal name (UPN) of the computer object, eg. in AD
