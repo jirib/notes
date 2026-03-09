@@ -806,18 +806,29 @@ nsSaslMapFilterTemplate: (objectclass=device)
 nsSaslMapPriority: 1
 ```
 
+```
+[09/Mar/2026:20:22:15.345247778 +0100] - DEBUG - do_bind - version 3 method 163 dn
+[09/Mar/2026:20:22:15.345629615 +0100] - DEBUG - sasl_map_domap - =>
+[09/Mar/2026:20:22:15.345967841 +0100] - DEBUG - sasl_map_domap - Trying map [Host Kerberos Mapping]
+[09/Mar/2026:20:22:15.346306211 +0100] - DEBUG - sasl_map_check - =>
+[09/Mar/2026:20:22:15.346662275 +0100] - DEBUG - sasl_map_check - regex: host/([^\.]+).*$, id: host/susemanager.example.com, matched
+[09/Mar/2026:20:22:15.346990708 +0100] - DEBUG - sasl_map_check - mapped base dn: cn=susemanager,ou=computers,dc=example,dc=com, filter: (objectclass=device)
+[09/Mar/2026:20:22:15.347319546 +0100] - DEBUG - sasl_map_check - <= 1
+[09/Mar/2026:20:22:15.347638038 +0100] - DEBUG - sasl_map_domap - <= (mapped)
+```
+
 A test...
 
 ``` shell
 $ KRB5_TRACE=/dev/stderr ldapsearch -d 0 -LLL -H ldaps://avocado.example.com -Y GSSAPI -b "ou=people,dc=example,dc=com" 'uid=testovic'
 SASL/GSSAPI authentication started
-[3300] 1773082239.141601: ccselect module realm chose cache FILE:/tmp/krb5cc_mine with client principal host/susemanager.sup.scz.suse.com@EXAMPLE.COM for server principal ldap/avocado.example.com@EXAMPLE.COM
-[3300] 1773082239.141602: Getting credentials host/susemanager.sup.scz.suse.com@EXAMPLE.COM -> ldap/avocado.example.com@EXAMPLE.COM using ccache FILE:/tmp/krb5cc_mine
-[3300] 1773082239.141603: Retrieving host/susemanager.sup.scz.suse.com@EXAMPLE.COM -> krb5_ccache_conf_data/start_realm@X-CACHECONF: from FILE:/tmp/krb5cc_mine with result: -1765328243/Matching credential not found (filename: /tmp/krb5cc_mine)
-[3300] 1773082239.141604: Retrieving host/susemanager.sup.scz.suse.com@EXAMPLE.COM -> ldap/avocado.example.com@EXAMPLE.COM from FILE:/tmp/krb5cc_mine with result: 0/Success
-[3300] 1773082239.141605: Creating authenticator for host/susemanager.sup.scz.suse.com@EXAMPLE.COM -> ldap/avocado.example.com@EXAMPLE.COM, seqnum 732871016, subkey aes256-cts/0F34, session key aes256-cts/595D
+[3300] 1773082239.141601: ccselect module realm chose cache FILE:/tmp/krb5cc_mine with client principal host/susemanager.example.com@EXAMPLE.COM for server principal ldap/avocado.example.com@EXAMPLE.COM
+[3300] 1773082239.141602: Getting credentials host/susemanager.example.com@EXAMPLE.COM -> ldap/avocado.example.com@EXAMPLE.COM using ccache FILE:/tmp/krb5cc_mine
+[3300] 1773082239.141603: Retrieving host/susemanager.example.com@EXAMPLE.COM -> krb5_ccache_conf_data/start_realm@X-CACHECONF: from FILE:/tmp/krb5cc_mine with result: -1765328243/Matching credential not found (filename: /tmp/krb5cc_mine)
+[3300] 1773082239.141604: Retrieving host/susemanager.example.com@EXAMPLE.COM -> ldap/avocado.example.com@EXAMPLE.COM from FILE:/tmp/krb5cc_mine with result: 0/Success
+[3300] 1773082239.141605: Creating authenticator for host/susemanager.example.com@EXAMPLE.COM -> ldap/avocado.example.com@EXAMPLE.COM, seqnum 732871016, subkey aes256-cts/0F34, session key aes256-cts/595D
 [3300] 1773082239.141607: Read AP-REP, time 1773082238.141606, subkey aes256-cts/B771, seqnum 922227832
-SASL username: host/susemanager.sup.scz.suse.com@EXAMPLE.COM
+SASL username: host/susemanager.example.com@EXAMPLE.COM
 SASL SSF: 256
 SASL data security layer installed.
 dn: uid=testovic,ou=people,dc=example,dc=com
