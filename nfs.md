@@ -181,6 +181,24 @@ LOCKD_TCPPORT="38287"
 LOCKD_UDPPORT="36508"
 ```
 
+If one has a NFS cluster providing >= NFS 4.1, then the NFS scope ID
+should be equal between nodes:
+
+``` shell
+$ grep -Pv '^\s*(#|$)' /etc/sysconfig/nfs  | grep -i scope
+NFSD_SCOPE="BRAMBORA"
+
+$ tshark -i jbelka -ln -f 'port 2049' \
+  -Y 'nfs and nfs.opcode == 42 and nfs.scope != ""' -T fields -e ip.addr -e nfs.opcode -e nfs.scope 2>/dev/null | \
+  awk '{ c=sprintf("xxd -r -p <<< \"%s\"", $3); c | get
+line out; close(c); print $1,$2,out }'
+192.168.252.1,192.168.252.100 42 BRAMBORA
+192.168.252.1,192.168.252.100 42 BRAMBORA
+```
+
+Plus, such a cluster needs also shared `/var/lib/nfs` directory, see:
+https://support.scc.suse.com/s/kb/Necessary-NFS-Server-Cluster-Design-for-NFS-Client-Lock-Preservation .
+
 
 ## NFS client
 
