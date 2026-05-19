@@ -432,7 +432,249 @@ passwordsendexpiringtime: off
 Or...
 
 ``` shell
-$ dsconf EXAMPLECOM pwpolicy set --pwdwarning 864000 --pwdmaxage 2592000 --pwdexpire o
+$ dsconf EXAMPLECOM pwpolicy set --pwdexpire on --pwdsendexpiring on --pwdwarning 864000 --pwdmaxage 2592000 --pwdgracelimit 3
+Successfully updated global password policy
+```
+
+``` shell
+$ dsconf EXAMPLECOM pwpolicy set --help | grep -P -A 2 -- '^\s*--pwd.*(exp|warn|age|grace)'
+  --pwdwarning PWDWARNING
+                        Send an expiring warning if password expires within
+                        this time (in seconds)
+  --pwdexpire PWDEXPIRE
+                        Set to "on" to enable password expiration
+  --pwdmaxage PWDMAXAGE
+                        The password expiration time in seconds
+  --pwdminage PWDMINAGE
+                        The number of seconds that must pass before a user can
+                        change their password
+  --pwdgracelimit PWDGRACELIMIT
+                        The number of allowed logins after the password has
+                        expired
+  --pwdsendexpiring PWDSENDEXPIRING
+                        Set to "on" to always send the expiring control
+                        regardless of the warning period
+```
+
+``` shell
+$ dsconf -j EXAMPLECOM pwpolicy get | jq -r '.attrs | to_entries[] | select(.key | match("pass.*(exp|(min|max)age|grace|warn)")) | "\(.key): \(.value | join(", "))"'
+passwordwarning: 864000
+passwordexp: on
+passwordmaxage: 2592000
+passwordminage: 0
+passwordgracelimit: 3
+passwordsendexpiringtime: on
+```
+
+``` shell
+$ dsidm -j EXAMPLECOM user get mrnobody | jq -r '.attrs | to_entries[] | select(.key | match("pass"))'
+{
+  "key": "userpassword",
+  "value": [
+    "{PBKDF2-SHA512}100000$TmuwKu8ONrDx9LQYPlMp+Ik/0yurahpU$PF11KnyJvPBdJvTIfQXPMfNtzHfjpJOz959lt6PSx4m6i/NTZn1ZztoP86+BUM/Bijljco1wKjoMwaAPZLQcOA=="
+  ]
+}
+{
+  "key": "passwordgraceusertime",
+  "value": [
+    "0"
+  ]
+}
+{
+  "key": "passwordexpirationtime",
+  "value": [
+    "20260617130102Z"
+  ]
+}
+{
+  "key": "passwordexpwarned",
+  "value": [
+    "0"
+  ]
+}
+```
+
+...or...
+
+``` shell
+$ dsidm -j EXAMPLECOM user get mrnobody | jq -r '.attrs | to_entries[] | select(.key | test("pass"; "i")) | "\(.key): \(.value | join(", "))"'
+userpassword: {PBKDF2-SHA512}100000$TmuwKu8ONrDx9LQYPlMp+Ik/0yurahpU$PF11KnyJvPBdJvTIfQXPMfNtzHfjpJOz959lt6PSx4m6i/NTZn1ZztoP86+BUM/Bijljco1wKjoMwaAPZLQcOA==
+passwordgraceusertime: 0
+passwordexpirationtime: 20260617130102Z
+passwordexpwarned: 0
+```
+
+Changing the expiration time directly:
+
+``` shell
+$ dsidm -j EXAMPLECOM user get mrnobody | jq -r '.attrs | to_entries[] | select(.key | test("passwordexpirationtime"; "i")) | "\(.key): \(.value | join(", "))"'
+passwordexpirationtime: 20260518132624Z
+
+$ date
+Mon May 18 03:26:15 PM CEST 2026
+
+$ dsidm  EXAMPLECOM user modify mrnobody replace:passwordexpirationtime:$(date -u -d '+2 minute' +%Y%m%d%H%M%SZ)
+Successfully modified uid=mrnobody,ou=people,dc=example,dc=com
+
+$ dsidm -j EXAMPLECOM user get mrnobody | jq -r '.attrs | to_entries[] | select(.key | test("passwordexpirationtime"; "i")) | "\(.key): \(.value | join(", "))"'
+passwordexpirationtime: 20260518132824Z
+```
+
+``` shell
+$ ldapwhoami -x \
+    -H ldaps://avocado.example.com \
+    -D "uid=mrnobody,ou=people,dc=example,dc=com" \
+    -W -e ppolicy
+Enter LDAP Password: 
+control: 2.16.840.1.113730.3.4.4 false MA==
+# PasswordExpired control
+ldap_bind: Invalid credentials (49); Password expired
+	additional info: password expired!
+```
+
+Scenarios:
+
+1. Password not expired but in warning period
+
+``` shell
+$ dsidm -j EXAMPLECOM user get mrnobody | jq -r '.attrs | to_entries[] | select(.key | test("pass"; "i")) | "\(.k
+ey): \(.value | join(", "))"'
+userpassword: {PBKDF2-SHA512}100000$jzQRyuRXpb6kFVI5JTc0nwFBHXsLm4QM$Op5XbyNyW+KIrSMbIt3ep4iCKxetgD0LWDT76m0fV5nRbI15g2S0YqA6+oa38eyQyi8rwXm5gv77pD6G1d4QFw==
+passwordgraceusertime: 3
+passwordexpirationtime: 20260519102138Z
+passwordexpwarned: 0
+
+$ date -u
+Tue May 19 10:20:42 AM UTC 2026
+```
+
+``` shell
+$ ssh -l mrnobody@testldap localhost
+(mrnobody@testldap@localhost) Password: 
+Your password will expire in 1 minute.
+Last login: Tue May 19 12:11:08 CEST 2026 from ::1 on ssh
+Have a lot of fun...
+mrnobody@testldap@avocado:~>
+```
+
+``` shell
+$ dsidm -j EXAMPLECOM user get mrnobody | jq -r '.attrs | to_entries[] | select(.key | test("pass"; "i")) | "\(.key): \(.value | join(", "))"'
+userpassword: {PBKDF2-SHA512}100000$jzQRyuRXpb6kFVI5JTc0nwFBHXsLm4QM$Op5XbyNyW+KIrSMbIt3ep4iCKxetgD0LWDT76m0fV5nRbI15g2S0YqA6+oa38eyQyi8rwXm5gv77pD6G1d4QFw==
+passwordgraceusertime: 3
+passwordexpirationtime: 20260519102151Z
+passwordexpwarned: 1
+```
+
+See that _passwordexpwarned_ set to true/1.
+
+``` shell
+$ grep -B 1 -A 5 -P '\[(\d\.){2,}' *ldap*
+sssd_testldap.log-(2026-05-19 12:20:51): [be[testldap]] [sdap_call_op_callback] (0x20000): [RID#6] Handling LDAP operation [2][server: [10.156.233.50:636] simple bind: [uid=mrnobody,ou=people,dc=example,dc=com]] took [79.276] milliseconds.
+sssd_testldap.log:(2026-05-19 12:20:51): [be[testldap]] [simple_bind_done] (0x2000): [RID#6] Server returned control [1.3.6.1.4.1.42.2.27.8.5.1].
+sssd_testldap.log-(2026-05-19 12:20:51): [be[testldap]] [simple_bind_done] (0x1000): [RID#6] Password Policy Response: expire [60] grace [-1] error [No error].
+sssd_testldap.log-(2026-05-19 12:20:51): [be[testldap]] [simple_bind_done] (0x1000): [RID#6] Password will expire in [60] seconds.
+sssd_testldap.log-(2026-05-19 12:20:51): [be[testldap]] [simple_bind_done] (0x2000): [RID#6] Server returned control [2.16.840.1.113730.3.4.5].
+sssd_testldap.log-(2026-05-19 12:20:51): [be[testldap]] [simple_bind_done] (0x1000): [RID#6] Password will expire in [60] seconds.
+sssd_testldap.log-(2026-05-19 12:20:51): [be[testldap]] [simple_bind_done] (0x0400): [RID#6] Bind result: Success(0), no errmsg set
+```
+
+2. Password already expired (no gracelimit set)
+
+**TODO**: Why is there no change password prompt?!
+
+``` shell
+$ dsidm -j EXAMPLECOM user get mrnobody | jq -r '.attrs | to_entries[] | select(.key | test("pass"; "i")) | "\(.key): \(.value | join(", "))"'
+userpassword: {PBKDF2-SHA512}100000$jzQRyuRXpb6kFVI5JTc0nwFBHXsLm4QM$Op5XbyNyW+KIrSMbIt3ep4iCKxetgD0LWDT76m0fV5nRbI15g2S0YqA6+oa38eyQyi8rwXm5gv77pD6G1d4QFw==
+passwordgraceusertime: 0
+passwordexpirationtime: 20260519100602Z
+passwordexpwarned: 0
+
+$ date -u '+%Y%m%d%H%M%S'
+20260519100613
+
+$ ssh -l mrnobody@testldap localhost
+(mrnobody@testldap@localhost) Password: 
+(mrnobody@testldap@localhost) Password: 
+```
+
+```
+$ grep -B 1 -A 5 -P '\[(\d\.){2,}' *ldap*
+sssd_testldap.log-(2026-05-19 12:06:27): [be[testldap]] [sdap_call_op_callback] (0x20000): [RID#27] Handling LDAP operation [2][server: [10.156.233.50:636] simple bind: [uid=mrnobody,ou=people,dc=example,dc=com]] took [78.613] milliseconds.
+sssd_testldap.log:(2026-05-19 12:06:27): [be[testldap]] [simple_bind_done] (0x2000): [RID#27] Server returned control [1.3.6.1.4.1.42.2.27.8.5.1].
+sssd_testldap.log-(2026-05-19 12:06:27): [be[testldap]] [simple_bind_done] (0x1000): [RID#27] Password Policy Response: expire [-1] grace [-1] error [Password expired].
+sssd_testldap.log-(2026-05-19 12:06:27): [be[testldap]] [simple_bind_done] (0x1000): [RID#27] Password expired, grace logins exhausted.
+sssd_testldap.log-(2026-05-19 12:06:27): [be[testldap]] [simple_bind_done] (0x2000): [RID#27] Server returned control [2.16.840.1.113730.3.4.4].
+sssd_testldap.log-(2026-05-19 12:06:27): [be[testldap]] [simple_bind_done] (0x1000): [RID#27] Password expired, grace logins exhausted.
+sssd_testldap.log-(2026-05-19 12:06:27): [be[testldap]] [simple_bind_done] (0x0400): [RID#27] Bind result: Invalid credentials(49), password expired!
+```
+
+3. Password already expired (grace limit set and effective)
+
+``` shell
+$ dsconf EXAMPLECOM pwpolicy get | grep -i password | grep -i grace
+passwordgracelimit: 3
+```
+
+``` shell
+dsidm -j EXAMPLECOM user get mrnobody | jq -r '.attrs | to_entries[] | select(.key | test("pass"; "i")) | "\(.k
+ey): \(.value | join(", "))"'
+userpassword: {PBKDF2-SHA512}100000$jzQRyuRXpb6kFVI5JTc0nwFBHXsLm4QM$Op5XbyNyW+KIrSMbIt3ep4iCKxetgD0LWDT76m0fV5nRbI15g2S0YqA6+oa38eyQyi8rwXm5gv77pD6G1d4QFw==
+passwordgraceusertime: 0
+passwordexpirationtime: 20260519100602Z
+passwordexpwarned: 0
+```
+
+``` shell
+$ ssh -l mrnobody@testldap localhost
+(mrnobody@testldap@localhost) Password: 
+Your password has expired. You have 2 grace login(s) remaining.
+Last login: Tue May 19 12:04:03 CEST 2026 from ::1 on ssh
+Have a lot of fun...
+mrnobody@testldap@avocado:~>
+```
+
+``` shell
+$ grep -B 1 -A 5 -P '\[(\d\.){2,}' *ldap*
+sssd_testldap.log-(2026-05-19 12:11:08): [be[testldap]] [sdap_call_op_callback] (0x20000): [RID#29] Handling LDAP operation [2][server: [10.156.233.50:636] simple bind: [uid=mrnobody,ou=people,dc=example,dc=com]] took [80.341] milliseconds.
+sssd_testldap.log:(2026-05-19 12:11:08): [be[testldap]] [simple_bind_done] (0x2000): [RID#29] Server returned control [1.3.6.1.4.1.42.2.27.8.5.1].
+sssd_testldap.log-(2026-05-19 12:11:08): [be[testldap]] [simple_bind_done] (0x1000): [RID#29] Password Policy Response: expire [-1] grace [2] error [No error].
+sssd_testldap.log-(2026-05-19 12:11:08): [be[testldap]] [simple_bind_done] (0x1000): [RID#29] Password expired. [2] grace logins remaining.
+sssd_testldap.log-(2026-05-19 12:11:08): [be[testldap]] [simple_bind_done] (0x2000): [RID#29] Server returned control [2.16.840.1.113730.3.4.4].
+sssd_testldap.log-(2026-05-19 12:11:08): [be[testldap]] [simple_bind_done] (0x1000): [RID#29] Password expired, user must set a new password.
+sssd_testldap.log-(2026-05-19 12:11:08): [be[testldap]] [simple_bind_done] (0x0400): [RID#29] Bind result: Success(0), no errmsg set
+A SSH login check:
+```
+
+4. Password already expired (grace limit set but ineffective)
+
+``` shell
+$ dsconf EXAMPLECOM pwpolicy get | grep -i password | grep -i grace
+passwordgracelimit: 3
+```
+
+``` shell
+$ dsidm -j EXAMPLECOM user get mrnobody | jq -r '.attrs | to_entries[] | select(.key | test("pass"; "i")) | "\(.key): \(.value | join(", "))"'
+userpassword: {PBKDF2-SHA512}100000$jzQRyuRXpb6kFVI5JTc0nwFBHXsLm4QM$Op5XbyNyW+KIrSMbIt3ep4iCKxetgD0LWDT76m0fV5nRbI15g2S0YqA6+oa38eyQyi8rwXm5gv77pD6G1d4QFw==
+passwordgraceusertime: 3
+passwordexpirationtime: 20260519100602Z
+passwordexpwarned: 0
+```
+
+``` shell
+$ ssh -l mrnobody@testldap localhost
+(mrnobody@testldap@localhost) Password: 
+(mrnobody@testldap@localhost) Password:
+```
+
+``` shell
+$ grep -B 1 -A 5 -P '\[(\d\.){2,}' *ldap*
+sssd_testldap.log-(2026-05-19 12:15:34): [be[testldap]] [sdap_call_op_callback] (0x20000): [RID#33] Handling LDAP operation [2][server: [10.156.233.50:636] simple bind: [uid=mrnobody,ou=people,dc=example,dc=com]] took [79.069] milliseconds.
+sssd_testldap.log:(2026-05-19 12:15:34): [be[testldap]] [simple_bind_done] (0x2000): [RID#33] Server returned control [1.3.6.1.4.1.42.2.27.8.5.1].
+sssd_testldap.log-(2026-05-19 12:15:34): [be[testldap]] [simple_bind_done] (0x1000): [RID#33] Password Policy Response: expire [-1] grace [-1] error [Password expired].
+sssd_testldap.log-(2026-05-19 12:15:34): [be[testldap]] [simple_bind_done] (0x1000): [RID#33] Password expired, grace logins exhausted.
+sssd_testldap.log-(2026-05-19 12:15:34): [be[testldap]] [simple_bind_done] (0x2000): [RID#33] Server returned control [2.16.840.1.113730.3.4.4].
+sssd_testldap.log-(2026-05-19 12:15:34): [be[testldap]] [simple_bind_done] (0x1000): [RID#33] Password expired, grace logins exhausted.
+sssd_testldap.log-(2026-05-19 12:15:34): [be[testldap]] [simple_bind_done] (0x0400): [RID#33] Bind result: Invalid credentials(49), password expired!
 ```
 
 
