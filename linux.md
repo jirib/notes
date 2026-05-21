@@ -5952,7 +5952,71 @@ matched: 8515 pci:v00008086d00002723sv*sd*bc*sc*i* iwlwifi
 ```
 
 
-## systemd / journald
+## systemd / journald / loginctl
+
+
+### journald
+
+``` shell
+journalctl -k # kernel messages
+journalctl -u sshd
+journalctl _SYSTEMD_UNIT=sshd
+journalctl /usr/lib/postfix/bin/cleanup # specific binary
+journalctl --list-boots #
+journalctl -b # messages since current boot
+
+journalctl --since now -f # `tail -f` journald alternative
+journalctl --since <start_time> --until <end_time> # xxxx-xx-xx yy:yy:yy
+
+journalctl _SYSTEMD_UNIT=sshd + _UID=1000
+
+journalctl -o verbose -u sshd # details about message
+
+journalctl --rotate --vacuum-time=0.1s # clean journal
+```
+
+
+### logind
+
+Listing _logind_ effective settings:
+
+``` shell
+$ systemd-analyze cat-config systemd/logind.conf | sed -rn '/^\[Login\]/,$p' | \
+  grep -P '^(\[Login|# /\S+|#?Handle.*=)'
+[Login]
+#HandlePowerKey=poweroff
+#HandlePowerKeyLongPress=ignore
+#HandleRebootKey=reboot
+#HandleRebootKeyLongPress=poweroff
+#HandleSuspendKey=suspend
+#HandleSuspendKeyLongPress=hibernate
+#HandleHibernateKey=hibernate
+#HandleHibernateKeyLongPress=ignore
+#HandleLidSwitch=suspend
+#HandleLidSwitchExternalPower=suspend
+#HandleLidSwitchDocked=ignore
+#HandleSecureAttentionKey=secure-attention-key
+# /etc/systemd/logind.conf.d/90-local.conf
+[Login]
+HandleLidSwitchDocked=ignore
+```
+
+``` shell
+$ busctl introspect org.freedesktop.login1 /org/freedesktop/login1 org.freedesktop.login1.Manager | \
+  perl -pe 's/^\.(\S+)\s+\S+\s+\S+\s+(\S+).*/$1 $2/' | grep Handle
+HandleHibernateKey "hibernate"
+HandleHibernateKeyLongPress "ignore"
+HandleLidSwitch "suspend"
+HandleLidSwitchDocked "ignore"
+HandleLidSwitchExternalPower ""
+HandlePowerKey "poweroff"
+HandlePowerKeyLongPress "ignore"
+HandleRebootKey "reboot"
+HandleRebootKeyLongPress "poweroff"
+HandleSecureAttentionKey "secure-attention-key"
+HandleSuspendKey "suspend"
+HandleSuspendKeyLongPress "hibernate"
+```
 
 
 ### systemd
@@ -6237,25 +6301,7 @@ ConditionPathExists=/path/to/needed_file
   without syncing its dirty buffers.
 
 
-### journald
 
-``` shell
-journalctl -k # kernel messages
-journalctl -u sshd
-journalctl _SYSTEMD_UNIT=sshd
-journalctl /usr/lib/postfix/bin/cleanup # specific binary
-journalctl --list-boots #
-journalctl -b # messages since current boot
-
-journalctl --since now -f # `tail -f` journald alternative
-journalctl --since <start_time> --until <end_time> # xxxx-xx-xx yy:yy:yy
-
-journalctl _SYSTEMD_UNIT=sshd + _UID=1000
-
-journalctl -o verbose -u sshd # details about message
-
-journalctl --rotate --vacuum-time=0.1s # clean journal
-```
 
 ## distributions
 
