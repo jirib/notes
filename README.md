@@ -7,6 +7,7 @@
 - [Databases](db.md)
 - [Desktop on Unix-Linux system](desktop.md)
 - [Development](devel.md)
+  - [Python](python.md)
 - [DevOps](devops.md)
 - [Graphics](graphics.md)
 - [Hardware](hardware.md)

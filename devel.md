@@ -603,6 +603,55 @@ Index: scribus/ui/printdialog.cpp
 ```
 
 
+## Visual Studio Code
+
+
+### Debugging in VSCode
+
+_VSCode_ uses `.vscode/launch.json` to provide more specific configuration for
+debugging (if such a configuration does not exists, the debugging
+would use currently open file, this is helpful if an application
+consists of multiple files/modules/libraries).
+
+An example for a python app, here debugging the app with a specific argument:
+
+``` json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "list-indicators argument",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "wb_country_stats",
+            "args": ["--list-indicators"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "help argument",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "wb_country_stats",
+            "args": ["--help"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}
+```
+
+* _type_: indicates a debugger
+* _request_: how to associate to debugging, either _launch_ (launching
+  the app) or _attach_ (attaching to a runnnig process)
+* _name_: a friendly name of the configuration
+
+For python code, it is preferred to use _module_ instead of _program_
+in `.vscode/launch.json`.
+
+
 ## XML
 
 XML Entity Includes allow including an external XML file:
