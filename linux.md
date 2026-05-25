@@ -7675,6 +7675,81 @@ drwxr-xr-x  20 root root 4096 Sep 25 06:46 ..
 
 ### libvirt
 
+
+#### ACL
+
+**WARNING**: till under testing!
+
+``` shell
+$ grep -HPv '^\s*(#|$|//)' /etc/polkit-1/rules.d/{00-libvirt-debug.rules,50-students-libvirt-tenant.rules}
+/etc/polkit-1/rules.d/00-libvirt-debug.rules:polkit.addRule(function(action, subject) {
+/etc/polkit-1/rules.d/00-libvirt-debug.rules:    polkit.spawn([
+/etc/polkit-1/rules.d/00-libvirt-debug.rules:        "/usr/bin/logger",
+/etc/polkit-1/rules.d/00-libvirt-debug.rules:        "-t", "libvirt-polkit-debug",
+/etc/polkit-1/rules.d/00-libvirt-debug.rules:        "user=" + subject.user +
+/etc/polkit-1/rules.d/00-libvirt-debug.rules:        " action=" + action.id +
+/etc/polkit-1/rules.d/00-libvirt-debug.rules:        " domain=" + action.lookup("domain_name")
+/etc/polkit-1/rules.d/00-libvirt-debug.rules:    ]);
+/etc/polkit-1/rules.d/00-libvirt-debug.rules:    return null;
+/etc/polkit-1/rules.d/00-libvirt-debug.rules:});
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:polkit.addRule(function(action, subject) {
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:    var userMatch = /^student([0-9]+)-boot$/.exec(subject.user);
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:    if (!userMatch)
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:        return null;
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:    if (action.id === "org.libvirt.unix.manage")
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:        return polkit.Result.YES;
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:    var studentId = userMatch[1];
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:    var dom = action.lookup("domain_name");
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:    var allowedConnectActions = [
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:        "org.libvirt.api.connect.getattr",
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:        "org.libvirt.api.connect.read",
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:        "org.libvirt.api.connect.search_domains"
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:    ];
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:    var allowedDomainActions = [
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:        "org.libvirt.api.domain.getattr",
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:        "org.libvirt.api.domain.read",
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:        "org.libvirt.api.domain.start",
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:        "org.libvirt.api.domain.stop",
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:        "org.libvirt.api.domain.reset"
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:    ];
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:    if (allowedConnectActions.indexOf(action.id) >= 0)
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:        return polkit.Result.YES;
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:    if (!dom)
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:        return null;
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:    var domRe = new RegExp("^student" + studentId + "-boot-test[0-9]+$");
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:    if (domRe.test(dom) && allowedDomainActions.indexOf(action.id) >= 0)
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:        return polkit.Result.YES;
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:    return null;
+/etc/polkit-1/rules.d/50-students-libvirt-tenant.rules:});
+```
+
+``` shell
+$ grep -HPv '^\s*(#([a-z]|\s)+|$)' /etc/ssh/sshd_config.d/99-test.conf /usr/local/bin/student-libvirt-ssh-proxy
+/etc/ssh/sshd_config.d/99-test.conf:LogLevel DEBUG3
+/etc/ssh/sshd_config.d/99-test.conf:Match Group students
+/etc/ssh/sshd_config.d/99-test.conf:    ForceCommand /usr/local/bin/student-libvirt-ssh-proxy
+/etc/ssh/sshd_config.d/99-test.conf:    PermitTTY no
+/etc/ssh/sshd_config.d/99-test.conf:    AllowTcpForwarding no
+/etc/ssh/sshd_config.d/99-test.conf:    X11Forwarding no
+/etc/ssh/sshd_config.d/99-test.conf:    PermitTunnel no
+/etc/ssh/sshd_config.d/99-test.conf:    PermitUserRC no
+/etc/ssh/sshd_config.d/99-test.conf:    AllowAgentForwarding no
+/etc/ssh/sshd_config.d/99-test.conf:    GatewayPorts no
+/usr/local/bin/student-libvirt-ssh-proxy:#!/usr/bin/env bash
+/usr/local/bin/student-libvirt-ssh-proxy:set -euo pipefail
+/usr/local/bin/student-libvirt-ssh-proxy:orig="${SSH_ORIGINAL_COMMAND:-}"
+/usr/local/bin/student-libvirt-ssh-proxy:case "$orig" in
+/usr/local/bin/student-libvirt-ssh-proxy:    *"virt-ssh-helper 'qemu:///system'"*)
+/usr/local/bin/student-libvirt-ssh-proxy:	exec virt-ssh-helper 'qemu:///system'
+/usr/local/bin/student-libvirt-ssh-proxy:	;;
+/usr/local/bin/student-libvirt-ssh-proxy:  *)
+/usr/local/bin/student-libvirt-ssh-proxy:    echo "$0 denies the action" >&2
+/usr/local/bin/student-libvirt-ssh-proxy:    exit 1
+/usr/local/bin/student-libvirt-ssh-proxy:    ;;
+/usr/local/bin/student-libvirt-ssh-proxy:esac
+```
+
+
 #### auth-SASL
 
 NOTE, this is not very secure!!!
