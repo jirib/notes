@@ -312,7 +312,9 @@ troubleshooting:
 - _log_buf_len=16M_
 - _printk.time_
 - _earlycon=uart,io,0x3f8,115200n8_
-- _rd.systemd.debug_shell=/dev/ttyS0_ (if you don't know root password in initrd)
+- _rd.systemd.debug_shell=/dev/ttyS0_ (if you don't know root password
+  in initrd; mostly you need to set _console_ something else so
+  there's no conflict, for example: _console=tty0_)
 
 If the bootloader is not visible in serial connection, modify the boot
 parameters via graphical console; then, close the console, and send
