@@ -7749,6 +7749,30 @@ $ grep -HPv '^\s*(#([a-z]|\s)+|$)' /etc/ssh/sshd_config.d/99-test.conf /usr/loca
 /usr/local/bin/student-libvirt-ssh-proxy:esac
 ```
 
+And, an attempt to reset a domain/VM not "owned" by _student01-boot_ user.
+``` shell
+$ virsh -c 'qemu+ssh://student01-boot@tom/system' 
+(student01-boot@10.156.233.50) Password: 
+Welcome to virsh, the virtualization interactive terminal.
+
+Type:  'help' for help with commands
+       'quit' to quit
+
+virsh # reset --domain jbelka-jb155sapqe01 
+error: failed to get domain 'jbelka-jb155sapqe01'
+
+virsh #
+```
+
+```
+2026-05-25T13:27:18.642984+02:00 avocado libvirt-polkit-debug: user=student01-boot action=org.libvirt.unix.manage domain=undefined
+2026-05-25T13:31:53.213816+02:00 avocado libvirt-polkit-debug: user=student01-boot action=org.libvirt.unix.manage domain=undefined
+2026-05-25T13:31:53.307606+02:00 avocado libvirt-polkit-debug: user=student01-boot action=org.libvirt.api.connect.getattr domain=undefined
+2026-05-25T13:31:53.311827+02:00 avocado libvirt-polkit-debug: user=student01-boot action=org.libvirt.api.connect.getattr domain=undefined
+2026-05-25T13:31:59.970961+02:00 avocado libvirt-polkit-debug: user=student01-boot action=org.libvirt.api.domain.getattr domain=jbelka-jb155sapqe01
+2026-05-25T13:31:59.973653+02:00 avocado virtqemud[716865]: authentication unavailable: no polkit agent available to authenticate action 'org.libvirt.api.domain.getattr'
+```
+
 
 #### auth-SASL
 
