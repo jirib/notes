@@ -300,10 +300,44 @@ and now working example:
 Note that *sssd* caches, so do not run `nscd` caching `passwd` and `group` DBs.
 
 
-## Boot loaders
+## Boot
+
+The following kernel parameters might be helpful for boot issue
+troubleshooting:
+
+- _console=ttyS0,115200_
+- _ignore_loglevel_
+- _panic_print=0x61_ (0x01: tasks, 0x20: print buffer dump, 0x40: all CPU backtraces)
+- _initcall_debug_
+- _log_buf_len=16M_
+- _printk.time_
+- _earlycon=uart,io,0x3f8,115200n8_
+- _rd.systemd.debug_shell=/dev/ttyS0_ (if you don't know root password in initrd)
+
+If the bootloader is not visible in serial connection, modify the boot
+parameters via graphical console; then, close the console, and send
+_Ctrl-x_ from a management console (for example, in `virsh` via
+`send-key <domain> --codeset linux --holdtime 1000 KEY_LEFTCTRL
+KEY_X`), and use serial connection to observe the boot issue.
+
+Newer versions, might have these more human usable params:
+
+- _panic_sys_info=tasks,all_bt,blocked_tasks_
+- _panic_console_replay_
+
+The following is mainly for userland:
+
+- _printk.devkmsg=on_
+
+This is an old version, it's better to use _earlycon_.
+
+- _earlyprintk=serial,ttyS0,115200_
 
 
-### GRUB
+### Boot loaders
+
+
+#### GRUB
 
 ``` shell
 GRUB_CMDLINE_LINUX                     <--+-- appended for normal & recovery mode
@@ -323,7 +357,7 @@ grub2-install -v <boot_device> # bios
 grub2-install -v
 ```
 
-#### grub2-mkconfig
+##### grub2-mkconfig
 
 `grub2-mkconfig` calls various helpers in the background, eg. `grub2-probe`.
 
@@ -344,7 +378,7 @@ $ grep -m1 -A1 'cryptomount' /boot/grub2/grub.cfg
 ```
 
 
-#### grub2-once
+##### grub2-once
 
 `grub2-once` allows change of next-boot menu entry.
 
@@ -405,10 +439,10 @@ $ awk -F\' '$1 == "menuentry " || $1=="submenu " {print i++ " : " $2}; /^(\t)?me
 ```
 
 
-#### GRUB internals
+##### GRUB internals
 
 
-##### GRUB on gpt/bios
+###### GRUB on gpt/bios
 
 What makes "core.img" on GPT/BIOS?
 
@@ -461,7 +495,7 @@ $ xxd -s $((512 + 2880))  /dev/vda1 | grep -m 1 -B 2 '0000 0000'
 ```
 
 
-#### GRUB via PXE
+##### GRUB via PXE
 
 ``` shell
 grub2-mknet -v --net-directory=/srv/tftpboot \
@@ -552,7 +586,7 @@ Contents of section .sbat:
 ```
 
 
-#### GRUB and serial console
+##### GRUB and serial console
 
 for a bloody SOL (IPMI) which is *COM3* (ie. *ttyS2* - *0x3e8*)
 
@@ -566,7 +600,7 @@ GRUB_SERIAL_COMMAND="serial --port=0x3e8 --speed=115200"
 and run `grub2-mkconfig -o /boot/grub2/grub.cfg`.
 
 
-#### GRUB shell commands
+##### GRUB shell commands
 
 See [The list of command-line and menu entry commands
 ](https://www.gnu.org/software/grub/manual/grub/html_node/Command_002dline-and-menu-entry-commands.html#Command_002dline-and-menu-entry-commands).
@@ -581,7 +615,7 @@ echo $prefix # generally ($root)/boot/grub2
 ```
 
 
-#### GRUB troubleshooting
+##### GRUB troubleshooting
 
 various indications of *GRUB 2* issue
 
@@ -601,10 +635,10 @@ various indications of *GRUB 2* issue
   not between first 8 block devices of the system
 
 
-### iPXE
+#### iPXE
 
 
-#### iPXE with dnsmasq
+##### iPXE with dnsmasq
 
 Not to end in a indefinite loop when loading iPXE (because iPXE
 reloads itself), there's a need to distinuish between initial load of
@@ -643,7 +677,7 @@ A full example for libvirt network settings:
 ```
 
 
-### pxelinux
+#### pxelinux
 
 when booting `pxelinux.0` from GRUB2 there's an issue with DHCP option
 *210*, ie. there's an issue with *PathPrefix* when doing PXE, see
@@ -707,7 +741,7 @@ better modify `pxelinux.0` binary.
 And copy `pxelinux.0` to your TFTP directory.
 
 
-### syslinux
+#### syslinux
 
 An example how to make WinPE for non-UEFI system.
 
