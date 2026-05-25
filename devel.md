@@ -156,6 +156,56 @@ $ diff -uNp <(pandoc -f odt -t plain /tmp/orig.odt) \
 ## GIT
 
 
+### GitHub CLI
+
+``` shell
+$ gh auth status
+github.com
+  ✓ Logged in to github.com account jiri-belka (keyring)
+  - Active account: true
+  - Git operations protocol: ssh
+  - Token: ghp_************************************
+  - Token scopes: 'admin:org', 'admin:public_key', 'delete_repo', 'project', 'repo', 'workflow'
+
+  ✓ Logged in to github.com account jirib (keyring)
+  - Active account: false
+  - Git operations protocol: ssh
+  - Token: gho_************************************
+  - Token scopes: 'delete_repo', 'gist', 'read:org', 'repo', 'workflow'
+```
+
+``` shell
+$ gh repo list --visibility public
+
+Showing 12 of 12 repositories in @jirib that match your search
+
+NAME                      DESCRIPTION                                                                                                             INFO          UPDATED             
+jirib/linux-tuning-audit                                                                                                                          public        about 58 minutes ago
+jirib/notes                                                                                                                                       public        about 14 hours ago
+jirib/wb-country-stats                                                                                                                            public        about 15 hours ago
+jirib/sccpkgsearch                                                                                                                                public        about 3 days ago
+jirib/anki                                                                                                                                        public        about 3 months ago
+jirib/salt-states                                                                                                                                 public        about 10 months ago
+jirib/scribus             Community mirror of the official Scribus SVN svn://scribus.net. Please submit PRs & Bugs to https://bugs.scribus.net .  public, fork  about 1 year ago
+jirib/scribus-scripts     my scribus python scripts                                                                                               public        about 1 year ago
+jirib/nicola-plugins      Extra plugins for Nikola                                                                                                public, fork  about 1 year ago
+jirib/pyragegui                                                                                                                                   public        about 2 years ago
+jirib/ansible             ansible                                                                                                                 public        about 5 years ago
+jirib/vagrant-boxes       Scripts to generate vagrant box files                                                                                   public, fork  about 6 years ago
+
+$ gh auth switch
+✓ Switched active account for github.com to jiri-belka
+
+$ gh repo list --visibility public
+
+Showing 2 of 2 repositories in @jiri-belka that match your search
+
+NAME                     DESCRIPTION                                                           INFO          UPDATED          
+jiri-belka/supportutils  SUSE Linux Enterprise support utilities. Gathers system information.  public, fork  about 2 days ago
+jiri-belka/doc-sleha     Official SUSE Linux Enterprise High Availability documentation        public, fork  about 3 years ago
+```
+
+
 ### GIT attributes
 
 How to make a custom `diff` for a binary file?
