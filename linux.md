@@ -7773,6 +7773,12 @@ virsh #
 2026-05-25T13:31:59.973653+02:00 avocado virtqemud[716865]: authentication unavailable: no polkit agent available to authenticate action 'org.libvirt.api.domain.getattr'
 ```
 
+``` shell
+$ ssh -l student01-boot avocado uname
+(student01-boot@10.156.233.50) Password: 
+/usr/local/bin/student-libvirt-ssh-proxy denies the action
+```
+
 
 #### auth-SASL
 
