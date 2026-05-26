@@ -1,6 +1,74 @@
 # Configuration management cheatsheet
 
 
+## Ansible
+
+``` shell
+$ mise list | grep ansible
+ansible-core   2.21.0   ~/Sync/Documents/personal/src/github.com/jirib/mise.toml  latest
+
+$ ansible --version
+ansible [core 2.21.0]
+  config file = /home/jiri/Sync/Documents/personal/src/github.com/jirib/student-lab/ansible/ansible.cfg
+  configured module search path = ['/home/jiri/.ansible/plugins/modules', '/usr/share/ansible/plugins/modules']
+  ansible python module location = /home/jiri/.local/share/mise/installs/ansible-core/2.21.0/ansible-core/lib/python3.13/site-packages/ansible
+  ansible collection location = /home/jiri/.ansible/collections:/usr/share/ansible/collections
+  executable location = /home/jiri/.local/share/mise/installs/ansible-core/latest/bin/ansible
+  python version = 3.13.7 (main, Sep 18 2025, 19:47:49) [Clang 20.1.4 ] (/home/jiri/.local/share/mise/installs/ansible-core/2.21.0/ansible-core/bin/python)
+  jinja version = 3.1.6
+  pyyaml version = 6.0.3 (with libyaml v0.2.5)
+```
+
+In a project:
+
+``` shell
+$ grep -HPv '^\s*(#|$)' mise.toml requirements.yml 
+mise.toml:[tools]
+mise.toml:ansible-core = "2.21.0"
+mise.toml:[tasks.ansible-collection-install]
+mise.toml:description = "Install Ansible collections"
+mise.toml:run = """
+mise.toml:ansible-galaxy collection install -r requirements.yml
+mise.toml:"""
+mise.toml:[tasks.ansible-collection-check]
+mise.toml:run = """
+mise.toml:ansible-galaxy collection list
+mise.toml:"""
+requirements.yml:---
+requirements.yml:collections:
+requirements.yml:  - name: community.libvirt
+requirements.yml:  - name: community.general
+```
+
+### Inventory
+
+``` shell
+$ find ./inventory/ ! -name '*~'
+./inventory/
+./inventory/development
+./inventory/development/group_vars
+./inventory/development/group_vars/.keep
+./inventory/development/hosts.yml
+./inventory/development/host_vars
+./inventory/development/host_vars/.keep
+
+$ ansible-inventory -i inventory/development/hosts.yml --graph
+@all:
+  |--@ungrouped:
+  |--@hypervisors:
+  |  |--@lab_hypervisors:
+  |  |  |--tom
+  |--@lab_hypervisors:
+  |  |--tom
+
+$ ansible -i inventory/development/ lab_hypervisors -m ping
+tom | SUCCESS => {
+    "changed": false,
+    "ping": "pong"
+}
+```
+
+
 ## Saltstack aka salt
 
 Terminology cheat sheet:
