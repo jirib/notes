@@ -109,7 +109,7 @@ A quick start with GPG:
    creation_rules:
      - pgp: F178D4D326B55EB03F8A23A55B9E7F688216D470
    ```
-3. Create a test secrets (in a yaml file in editor mode: modify and save; or via here-doc):
+3. Create a test secrets (in the input editor mode: modify and save; or via here-doc):
    ``` shell
    $ sops test.sops.yaml
    $ cat test.sops.yaml
@@ -121,7 +121,7 @@ A quick start with GPG:
      - bar
      - baz
    EOF
-   )
+   ) | tee test.sops.yaml
    hello: ENC[AES256_GCM,data:CtZLZII=,iv:pZkmqGbvOhsKEN6ZQZwVvuMkaM4f7g6vETPfuuPbctc=,tag:USC0CiwFOvBlqbdK5lWPzQ==,type:str]
    foo:
        - ENC[AES256_GCM,data:gI29,iv:YZ4AaX74Q9ckpWOdNIPlnBYz1C3QXoV8aVZ1KdiekHQ=,tag:lRYBvrdD8iRC7JkViHikuA==,type:str]
