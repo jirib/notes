@@ -147,6 +147,108 @@ A quick start with GPG:
        version: 3.11.0
    ```
 
+Basic work with SOPS "protected" files:
+
+``` shell
+$ sops -e <(cat <<EOF
+hello sops!
+EOF
+) | tee /tmp/input
+{
+	"data": "ENC[AES256_GCM,data:RsKzqKWgmgtZed4H,iv:BRXErrFoKmHbJHo392n63xdE300Mv0METHUDzknuP3c=,tag:p0FpL6Ow2V+jrw6X0FCQPg==,type:str]",
+	"sops": {
+		"lastmodified": "2026-05-27T12:15:46Z",
+		"mac": "ENC[AES256_GCM,data:FNxmsB4Jxx48MKxYnZ9jfMQ6jbYUZop6U41lGGuEkkKidZh68OrNLFxR+QSKbEN47Qq09fdOicalgq2ORQRNXsnUNXUN28azde+t8QVcG3O91yuXYJc598ROZPSSoPmITsBfOGtY7LdlduahQR/RGVcxWz7OYd+GOWD3yXoPE+w=,iv:oZmmbcZS7emZSJT4rX016RtypiZ7n316kM07uI8fdQ4=,tag:OxBlXNoA1M7/ws8J0pezBQ==,type:str]",
+		"pgp": [
+			{
+				"created_at": "2026-05-27T12:15:46Z",
+				"enc": "-----BEGIN PGP MESSAGE-----\n\nhQEMA1uef2iCFtRwAQf+KajI6gYC2Af7yiZ0xPlDs8VdqnnR04USD+5cpSFf9Rqs\nYRYKmIQ38dQDbjfNu+j9Jxu6a/1fNdhUU1fmCSUVeGvpIeGDYKiaet1A3VTatSwd\nbQL27xPbhXQLjHeShzpYCxYmU207f5S3ECjW3RletKvmsZzgxJ0wiJH9RMm52RZF\niUl1rZgZeC6EWY+sKrBJmwgthVD+yzgyEh6kQt5gbHDRqDefiSeKilFFdJL5+UbG\nzARclvwUmj1mFYHqf0ypRZhKOnjD9U4vGL/tGSfT4raK5D8VQ62cu7Cca98EtZE6\nUkTQOimgOshx/fGpVELqYECUkozCcUIQb1cpQt+gI9JeAbfIg0ufxRIcOZD+MKIX\nD03f+iutlWWHPK+MszarAeV0235cjN/8e32bDkkMidvXJGiYG4j7VzXSk7DgZTA4\nUDfyFB7l4haT98NzKxYX0g9ehzkpHpYV/Cat4xuBkw==\n=hxqI\n-----END PGP MESSAGE-----",
+				"fp": "F178D4D326B55EB03F8A23A55B9E7F688216D470!"
+			}
+		],
+		"version": "3.11.0"
+	}
+}
+```
+
+``` shell
+$ cat /tmp/test_sops.yaml 
+---
+- name: Test SOPS
+  hosts: localhost
+  gather_facts: false
+  tasks:
+    - name: Get encrypted file content
+      ansible.builtin.command: cat /tmp/input
+      register: encrypted_content
+
+    - name: Show encrypted data
+      debug:
+        msg: "{{ encrypted_content.stdout | ansible.builtin.from_yaml }}"
+
+    - name: Decrypt data and decode decrypted YAML
+      set_fact:
+        decrypted_data: "{{ encrypted_content.stdout | community.sops.decrypt | ansible.builtin.from_yaml }}"
+
+    - name: Show decrypted data
+      debug:
+        msg: "{{ decrypted_data }}"
+```
+
+``` shell
+$ ANSIBLE_STDOUT_CALLBACK=minimal ansible-playbook /tmp/test_sops.yaml 
+[WARNING]: No inventory was parsed, only implicit localhost is available
+[WARNING]: provided hosts list is empty, only localhost is available. Note that the implicit localhost does not match 'all'
+localhost | CHANGED | rc=0 >>
+{
+	"data": "ENC[AES256_GCM,data:RsKzqKWgmgtZed4H,iv:BRXErrFoKmHbJHo392n63xdE300Mv0METHUDzknuP3c=,tag:p0FpL6Ow2V+jrw6X0FCQPg==,type:str]",
+	"sops": {
+		"lastmodified": "2026-05-27T12:15:46Z",
+		"mac": "ENC[AES256_GCM,data:FNxmsB4Jxx48MKxYnZ9jfMQ6jbYUZop6U41lGGuEkkKidZh68OrNLFxR+QSKbEN47Qq09fdOicalgq2ORQRNXsnUNXUN28azde+t8QVcG3O91yuXYJc598ROZPSSoPmITsBfOGtY7LdlduahQR/RGVcxWz7OYd+GOWD3yXoPE+w=,iv:oZmmbcZS7emZSJT4rX016RtypiZ7n316kM07uI8fdQ4=,tag:OxBlXNoA1M7/ws8J0pezBQ==,type:str]",
+		"pgp": [
+			{
+				"created_at": "2026-05-27T12:15:46Z",
+				"enc": "-----BEGIN PGP MESSAGE-----\n\nhQEMA1uef2iCFtRwAQf+KajI6gYC2Af7yiZ0xPlDs8VdqnnR04USD+5cpSFf9Rqs\nYRYKmIQ38dQDbjfNu+j9Jxu6a/1fNdhUU1fmCSUVeGvpIeGDYKiaet1A3VTatSwd\nbQL27xPbhXQLjHeShzpYCxYmU207f5S3ECjW3RletKvmsZzgxJ0wiJH9RMm52RZF\niUl1rZgZeC6EWY+sKrBJmwgthVD+yzgyEh6kQt5gbHDRqDefiSeKilFFdJL5+UbG\nzARclvwUmj1mFYHqf0ypRZhKOnjD9U4vGL/tGSfT4raK5D8VQ62cu7Cca98EtZE6\nUkTQOimgOshx/fGpVELqYECUkozCcUIQb1cpQt+gI9JeAbfIg0ufxRIcOZD+MKIX\nD03f+iutlWWHPK+MszarAeV0235cjN/8e32bDkkMidvXJGiYG4j7VzXSk7DgZTA4\nUDfyFB7l4haT98NzKxYX0g9ehzkpHpYV/Cat4xuBkw==\n=hxqI\n-----END PGP MESSAGE-----",
+				"fp": "F178D4D326B55EB03F8A23A55B9E7F688216D470!"
+			}
+		],
+		"version": "3.11.0"
+	}
+}
+localhost | SUCCESS => {
+    "msg": {
+        "data": "ENC[AES256_GCM,data:RsKzqKWgmgtZed4H,iv:BRXErrFoKmHbJHo392n63xdE300Mv0METHUDzknuP3c=,tag:p0FpL6Ow2V+jrw6X0FCQPg==,type:str]",
+        "sops": {
+            "lastmodified": "2026-05-27T12:15:46Z",
+            "mac": "ENC[AES256_GCM,data:FNxmsB4Jxx48MKxYnZ9jfMQ6jbYUZop6U41lGGuEkkKidZh68OrNLFxR+QSKbEN47Qq09fdOicalgq2ORQRNXsnUNXUN28azde+t8QVcG3O91yuXYJc598ROZPSSoPmITsBfOGtY7LdlduahQR/RGVcxWz7OYd+GOWD3yXoPE+w=,iv:oZmmbcZS7emZSJT4rX016RtypiZ7n316kM07uI8fdQ4=,tag:OxBlXNoA1M7/ws8J0pezBQ==,type:str]",
+            "pgp": [
+                {
+                    "created_at": "2026-05-27T12:15:46Z",
+                    "enc": "-----BEGIN PGP MESSAGE-----\n\nhQEMA1uef2iCFtRwAQf+KajI6gYC2Af7yiZ0xPlDs8VdqnnR04USD+5cpSFf9Rqs\nYRYKmIQ38dQDbjfNu+j9Jxu6a/1fNdhUU1fmCSUVeGvpIeGDYKiaet1A3VTatSwd\nbQL27xPbhXQLjHeShzpYCxYmU207f5S3ECjW3RletKvmsZzgxJ0wiJH9RMm52RZF\niUl1rZgZeC6EWY+sKrBJmwgthVD+yzgyEh6kQt5gbHDRqDefiSeKilFFdJL5+UbG\nzARclvwUmj1mFYHqf0ypRZhKOnjD9U4vGL/tGSfT4raK5D8VQ62cu7Cca98EtZE6\nUkTQOimgOshx/fGpVELqYECUkozCcUIQb1cpQt+gI9JeAbfIg0ufxRIcOZD+MKIX\nD03f+iutlWWHPK+MszarAeV0235cjN/8e32bDkkMidvXJGiYG4j7VzXSk7DgZTA4\nUDfyFB7l4haT98NzKxYX0g9ehzkpHpYV/Cat4xuBkw==\n=hxqI\n-----END PGP MESSAGE-----",
+                    "fp": "F178D4D326B55EB03F8A23A55B9E7F688216D470!"
+                }
+            ],
+            "version": "3.11.0"
+        }
+    }
+}
+localhost | SUCCESS => {
+    "ansible_facts": {
+        "decrypted_data": {
+            "data": "hello sops!"
+        }
+    },
+    "changed": false
+}
+localhost | SUCCESS => {
+    "msg": {
+        "data": "hello sops!"
+    }
+}
+```
+
+Works as expected!
+
 
 ## Saltstack aka salt
 
