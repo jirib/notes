@@ -69,6 +69,87 @@ tom | SUCCESS => {
 ```
 
 
+### Secrets in Ansible
+
+
+#### Handling secrets in Ansible with SOPS
+
+See [SOPS](#SOPS) for basics and [Protecting Ansible secrets with
+SOPS](https://docs.ansible.com/projects/ansible/latest/collections/community/sops/docsite/guide.html).
+
+Have `community.sops` in _collections_ in your `requirements.yml`.
+
+``` shell
+$ yq '.collections' ansible/requirements.yml  | grep sops
+- name: community.sops
+```
+
+Tip: add a _mise_ task to install the defined collections via
+`ansible-galaxy`.
+
+``` shell
+$ ansible-doc community.sops -l
+community.sops.load_vars    Load SOPS-encrypted variables from files, dynamically within a task
+community.sops.sops_encrypt Encrypt data with SOPS
+```
+
+A quick start with GPG:
+
+1. Go to your ansible project directory (usually one with `ansible.cfg`).
+2. Configure `.sops.yaml`:
+   ``` shell
+   $ gpg --list-key --with-colons | grep -B1 -P 'jirib' | head -n1 | grep -oE '[A-Z0-9]+'
+   F178D4D326B55EB03F8A23A55B9E7F688216D470
+   $ GPG_FPR=$(gpg --list-key --with-colons | grep -B1 -P 'jirib' | head -n1 | grep -oE '[A-Z0-9]+')
+   $ cat > .sops.yaml <<'EOF'
+   creation_rules:
+     - pgp: $GPG_FPR
+   EOF
+   $ cat .sops.yaml 
+   creation_rules:
+     - pgp: F178D4D326B55EB03F8A23A55B9E7F688216D470
+   ```
+3. Create a test secrets (in a yaml file in editor mode: modify and save; or via here-doc):
+   ``` shell
+   $ sops test.sops.yaml
+   $ cat test.sops.yaml
+   ```
+   ``` shell
+   $ sops --input-type yaml --output-type yaml -e <(cat <<EOF
+   hello: world
+   foo:
+     - bar
+     - baz
+   EOF
+   )
+   hello: ENC[AES256_GCM,data:CtZLZII=,iv:pZkmqGbvOhsKEN6ZQZwVvuMkaM4f7g6vETPfuuPbctc=,tag:USC0CiwFOvBlqbdK5lWPzQ==,type:str]
+   foo:
+       - ENC[AES256_GCM,data:gI29,iv:YZ4AaX74Q9ckpWOdNIPlnBYz1C3QXoV8aVZ1KdiekHQ=,tag:lRYBvrdD8iRC7JkViHikuA==,type:str]
+       - ENC[AES256_GCM,data:B7wa,iv:W66vT4M4pp7r2ibpi9Qv3CM1lYSwV0eqnZHQsjq+xBU=,tag:kqgH/voqwvhjT0Qu8cDt2A==,type:str]
+   sops:
+       lastmodified: "2026-05-27T11:21:54Z"
+       mac: ENC[AES256_GCM,data:yICvG/ixM+56JCwZxnkXBQhBgXXotmaaf6fpm0F0MOZUTkh2J2sQmhqHiVoUIFqhPxq20PSQgGrnCwFwe5u9a7LzqIDY7t+7h2MIy+QeJ18B9b2BoqcnnI5mh4o/4UWajGJ693MD8q3PQV0civhJb/ajlsI0VAO21MZwrC/Hn3g=,iv:ONiAIxY+YZK9/Rv3Ui0UpBm49viKvU/HvKJsqEM92QQ=,tag:6otEbQinFG40wYwbs8UX0g==,type:str]
+       pgp:
+           - created_at: "2026-05-27T11:21:54Z"
+             enc: |-
+               -----BEGIN PGP MESSAGE-----
+   
+               hQEMA8qKidnXP+8cAQgAhHlhxnb5wC7afi0GvITSWJ8Tr3LS7yUmvOgql3BHgzkG
+               3cS29H5en2/lV4wXgARYPA/1xjM6o5CEMBp/W//AY2Nv1uF3LYsaLkgZ2xCXawrQ
+               8SlXGokbUMa6qdXz2mHw5UROT1+b4q2VtSZp0iATwJ8s5a2xALA+AiuJmpEZopIC
+               E4aSQpeHKORWLJC1xmlWGgRS7rqIiZVCoL9Zr4bI/urF47zV/IVPi1bLQtqLsWu4
+               KFB+VAKX4lE/AN2/4qiDNfJVbkYzKxkTfU710nWgbVEmN/Pd9eiRI9hj0BPrsRFJ
+               aqOfe2sTUtLpMp84p5GB4w34xsiScRn1c1M9I1xtXtJeAX53WKO1WSa0saFxutDY
+               aFALQCGToqFPMbd7I5I8Or/Mfiga2e0vmp+1M0pXiXUERvbZ92iIwvGWYiw9QT5C
+               LY7PHlpqt3JBR2Svd/yzYwxKhkK0HPvtw1qztM84FQ==
+               =LyFk
+               -----END PGP MESSAGE-----
+             fp: F178D4D326B55EB03F8A23A55B9E7F688216D470
+       unencrypted_suffix: _unencrypted
+       version: 3.11.0
+   ```
+
+
 ## Saltstack aka salt
 
 Terminology cheat sheet:
@@ -753,3 +834,49 @@ pillar_roots:
     - /srv/pillar
 
 ```
+
+
+## SOPS
+
+> SOPS is an editor of encrypted files that supports YAML, JSON, ENV,
+> INI and BINARY formats and encrypts with AWS KMS, GCP KMS, Azure Key
+> Vault, HuaweiCloud KMS, age, and PGP.
+> https://github.com/getsops/sops
+
+Have _sops_ installed (`mise` can do it).
+
+``` shell
+$ yq -oy '.tools' mise.toml 
+ansible-core: 2.21.0
+sops: latest
+```
+
+Quick start:
+
+1. Have a secret GPG key and get its fingerprint:
+   ``` shell
+   $ gpg --list-key --with-colons | grep -B1 -P 'jirib'
+   fpr:::::::::F178D4D326B55EB03F8A23A55B9E7F688216D470:
+   uid:u::::1631887954::10EA444A6F4075760D4B84C64A568AF0D5E40566::Jiří XXXX <jiribXXXX>::::::::::0:
+   $ gpg --list-key --with-colons | grep -B1 -P 'jirib' | head -n1 | grep -oE '[A-Z0-9]+'
+   F178D4D326B55EB03F8A23A55B9E7F688216D470
+
+   $ SOPS_PGP_FP=$(gpg --list-key --with-colons | grep -B1 -P 'jirib' | head -n1 | grep -oE '[A-Z0-9]+')
+   ```
+2. Encrypt:
+   ``` shell
+   $ sops --pgp $SOPS_PGP_FP --input-type dotenv --output-type dotenv -e <(cat <<EOF
+   name=foo
+   password=bar
+   EOF
+   )
+   name=ENC[AES256_GCM,data:m3z7,iv:AIjNEtIYJNiS5SbvPjNDr5S/pggSRtLF231VMbU0SqA=,tag:CrBycoaxT7ZvY56aNwzl8A==,type:str]
+   password=ENC[AES256_GCM,data:OEPt,iv:L5g37jFhENA0k5YafcWXqa1gmxVo+6p1wGRhhH1axsM=,tag:U6+MUYAj7sBO5aPxt8oanw==,type:str]
+   sops_lastmodified=2026-02-16T15:50:36Z
+   sops_mac=ENC[AES256_GCM,data:jKR9N7t1mhA0JC/aLYlWD6hsqzjvmdHEYsqLo0OPuQBBcm6NpbhiNf8cEdlw+nCids5kzequokhPh7nmPapgYtosy4KRwfQNB/zSsLzts/1z11uCxFKnpaAmkPL2qOWI9MnoXmPb5JBAuTNWU+nrh0yZ+Kk1FLggawmczW+zeXg=,iv:Y8tvZriVOlU27CSiCuqwYWBihrKSlUUfO2ItgroGz90=,tag:1rHYHOg14JL70JR8MCsVlA==,type:str]
+   sops_pgp__list_0__map_created_at=2026-02-16T15:50:36Z
+   sops_pgp__list_0__map_enc=-----BEGIN PGP MESSAGE-----\n\nhQIMA8Wk1m/ZPLjOAQ//fKQqXeDM8kYP1qEugOe8HSoj4IkrlKsfAvCiuV9oszW8\nuynz2weuDU624M/22xcwZTds5NEgYQGdJgkbclFLHnBVImT5HDs/iguXifwUGDMz\nd5RhxwAt7Gp9794K0uiPK6xpLCuSHDmCIHVzRCjLur17D1gc8egaFpBCaRTMW2cL\nkRnwUlPOxTqUUC3jphgsE8r85VXiqcLddrDRUz4MJIXqiLhzcfqdx1JhswzijYnZ\noQ1i5pFmeHiglKvHhHyS7At5pQ3drs/XKMX7QS3Fqe/VlBJ5cuBYmOVVhUmt8+Eh\nBaVtqeC/idqU8WTod5TfycOfvHdZj3HYa630gDvOV/a7UmyhRK8yu5LUBvLVyx/h\ncCVbxdOQsNHvWnTg9/FSoOb+SQ0JP0Rzy+fTt5Rn2gI+HspaUy5p8ydE8MfV4vRy\nkQYXBREWRMn0QmHxCzI+SbXIN9u9HPY/1d0pHxc4HQ7gDLbB4L8o9Fj8TsfnhyOT\nzNYAfG2pCtULoj5pKa3kqoOz+ioKKm98FHe64fnr3xVyK4wI870YDaxTswkh7kQc\nPepUYY5MLGU+dTfSDBXsklCVSClE4mWBVCjYjTP7682b3YkVJVCO7bF+Z/syRWIl\n2S6bI6Z6uqJDpPGi4piK4Ng5RwCGdVVOMVJw27gsGtkNvTG+L1TtLyW1uv/3BU7S\nXgGQIIFGig3WxrApMuoYT03JNcwlYi8J7oO52qKxDT1DPwAk0RW6MZmaxzOC73IM\nhGH3iwXTJqK6ee6OmmsPNubFF6m1N4l+MCklh5SPHMUA6GqlKh6HFpBgS3G6lG4=\n=BFDy\n-----END PGP MESSAGE-----
+   sops_pgp__list_0__map_fp=F0586B61E630A3E4E71338D2E1D94F2BA791470A
+   sops_unencrypted_suffix=_unencrypted
+   sops_version=3.11.0
+   ```
