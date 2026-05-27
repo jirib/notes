@@ -880,3 +880,13 @@ Quick start:
    sops_unencrypted_suffix=_unencrypted
    sops_version=3.11.0
    ```
+
+Note, that SOPS indents YAML with 4 chars by default, this it
+different from VSCode defaults, you might put the following into
+.sops.yaml:
+
+``` yaml
+stores:
+  yaml:
+    indent: 2
+```
