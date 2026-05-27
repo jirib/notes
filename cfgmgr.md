@@ -101,13 +101,11 @@ A quick start with GPG:
    $ gpg --list-key --with-colons | grep -B1 -P 'jirib' | head -n1 | grep -oE '[A-Z0-9]+'
    F178D4D326B55EB03F8A23A55B9E7F688216D470
    $ GPG_FPR=$(gpg --list-key --with-colons | grep -B1 -P 'jirib' | head -n1 | grep -oE '[A-Z0-9]+')
-   $ cat > .sops.yaml <<'EOF'
+
+   $ printf 'creation_rules:\n  - pgp:\n    - '"'"'%s!'"'"'\n' "$GPG_FPR" | tee .sops.yaml
    creation_rules:
-     - pgp: $GPG_FPR
-   EOF
-   $ cat .sops.yaml 
-   creation_rules:
-     - pgp: F178D4D326B55EB03F8A23A55B9E7F688216D470
+     - pgp:
+       - pgp: F178D4D326B55EB03F8A23A55B9E7F688216D470
    ```
 3. Create a test secrets (in the input editor mode: modify and save; or via here-doc):
    ``` shell
@@ -889,4 +887,15 @@ different from VSCode defaults, you might put the following into
 stores:
   yaml:
     indent: 2
+```
+
+Encrypting to multiple "recipients" means having multiple creation
+rules object/identities (note '!' appended to the actual fingerprints
+!!!).
+
+``` yaml
+creation_rules:
+  - pgp:
+    - '85D77543B3D624B63CEA9E6DBC17301B491B3F21!'
+    - 'E60892BB9BD89A69F759A1A0A3D652173B763E8F!'
 ```
