@@ -318,17 +318,24 @@ might be a way to go, if you need a scripting in Python with a safe,
 embeddable expression language.
 
 ``` python
-from cel_expr_python import cel
+#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "common-expression-language",
+#     "typing-extensions",
+# ]
+# ///
 
-# Initialize environment with variable type definitions
-env = cel.NewEnv(variables={"line": cel.Type.STRING})
+import cel
 
-# Compile an expression (CEL syntax uses 'in' instead of 'contains')
-expr_str = "'Constraint violation' in line ? 'LDAP Error Flagged' : ''"
-program = env.compile(expr_str)
+expr_str = "line.contains('Constraint violation') ? 'LDAP Error Flagged' : ''"
+program = cel.compile(expr_str)
 
 # Run evaluation
-res = program.eval(data={"line": "sssd status: Constraint violation detected"})
-print(res.value())  # Outputs: LDAP Error Flagged
+res = program.execute({"line": "sssd status: Constraint violation detected"})
+
+if res:
+    print(res)
 ```
 
