@@ -339,3 +339,66 @@ if res:
     print(res)
 ```
 
+Reading _expr_ from an internal file:
+
+``` python
+#!/usr/bin/env python3
+# /// script
+# requires-python = ">=3.12"
+# dependencies = [
+#     "common-expression-language",
+#     "typing-extensions",
+# ]
+# ///
+
+import sys
+
+from pathlib import Path
+
+import cel
+
+expr_file = Path("/tmp/test.expr")
+
+# Read the expression from the file
+try:
+    with expr_file.open(mode="r", encoding="utf-8") as f:
+        expr_str = f.read()
+except FileNotFoundError:
+    print("Expression file not found.")
+    sys.exit(1)
+
+try:
+    program = cel.compile(expr_str)
+except cel.CELCompileError as e:
+    print(f"Failed to compile expression: {e}")
+    sys.exit(1)
+
+res = program.execute({"line": "sssd status: Constraint violation detected"})
+
+if res:
+    print(res[0])
+```
+
+``` expr
+// ==================================
+// SSSD Error Pattern Dictionary List
+// ==================================
+[
+  {
+    "pattern": "Constraint violation",
+    "message": "LDAP: Constraint violation (AD Policy restriction)"
+  }
+]
+// ======================================================================================
+// EDIT WITH CAUTION: The following code processes log lines and matches them against
+// the above patterns to generate user-friendly messages. Do not modify the logic without
+// understanding the context of the patterns and their corresponding messages.
+// ======================================================================================
+.filter(item, line.contains(item.pattern))
+.map(item, item.message)
+```
+
+``` shell
+$ uv run test.py
+LDAP: Constraint violation (AD Policy restriction)
+```
