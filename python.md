@@ -306,3 +306,29 @@ $ printf '%s\n%s\n' '{% set _pkg = apache_httpd_package | default("apache2", tru
     jinja -D apache_httpd_package httpd
 httpd
 ```
+
+
+## Scripting inside Python
+
+### Google CEL
+
+[Google
+CEL](https://python-common-expression-language.readthedocs.io/en/latest)
+might be a way to go, if you need a scripting in Python with a safe,
+embeddable expression language.
+
+``` python
+from cel_expr_python import cel
+
+# Initialize environment with variable type definitions
+env = cel.NewEnv(variables={"line": cel.Type.STRING})
+
+# Compile an expression (CEL syntax uses 'in' instead of 'contains')
+expr_str = "'Constraint violation' in line ? 'LDAP Error Flagged' : ''"
+program = env.compile(expr_str)
+
+# Run evaluation
+res = program.eval(data={"line": "sssd status: Constraint violation detected"})
+print(res.value())  # Outputs: LDAP Error Flagged
+```
+
