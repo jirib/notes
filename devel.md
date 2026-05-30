@@ -3,128 +3,8 @@
 
 ## Applications
 
-### OSC
 
-``` shell
-$ env PAGER=cat osc list PTF:29457
-pacemaker.SUSE_SLE-15-SP5_Update
-patchinfo
-
-$ env PAGER=cat osc log PTF:29457/pacemaker.SUSE_SLE-15-SP5_Update
-----------------------------------------------------------------------------
-r5 | user1 | 2025-03-11 11:15:33 | 3a79f5bc93d2ffb859841d69fb452b60 | unknown | 
-
-PTF build PTF:29457 for example.com. Seqno: 3. Type: TEST
-
-----------------------------------------------------------------------------
-r4 | user1 | 2025-03-11 11:05:23 | 970b974c9f39225b9cc57327aefd42bc | unknown | 
-
-PTF build PTF:29457 for example.com. Seqno: 2. Type: TEST
-
-----------------------------------------------------------------------------
-r3 | user1 | 2025-03-11 10:13:36 | 241ff8808bad51b1cb6e06842175a3cb | unknown | 
-
-PTF build PTF:29457 for example.com. Seqno: 1. Type: TEST
-
-----------------------------------------------------------------------------
-r2 | user1 | 2025-03-11 10:09:25 | 7c16bb24a8ce4ef29216c198429b7bae | unknown | 
-
-Start of the L3 process
-
-Customer: example.com
-Incident: YYYYY
-Bug:      XXXXXXX
-
-
-----------------------------------------------------------------------------
-r1 | user1 | 2025-03-11 10:08:53 | d66e23590259b751536b371ced1ae32a | unknown | 
-
-<no message>
-```
-
-``` shell
-$ osc rdiff SUSE:SLE-15-SP5:Update pacemaker PTF:29457 pacemaker.SUSE_SLE-15-SP5_Update | grep -P -- '^(\-{3}|\+{3})\s'
---- pacemaker.changes (revision 6)
-+++ pacemaker.changes (revision 5)
---- pacemaker.spec (revision 6)
-+++ pacemaker.spec (revision 5)
---- _ptf (added)
-+++ _ptf (revision 5)
---- bsc#1238519-libpe_status-consider-parents-of-an-unmanaged-resource-active-on-the-node.patch (added)
-+++ bsc#1238519-libpe_status-consider-parents-of-an-unmanaged-resource-active-on-the-node.patch (revision 5)
-```
-
-``` shell
-$ osc ls | grep REQUEST:366096
-SUSE:Maintenance:REQUEST:366096
-```
-
-There's also `_servicedata` file which points to OBS internal metadata.
-
-
-## C / C++
-
-``` shell
-nm -D <shared_library> | awk '$2 == "T" { print $NF }' | sort -u # get global library symbols
-objdump -T <shared_library> | \
-  awk 'NR>4 && $2 == "g" && NF ~ /^[a-z]/ { print $NF }' | \
-  sort -u                                                        # get global library symbols
-readelf -sW <shared_library> | \
-  awk '$5 == "GLOBAL" && $7 ~ /[0-9]+/ { sub(/@.*/,""); print $NF }' | \
-  sort -u                                                        # get global library symbols
-```
-
-A C code with seccomp filter, an example: https://gist.github.com/fntlnz/08ae20befb91befd9a53cd91cdc6d507.
-
-``` c
-#include <errno.h>
-#include <linux/audit.h>
-#include <linux/bpf.h>
-#include <linux/filter.h>
-#include <linux/seccomp.h>
-#include <linux/unistd.h>
-#include <stddef.h>
-#include <stdio.h>
-#include <sys/prctl.h>
-#include <unistd.h>
-
-static int install_filter(int nr, int arch, int error) {
-  struct sock_filter filter[] = {
-      BPF_STMT(BPF_LD + BPF_W + BPF_ABS, (offsetof(struct seccomp_data, arch))),
-      BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, arch, 0, 3),
-      BPF_STMT(BPF_LD + BPF_W + BPF_ABS, (offsetof(struct seccomp_data, nr))),
-      BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, nr, 0, 1),
-      BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_ERRNO | (error & SECCOMP_RET_DATA)),
-      BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_ALLOW),
-  };
-  struct sock_fprog prog = {
-      .len = (unsigned short)(sizeof(filter) / sizeof(filter[0])),
-      .filter = filter,
-  };
-  if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
-    perror("prctl(NO_NEW_PRIVS)");
-    return 1;
-  }
-  if (prctl(PR_SET_SECCOMP, 2, &prog)) {
-    perror("prctl(PR_SET_SECCOMP)");
-    return 1;
-  }
-  return 0;
-}
-
-int main() {
-  printf("hey there!\n");
-
-  install_filter(__NR_write, AUDIT_ARCH_X86_64, EPERM);
-
-  printf("something's gonna happen!!\n");
-  printf("it will not definitely print this here\n");
-  return 0;
-}
-```
-
-
-## diff / patch
+### Diffs and patches
 
 To extract hunks from a diff, see https://stackoverflow.com/questions/1990498/how-to-patch-only-a-particular-hunk-from-a-diff.
 
@@ -151,9 +31,6 @@ $ diff -uNp <(pandoc -f odt -t plain /tmp/orig.odt) \
     <(pandoc -f odt -t plain /tmp/new.odt) \
     | filterdiff --lines=171,180
 ```
-
-
-## GIT
 
 
 ### GitHub CLI
@@ -206,185 +83,7 @@ jiri-belka/doc-sleha     Official SUSE Linux Enterprise High Availability docume
 ```
 
 
-### GIT attributes
-
-How to make a custom `diff` for a binary file?
-
-``` shell
-$ tail -n3 .git/config
-[diff "docx"]
-    binary = true
-    textconv = /home/jiri/bin/docx-3rd-column.py
-
-$ tail -n1 .gitattributes
-*.docx diff=docx
-```
-
-So, now `git diff` will use above _textconv_ script... Voila!
-
-
-### GIT over SSH
-
-If one uses different SSH keys for various projects (which are hosted
-on same remote host and use same remote username,
-ie. `$HOME/.ssh/config` setting won't work), one could use
-`GIT_SSH_COMMAND` environment variable.
-
-This is especially useful for initial `git clone`.
-
-``` shell
-GIT_SSH_COMMAND="ssh -i <keyfile>" git clone <user>@<server>:project/repo.github
-grep ssh .git/confg                           # no SSH settings configured
-git config core.sshCommand "ssh -i <keyfile>" # set SSH settings per repo
-```
-
-
-### GIT operations
-
-cloning a huge repo could take ages because of its history, adding `--depth 1`
-will copy only the latest revision of everything in the repository.
-
-``` shell
-$ git clone --depth 1 git@github.com:torvalds/linux.git
-```
-
-
-### GIT submodules
-
-``` shell
-git clone <repo_url>
-# after initial cloning, repo does not have submodules
-grep path .gitmodules ; [[ -z $(ls -A <submodule_path) ]] && \
-    echo empty || echo exists
-        path = <submodule_path>
-empty
-git submodule init
-git submodule update
-[[ -z $(ls -A <submodule_path>) ]] && echo empty || echo exists
-exists
-```
-
-
-### GIT-LFS
-
-`git-lfs` is used to efficiently manage big binary files in a git repo.
-
-``` shell
-$ echo $GIT_DIR
-$ /home/jiri/www/.git
-
-$ git lfs env
-git-lfs/3.4.1 (GitHub; linux amd64; go 1.21.5)
-git version 2.43.0
-
-LocalWorkingDir=/home/jiri/www/data-202312290103
-LocalGitDir=/home/jiri/www/.git
-LocalGitStorageDir=/home/jiri/www/.git
-LocalMediaDir=/home/jiri/www/.git/lfs/objects
-LocalReferenceDirs=
-TempDir=/home/jiri/www/.git/lfs/tmp
-ConcurrentTransfers=8
-TusTransfers=false
-BasicTransfersOnly=false
-SkipDownloadErrors=false
-FetchRecentAlways=false
-FetchRecentRefsDays=7
-FetchRecentCommitsDays=0
-FetchRecentRefsIncludeRemotes=true
-PruneOffsetDays=3
-PruneVerifyRemoteAlways=false
-PruneRemoteName=origin
-LfsStorageDir=/home/jiri/www/.git/lfs
-AccessDownload=none
-AccessUpload=none
-DownloadTransfers=basic,lfs-standalone-file,ssh
-UploadTransfers=basic,lfs-standalone-file,ssh
-GIT_DIR=/home/jiri/www/.git
-GIT_EXEC_PATH=/usr/lib/git-core
-git config filter.lfs.process = "git-lfs filter-process"
-git config filter.lfs.smudge = "git-lfs smudge -- %f"
-git config filter.lfs.clean = "git-lfs clean -- %f"
-```
-
-See above `LfsStorageDir`.
-
-
-### GIT tricks & tips
-
-- Get GH PR as raw diff/patch, an example:
-  https://github.com/weppos/whois/pull/90.diff
-  https://github.com/weppos/whois/pull/90.patch
-- Search commit diffs which introduce or remove a pattern:
-  ``` shell
-  $ git log -S <pattern>
-  ```
-- Working with bare repository:
-  ``` shell
-  $ git --no-pager --git-dir /path/to/bar/repo.git show branch:path/to/file.txt
-  ```
-
-
-### GIT: github-cli
-
-UPDATE: use `mise` instead of `asdf`!
-
-``` shell
-$ asdf plugin add github-cli
-$ asdf install github-cli latest
-$ asdf global github-cli 2.67.0
-
-$ gh auth login -p ssh
-? Where do you use GitHub? GitHub.com
-? Upload your SSH public key to your GitHub account? /home/jiri/.ssh/id_ed25519.pub
-? Title for your SSH key: GitHub CLI
-? How would you like to authenticate GitHub CLI? Login with a web browser
-
-! First copy your one-time code: XXXX-YYYY
-Press Enter to open https://github.com/login/device in your browser... 
-Opening in existing browser session.
-✓ Authentication complete.
-- gh config set -h github.com git_protocol ssh
-✓ Configured git protocol
-✓ SSH key already existed on your GitHub account: /home/jiri/.ssh/id_ed25519.pub
-✓ Logged in as jirib
-! You were already logged in to this account
-```
-
-``` shell
-$ gh repo list # to list repos
-$ gh repo create
-```
-
-An example:
-
-``` shell
-$ gh repo create \
-    scribus-scripts \
-    -r origin -s . \
-    --push --public --disable-wiki -d 'my scribus python scripts'
-✓ Created repository jirib/scribus-scripts on GitHub
-  https://github.com/jirib/scribus-scripts
-✓ Added remote git@github.com:jirib/scribus-scripts.git
-Enumerating objects: 3, done.
-Counting objects: 100% (3/3), done.
-Delta compression using up to 16 threads
-Compressing objects: 100% (3/3), done.
-Writing objects: 100% (3/3), 1.10 KiB | 1.10 MiB/s, done.
-Total 3 (delta 0), reused 0 (delta 0), pack-reused 0
-To github.com:jirib/scribus-scripts.git
- * [new branch]      HEAD -> main
-branch 'main' set up to track 'origin/main'.
-✓ Pushed commits to git@github.com:jirib/scribus-scripts.git
-```
-
-
-## JSON
-
-A [playgroun](https://jqplay.org/) for `jq`.
-
-
-
-## (GNU) MAKE
+### (GNU) MAKE
 
 AN example how to automate creating of vCenter in KVM:
 
@@ -467,7 +166,326 @@ clean:
 ```
 
 
-## Perl
+### IDE
+
+
+#### Visual Studio Code
+
+Cool extensions:
+- GitLens
+- Prettier - Code Formatter
+- Todo Tree
+- YAML (from Red Hat)
+
+
+#### Debugging in VSCode
+
+_VSCode_ uses `.vscode/launch.json` to provide more specific configuration for
+debugging (if such a configuration does not exists, the debugging
+would use currently open file, this is helpful if an application
+consists of multiple files/modules/libraries).
+
+An example for a python app, here debugging the app with a specific argument:
+
+``` json
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "list-indicators argument",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "wb_country_stats",
+            "args": ["--list-indicators"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        },
+        {
+            "name": "help argument",
+            "type": "debugpy",
+            "request": "launch",
+            "module": "wb_country_stats",
+            "args": ["--help"],
+            "cwd": "${workspaceFolder}",
+            "console": "integratedTerminal",
+            "justMyCode": true
+        }
+    ]
+}
+```
+
+* _type_: indicates a debugger
+* _request_: how to associate to debugging, either _launch_ (launching
+  the app) or _attach_ (attaching to a runnnig process)
+* _name_: a friendly name of the configuration
+
+
+### Mise
+
+> \[[Mise\]](https://mise.jdx.dev/) installs and activates the right tools, loads the right env vars, and wires up
+> the right tasks for the commands you run.
+
+``` shell
+$ tail -n1 ~/.bashrc
+eval "$(${HOME}/.local/bin/mise activate bash)"
+```
+
+Just use `mise` to install Python version you need.
+
+``` shell
+$ mkdir test_project
+$ cd $_
+$ ls -1a
+.
+
+$ mise use python@3.14.3
+
+$ ls -1a
+.
+..
+mise.toml
+$ cat mise.toml 
+[tools]
+python = "3.14.3"
+
+$ which python3
+~/.local/share/mise/installs/python/3.14.3/bin/python3
+
+$ (cd ~ ; which python3)
+/usr/bin/python3
+```
+
+Now, let's assume we just need the latest Python 3.14:
+
+``` shell
+$ python3 -V
+Python 3.14.3
+
+$ sed -i 's/3.14.3/3.14/' mise.toml
+
+$ mise which python3
+/home/jiri/.local/share/mise/installs/python/3.14/bin/python3
+
+$ mise up
+$ mise use python@3.14
+$ mise which python3
+/home/jiri/.local/share/mise/installs/python/3.14/bin/python3
+
+$ python3 -V
+Python 3.14.5
+```
+
+Tasks are another cool feature in _Mise_.
+
+``` toml
+$ cat mise.toml 
+min_version = "2026.2.4"
+
+[env]
+_.python.venv = { path = ".venv", create = true }
+
+[tools]
+python = "3.12"
+uv = "latest"
+ruff = "latest"
+
+[tasks.setup]
+description = "Install dependencies and local package in editable mode with dev components"
+run = "uv sync"
+
+[tasks.lint]
+description = "Lint the code"
+run = "ruff check src/"
+
+[tasks."run:sssd-inspector"]
+description = "Execute sssd-inspector instantly using local source code"
+run = "uv run sssd-inspector"
+
+[tasks."run:supportconfig2sssd-logs"]
+description = "Execute supportconfig2sssd-logs instantly using local source code"
+run = "uv run supportconfig2sssd-logs"
+
+[tasks.typecheck]
+description = "Verify type compliance using pyright"
+run = "uv run pyright src/"
+
+[tasks.test]
+description = "Run tests"
+run = "uv run pytest"
+
+[tasks."install-global"]
+description = "Install the finished application locally into an isolated path"
+run = "uv tool install . --force"
+```
+
+``` shell
+$ mise run lint
+[lint] $ ruff check src/
+All checks passed!
+$ mise run typecheck
+[typecheck] $ uv run pyright src/
+0 errors, 0 warnings, 0 informations
+```
+
+Thus, _Mise_ can be used as a build tool in CI too.
+
+For VSCode, there's _Mise VSCode_ extension.
+
+
+#### Mise on Windows
+
+1. `winget install jdx.mise`
+2. `mise use -g uv@latest`
+3. `mise exec -- uv run <script>`
+
+An alternative solution, for example if one needs to use an HTTP proxy.
+
+1. powershell
+2. `Set-ExecutionPolicy RemoteSigned -scope CurrentUser`
+3. `(irm https://astral.sh/uv/install.ps1) -replace '\bexit\b', '#exit removed' | iex`
+4. `$env:Path = "C:\Users\user\.local\bin;$env:Path"`
+5. Use a [PEP 723](https://peps.python.org/pep-0723/) comfortant
+   script, see https://realpython.com/python-script-structure/
+6. `uv run <python script>`
+   ```
+   PS C:\Users\user> uv run .\a5_to_a4.py input.pdf output.pdf
+   Installed 1 package in 103ms
+   Done: output.pdf
+   ```
+
+
+### OSC
+
+``` shell
+$ env PAGER=cat osc list PTF:29457
+pacemaker.SUSE_SLE-15-SP5_Update
+patchinfo
+
+$ env PAGER=cat osc log PTF:29457/pacemaker.SUSE_SLE-15-SP5_Update
+----------------------------------------------------------------------------
+r5 | user1 | 2025-03-11 11:15:33 | 3a79f5bc93d2ffb859841d69fb452b60 | unknown | 
+
+PTF build PTF:29457 for example.com. Seqno: 3. Type: TEST
+
+----------------------------------------------------------------------------
+r4 | user1 | 2025-03-11 11:05:23 | 970b974c9f39225b9cc57327aefd42bc | unknown | 
+
+PTF build PTF:29457 for example.com. Seqno: 2. Type: TEST
+
+----------------------------------------------------------------------------
+r3 | user1 | 2025-03-11 10:13:36 | 241ff8808bad51b1cb6e06842175a3cb | unknown | 
+
+PTF build PTF:29457 for example.com. Seqno: 1. Type: TEST
+
+----------------------------------------------------------------------------
+r2 | user1 | 2025-03-11 10:09:25 | 7c16bb24a8ce4ef29216c198429b7bae | unknown | 
+
+Start of the L3 process
+
+Customer: example.com
+Incident: YYYYY
+Bug:      XXXXXXX
+
+
+----------------------------------------------------------------------------
+r1 | user1 | 2025-03-11 10:08:53 | d66e23590259b751536b371ced1ae32a | unknown | 
+
+<no message>
+```
+
+``` shell
+$ osc rdiff SUSE:SLE-15-SP5:Update pacemaker PTF:29457 pacemaker.SUSE_SLE-15-SP5_Update | grep -P -- '^(\-{3}|\+{3})\s'
+--- pacemaker.changes (revision 6)
++++ pacemaker.changes (revision 5)
+--- pacemaker.spec (revision 6)
++++ pacemaker.spec (revision 5)
+--- _ptf (added)
++++ _ptf (revision 5)
+--- bsc#1238519-libpe_status-consider-parents-of-an-unmanaged-resource-active-on-the-node.patch (added)
++++ bsc#1238519-libpe_status-consider-parents-of-an-unmanaged-resource-active-on-the-node.patch (revision 5)
+```
+
+``` shell
+$ osc ls | grep REQUEST:366096
+SUSE:Maintenance:REQUEST:366096
+```
+
+There's also `_servicedata` file which points to OBS internal metadata.
+
+
+## Programming and markup languages
+
+
+### C / C++
+
+``` shell
+nm -D <shared_library> | awk '$2 == "T" { print $NF }' | sort -u # get global library symbols
+objdump -T <shared_library> | \
+  awk 'NR>4 && $2 == "g" && NF ~ /^[a-z]/ { print $NF }' | \
+  sort -u                                                        # get global library symbols
+readelf -sW <shared_library> | \
+  awk '$5 == "GLOBAL" && $7 ~ /[0-9]+/ { sub(/@.*/,""); print $NF }' | \
+  sort -u                                                        # get global library symbols
+```
+
+A C code with seccomp filter, an example: https://gist.github.com/fntlnz/08ae20befb91befd9a53cd91cdc6d507.
+
+``` c
+#include <errno.h>
+#include <linux/audit.h>
+#include <linux/bpf.h>
+#include <linux/filter.h>
+#include <linux/seccomp.h>
+#include <linux/unistd.h>
+#include <stddef.h>
+#include <stdio.h>
+#include <sys/prctl.h>
+#include <unistd.h>
+
+static int install_filter(int nr, int arch, int error) {
+  struct sock_filter filter[] = {
+      BPF_STMT(BPF_LD + BPF_W + BPF_ABS, (offsetof(struct seccomp_data, arch))),
+      BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, arch, 0, 3),
+      BPF_STMT(BPF_LD + BPF_W + BPF_ABS, (offsetof(struct seccomp_data, nr))),
+      BPF_JUMP(BPF_JMP + BPF_JEQ + BPF_K, nr, 0, 1),
+      BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_ERRNO | (error & SECCOMP_RET_DATA)),
+      BPF_STMT(BPF_RET + BPF_K, SECCOMP_RET_ALLOW),
+  };
+  struct sock_fprog prog = {
+      .len = (unsigned short)(sizeof(filter) / sizeof(filter[0])),
+      .filter = filter,
+  };
+  if (prctl(PR_SET_NO_NEW_PRIVS, 1, 0, 0, 0)) {
+    perror("prctl(NO_NEW_PRIVS)");
+    return 1;
+  }
+  if (prctl(PR_SET_SECCOMP, 2, &prog)) {
+    perror("prctl(PR_SET_SECCOMP)");
+    return 1;
+  }
+  return 0;
+}
+
+int main() {
+  printf("hey there!\n");
+
+  install_filter(__NR_write, AUDIT_ARCH_X86_64, EPERM);
+
+  printf("something's gonna happen!!\n");
+  printf("it will not definitely print this here\n");
+  return 0;
+}
+```
+
+
+### JSON
+
+Not really a langue or markup format but anyway... A [playgroun](https://jqplay.org/)
+for `jq`.
+
+
+### Perl
 
 For Perl command line, See https://www.perl.com/pub/2004/08/09/commandline.html/.
 
@@ -480,7 +498,7 @@ For Perl command line, See https://www.perl.com/pub/2004/08/09/commandline.html/
   defaults to whitespace
 
 
-### Perl: regex
+#### Perl: regex
 
 - `(?:pattern)` - non-capturing group
 - `(.*?)` - non-greedy pattern, see an example:
@@ -495,7 +513,7 @@ For Perl command line, See https://www.perl.com/pub/2004/08/09/commandline.html/
   ```
 
 
-### Perl: CPAN
+#### Perl: CPAN
 
 How to add a lib/module into a Perl application, or generally, how to use CPAN:
 
@@ -535,7 +553,7 @@ use lib '/var/spool/amavis/perl5/lib/perl5';
 ```
 
 
-## PHP
+### PHP
 
 `phpinfo()` shows some basic info about PHP on the system:
 
@@ -599,9 +617,160 @@ $ pecl uninstall mcrypt
 ```
 
 
-## PYTHON
+### PYTHON
 
 See [python.md](python.md).
+
+
+### XML
+
+XML Entity Includes allow including an external XML file:
+
+``` shell
+$ nl server.xml | sed -n -e '1,4p' -e '/\&connector1-config/p'
+     1  <?xml version="1.0" encoding="UTF-8"?>
+     2  <!DOCTYPE server-xml [
+     3        <!ENTITY connector1-config SYSTEM "include.xml">
+     4      ]>
+    67      &connector1-config;
+
+$ cat include.xml 
+    <Connector port="9999" protocol="HTTP/1.1"
+               connectionTimeout="20000"
+               redirectPort="9998" />
+	       
+$ xsltproc --output - valve.xslt server.xml | sed -n -e '1,4p' -e '/port="999[89]"/p'
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  Licensed to the Apache Software Foundation (ASF) under one or more
+  contributor license agreements.  See the NOTICE file distributed with
+    <Connector port="9999" protocol="HTTP/1.1" connectionTimeout="20000" redirectPort="9998"/>
+```
+
+
+## Version Control systems
+
+
+### GIT
+
+
+#### GIT attributes
+
+How to make a custom `diff` for a binary file?
+
+``` shell
+$ tail -n3 .git/config
+[diff "docx"]
+    binary = true
+    textconv = /home/jiri/bin/docx-3rd-column.py
+
+$ tail -n1 .gitattributes
+*.docx diff=docx
+```
+
+So, now `git diff` will use above _textconv_ script... Voila!
+
+
+#### GIT over SSH
+
+If one uses different SSH keys for various projects (which are hosted
+on same remote host and use same remote username,
+ie. `$HOME/.ssh/config` setting won't work), one could use
+`GIT_SSH_COMMAND` environment variable.
+
+This is especially useful for initial `git clone`.
+
+``` shell
+GIT_SSH_COMMAND="ssh -i <keyfile>" git clone <user>@<server>:project/repo.github
+grep ssh .git/confg                           # no SSH settings configured
+git config core.sshCommand "ssh -i <keyfile>" # set SSH settings per repo
+```
+
+
+#### GIT operations
+
+cloning a huge repo could take ages because of its history, adding `--depth 1`
+will copy only the latest revision of everything in the repository.
+
+``` shell
+$ git clone --depth 1 git@github.com:torvalds/linux.git
+```
+
+
+#### GIT submodules
+
+``` shell
+git clone <repo_url>
+# after initial cloning, repo does not have submodules
+grep path .gitmodules ; [[ -z $(ls -A <submodule_path) ]] && \
+    echo empty || echo exists
+        path = <submodule_path>
+empty
+git submodule init
+git submodule update
+[[ -z $(ls -A <submodule_path>) ]] && echo empty || echo exists
+exists
+```
+
+
+#### GIT-LFS
+
+`git-lfs` is used to efficiently manage big binary files in a git repo.
+
+``` shell
+$ echo $GIT_DIR
+$ /home/jiri/www/.git
+
+$ git lfs env
+git-lfs/3.4.1 (GitHub; linux amd64; go 1.21.5)
+git version 2.43.0
+
+LocalWorkingDir=/home/jiri/www/data-202312290103
+LocalGitDir=/home/jiri/www/.git
+LocalGitStorageDir=/home/jiri/www/.git
+LocalMediaDir=/home/jiri/www/.git/lfs/objects
+LocalReferenceDirs=
+TempDir=/home/jiri/www/.git/lfs/tmp
+ConcurrentTransfers=8
+TusTransfers=false
+BasicTransfersOnly=false
+SkipDownloadErrors=false
+FetchRecentAlways=false
+FetchRecentRefsDays=7
+FetchRecentCommitsDays=0
+FetchRecentRefsIncludeRemotes=true
+PruneOffsetDays=3
+PruneVerifyRemoteAlways=false
+PruneRemoteName=origin
+LfsStorageDir=/home/jiri/www/.git/lfs
+AccessDownload=none
+AccessUpload=none
+DownloadTransfers=basic,lfs-standalone-file,ssh
+UploadTransfers=basic,lfs-standalone-file,ssh
+GIT_DIR=/home/jiri/www/.git
+GIT_EXEC_PATH=/usr/lib/git-core
+git config filter.lfs.process = "git-lfs filter-process"
+git config filter.lfs.smudge = "git-lfs smudge -- %f"
+git config filter.lfs.clean = "git-lfs clean -- %f"
+```
+
+See above `LfsStorageDir`.
+
+
+#### GIT tricks & tips
+
+- Get GH PR as raw diff/patch, an example:
+  https://github.com/weppos/whois/pull/90.diff
+  https://github.com/weppos/whois/pull/90.patch
+- Search commit diffs which introduce or remove a pattern:
+  ``` shell
+  $ git log -S <pattern>
+  ```
+- Working with bare repository:
+  ``` shell
+  $ git --no-pager --git-dir /path/to/bar/repo.git show branch:path/to/file.txt
+  ```
+
 
 ## SVN
 
@@ -650,78 +819,4 @@ Index: scribus/ui/printdialog.cpp
         }
         printAllRadio->setChecked(prefs->getBool("PrintAll", true));
         printCurrentRadio->setChecked(prefs->getBool("CurrentPage", false));
-```
-
-
-## Visual Studio Code
-
-
-### Debugging in VSCode
-
-_VSCode_ uses `.vscode/launch.json` to provide more specific configuration for
-debugging (if such a configuration does not exists, the debugging
-would use currently open file, this is helpful if an application
-consists of multiple files/modules/libraries).
-
-An example for a python app, here debugging the app with a specific argument:
-
-``` json
-{
-    "version": "0.2.0",
-    "configurations": [
-        {
-            "name": "list-indicators argument",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "wb_country_stats",
-            "args": ["--list-indicators"],
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
-            "justMyCode": true
-        },
-        {
-            "name": "help argument",
-            "type": "debugpy",
-            "request": "launch",
-            "module": "wb_country_stats",
-            "args": ["--help"],
-            "cwd": "${workspaceFolder}",
-            "console": "integratedTerminal",
-            "justMyCode": true
-        }
-    ]
-}
-```
-
-* _type_: indicates a debugger
-* _request_: how to associate to debugging, either _launch_ (launching
-  the app) or _attach_ (attaching to a runnnig process)
-* _name_: a friendly name of the configuration
-
-For python code, it is preferred to use _module_ instead of _program_
-in `.vscode/launch.json`.
-
-
-## XML
-
-XML Entity Includes allow including an external XML file:
-
-``` shell
-$ jiri@t14s:/tmp$ nl server.xml | sed -n -e '1,4p' -e '/\&connector1-config/p'
-     1  <?xml version="1.0" encoding="UTF-8"?>
-     2  <!DOCTYPE server-xml [
-     3        <!ENTITY connector1-config SYSTEM "include.xml">
-     4      ]>
-    67      &connector1-config;
-$ cat include.xml 
-    <Connector port="9999" protocol="HTTP/1.1"
-               connectionTimeout="20000"
-               redirectPort="9998" />
-	       
-$ xsltproc --output - valve.xslt server.xml | sed -n -e '1,4p' -e '/port="999[89]"/p'
-<?xml version="1.0" encoding="UTF-8"?>
-<!--
-  Licensed to the Apache Software Foundation (ASF) under one or more
-  contributor license agreements.  See the NOTICE file distributed with
-    <Connector port="9999" protocol="HTTP/1.1" connectionTimeout="20000" redirectPort="9998"/>
 ```
