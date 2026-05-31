@@ -276,10 +276,9 @@ $ python3 -V
 Python 3.14.5
 ```
 
-Tasks are another cool feature in _Mise_.
+Tasks are another cool feature in _Mise_, an example `mise.toml`.
 
 ``` toml
-$ cat mise.toml 
 min_version = "2026.2.4"
 
 [env]
@@ -323,6 +322,7 @@ run = "uv tool install . --force"
 $ mise run lint
 [lint] $ ruff check src/
 All checks passed!
+
 $ mise run typecheck
 [typecheck] $ uv run pyright src/
 0 errors, 0 warnings, 0 informations
@@ -420,11 +420,13 @@ There's also `_servicedata` file which points to OBS internal metadata.
 ### C / C++
 
 ``` shell
-nm -D <shared_library> | awk '$2 == "T" { print $NF }' | sort -u # get global library symbols
-objdump -T <shared_library> | \
+$ nm -D <shared_library> | awk '$2 == "T" { print $NF }' | sort -u # get global library symbols
+
+$ objdump -T <shared_library> | \
   awk 'NR>4 && $2 == "g" && NF ~ /^[a-z]/ { print $NF }' | \
   sort -u                                                        # get global library symbols
-readelf -sW <shared_library> | \
+
+$ readelf -sW <shared_library> | \
   awk '$5 == "GLOBAL" && $7 ~ /[0-9]+/ { sub(/@.*/,""); print $NF }' | \
   sort -u                                                        # get global library symbols
 ```
@@ -786,7 +788,6 @@ trunk/
 
 ``` shell
 # to get "upstream"
-
 $ sqlite3 .svn/wc.db << EOF
 SELECT (repository.root || '/' || nodes.local_relpath) AS full_url
 FROM repository, nodes

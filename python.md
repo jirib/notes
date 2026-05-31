@@ -231,7 +231,7 @@ Analyzing logs: 100%|███████████████████�
 ```
 
 ```shell
-$ $ mojo2austin sssd-inspector.mojo sssd-inspector.austin
+$ mojo2austin sssd-inspector.mojo sssd-inspector.austin
 $ file sssd-inspector.*
 sssd-inspector.austin: ASCII text, with very long lines (2728)
 sssd-inspector.mojo:   data
