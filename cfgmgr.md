@@ -249,6 +249,11 @@ localhost | SUCCESS => {
 
 Works as expected!
 
+There's _@signageos/vscode-sops_ extension, which when editing a
+SOPS-protected file automatically shows/provides decrypted
+version. After saving and closing, if checked outside VSCode, the file
+is SOPS-protected.
+
 
 ## Saltstack aka salt
 
