@@ -173,6 +173,7 @@ clean:
 
 Cool extensions:
 - GitLens
+- Better Jinja (_Samuel Colvin_'s one because it supports, eg. jinja-shell...)
 - Prettier - Code Formatter
 - Todo Tree
 - YAML (from Red Hat)
