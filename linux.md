@@ -8122,44 +8122,36 @@ virt-install \
   --location=http://mirror.slu.cz/centos/7/os/x86_64/
 ```
 
-##### mpio
+##### multipath
 
-it seems libvirt allows multipath only on *raw* format disks, thus
-keep that in mind; SLES sets mpio during installation.
+You can use LIO loopback based devices for multipath, see [multipath with loopback locally](#multipath-with-loopback-locally).
 
-```
-    <disk type='file' device='disk'>
-      <driver name='qemu' type='raw' cache='none'/>
-      <source file='<path>' index='2'/>
-      <backingStore/>
-      <target dev='sdb' bus='scsi'/>
-      <shareable/>
-      <serial>1234</serial>
-      <wwn>5000c50015ea71ad</wwn>
-      <boot order='1'/>
-      <alias name='scsi0-0-0-1'/>
-      <address type='drive' controller='0' bus='0' target='0' unit='1'/>
-    </disk>
-    <disk type='file' device='disk'>
-      <driver name='qemu' type='raw' cache='none'/>
-      <source file='<path>' index='1'/>
-      <backingStore/>
-      <target dev='sdc' bus='scsi'/>
-      <shareable/>
-      <serial>1234</serial>
-      <wwn>5000c50015ea71ad</wwn>
-      <alias name='scsi0-0-0-2'/>
-      <address type='drive' controller='0' bus='0' target='0' unit='2'/>
-    </disk>
-    <controller type='scsi' index='0' model='virtio-scsi'>
-      <alias name='scsi0'/>
-      <address type='pci' domain='0x0000' bus='0x00' slot='0x08' function='0x0'/>
-    </controller>
+``` xml
+<disk type='block' device='lun'>
+  <driver name='qemu' type='raw' cache='none'/>
+  <source dev='/dev/sde'>
+  </source>
+  <target dev='sda' bus='scsi'/>
+  <boot order='1'/>	
+  <alias name='scsi0-0-0-0'/>	
+  <address type='drive' controller='0' bus='0' target='0' unit='0'/>
+</disk>
+
+<disk type='block' device='lun'>
+  <driver name='qemu' type='raw' cache='none'/>
+  <source dev='/dev/sdf'>
+  </source>
+  <target dev='sdb' bus='scsi'/>
+  <boot order='2'/>	
+  <alias name='scsi0-0-1-0'/>	
+  <address type='drive' controller='0' bus='0' target='1' unit='0'/>
+</disk>
 ```
 
-and via "internal" iscsi driver
 
-```
+Or via "internal" iscsi driver
+
+``` xml
 <disk type="network" device="lun">
       <driver name="qemu" type="raw" cache="none"/>
       <source protocol="iscsi" name="<target>/<lun>" index="2">
