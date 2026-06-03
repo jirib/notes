@@ -88,7 +88,7 @@ A non-working example:
     - bar
 ```
 
-A workaround it to createa a virtual hosts per role loop instead.
+A workaround it to create virtual hosts per role loop instead.
 
 A workaround:
 
