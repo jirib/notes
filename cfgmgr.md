@@ -79,6 +79,8 @@ A non-working example:
 - name: Loop over a role
   ansible.builtin.include_role:
     name: some_role
+  async: 3600
+  poll: 0
   vars:
     some_role_var: "{{ item }}"
   loop:
