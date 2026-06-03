@@ -69,6 +69,68 @@ tom | SUCCESS => {
 ```
 
 
+### Roles
+
+Async looping over `ansible.builtin.include_role` doesn't work.
+
+A non-working example:
+
+``` yaml
+- name: Loop over a role
+  ansible.builtin.include_role:
+    name: some_role
+  vars:
+    some_role_var: "{{ item }}"
+  loop:
+    - foo
+    - bar
+```
+
+A workaround it to createa a virtual hosts per role loop instead.
+
+A workaround:
+
+``` yaml
+
+# PLAY 1: Lifecycle
+
+- name: Prepare some_role lifecycle
+  hosts: real_host
+  gather_facts: true
+
+  tasks:
+
+  - name: Map blueprints to dynamic in-memory parallel execution targets
+    ansible.builtin.add_host:
+      name: "{{ inventory_hostname }}_some_role_{{ item }}"
+      groups: "_parallel_workers"
+
+      # repush real_host connection details
+      ansible_host: "{{ ansible_host | default(inventory_hostname) }}"
+      ansible_user: "{{ ansible_user | default(omit) }}"
+      ansible_ssh_private_key_file: "{{ ansible_ssh_private_key_file | default(omit) }}"
+      ansible_ssh_common_args: "{{ ansible_ssh_common_args | default(omit) }}"
+
+      some_role_var: "{{ item }}"
+
+    loop:
+      - foo
+      - bar
+
+# PLAY 2: Async pipeline
+
+- name: Loop over roles via virtual list of hosts
+  hosts: _parallel_workers
+  gather_facts: false
+
+  tasks:
+
+  - name: Loop over a role
+    ansible.builtin.include_role:
+      name: some_role
+```
+
+
 ### Secrets in Ansible
 
 
