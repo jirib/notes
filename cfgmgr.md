@@ -319,6 +319,141 @@ version. After saving and closing, if checked outside VSCode, the file
 is SOPS-protected.
 
 
+## OpenTofu/Terraform
+
+
+### locals
+
+`locals` are local "module" ("module" can be even local directory)
+variables, usually for overriding variables from `variables.tf`.
+
+If using _override_ file, eg. `locals_override.tf`, each variable
+inside `locals` needs to be duplicated/masked, that is, you cannot
+have different variables in both definitions!
+
+
+### looping of resources
+
+The data used for looping the resources, eg. `count` or `for_each`
+cannot be marked as _sensitive_, because due to its characteristics,
+the data elements might be used as names for the resources.
+
+If there's a need to do something like that, one needs to split those
+data into two/multiple sets.
+
+A non-working example:
+
+``` terraform
+locals {
+  sensitive_data = sensitive({
+    "foo" = {
+      "password" = "secure-password-foo"
+    }
+    "bar" = {
+      "password" = "secure-password-bar"
+    }
+  })
+}
+
+resource "terraform_data" "demo" {
+  for_each = local.sensitive_data
+
+  input = {
+    "password" = each.key.password
+  }
+}
+```
+
+``` shell
+$ tofu plan
+╷
+│ Error: Invalid for_each argument
+│ 
+│   on main.tf line 13, in resource "terraform_data" "demo":
+│   13:   for_each = local.sensitive_data
+│     ├────────────────
+│     │ local.sensitive_data has a sensitive value
+│ 
+│ Sensitive values, or values derived from sensitive values, cannot be used as for_each arguments. If used, the sensitive value could be exposed as a resource instance key.
+╵
+╷
+│ Error: Unsupported attribute
+│ 
+│   on main.tf line 16, in resource "terraform_data" "demo":
+│   16:     "password" = each.key.password
+│     ├────────────────
+│     │ each.key is a string
+│ 
+│ Can't access attributes on a primitive-typed value (string).
+╵
+```
+
+And, a working example:
+
+``` terraform
+locals {
+  insensitive_topology = {
+    "foo" = {
+      "key" = "value"
+    }
+    "bar" = {
+      "key" = "value"
+    }
+  }
+
+  sensitive_data = sensitive({
+    "foo" = {
+      "password" = "secure-password-foo"
+    }
+    "bar" = {
+      "password" = "secure-password-bar"
+    }
+  })
+}
+
+resource "terraform_data" "demo" {
+  for_each = local.insensitive_topology
+
+  input = {
+    "password" = local.sensitive_data[each.key].password
+  }
+}
+```
+
+``` shell
+$ tofu plan
+
+OpenTofu used the selected providers to generate the following execution plan. Resource actions are indicated with the following symbols:
+  + create
+
+OpenTofu will perform the following actions:
+
+  # terraform_data.demo["bar"] will be created
+  + resource "terraform_data" "demo" {
+      + id     = (known after apply)
+      + input  = {
+          + password = (sensitive value)
+        }
+      + output = (known after apply)
+    }
+
+  # terraform_data.demo["foo"] will be created
+  + resource "terraform_data" "demo" {
+      + id     = (known after apply)
+      + input  = {
+          + password = (sensitive value)
+        }
+      + output = (known after apply)
+    }
+
+Plan: 2 to add, 0 to change, 0 to destroy.
+
+────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────────
+
+Note: You didn't use the -out option to save this plan, so OpenTofu can't guarantee to take exactly these actions if you run "tofu apply" now.
+```
+
+
 ## Saltstack aka salt
 
 Terminology cheat sheet:
