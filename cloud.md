@@ -212,7 +212,6 @@ $ grep -H '' /etc/cloud/cloud.cfg.d/95_local_nocloud.cfg
 /etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:datasource:
 /etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:  NoCloud:
 /etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:    meta-data: |
-??? /etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:      instance-id: agama-non-ask-
 /etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:    user-data: |
 /etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:      #cloud-config
 /etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:      chpasswd:
@@ -248,6 +247,167 @@ Hostname is: testovic
 ``` shell
 testovic:~ # hostname
 testovic
+```
+
+And, what about IP address? `bootcmd` runs too late! That's a bit more complicated!
+
+Some code stolen fro JeOS-firstboot ;)
+
+``` shell
+/etc/ask-cloud-init.sh:#!/bin/bash
+/etc/ask-cloud-init.sh:set -euo pipefail
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:CFG_DIR="/etc/cloud/cloud.cfg.d"
+/etc/ask-cloud-init.sh:CFG_FILE="$CFG_DIR/80_ask_cloud_init.cfg"
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:mkdir -p "$CFG_DIR"
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:if [ -f "$CFG_FILE" ]; then
+/etc/ask-cloud-init.sh:    exit 0
+/etc/ask-cloud-init.sh:fi
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:exec </dev/console >/dev/console 2>&1
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:cleanup() {
+/etc/ask-cloud-init.sh:    # Re-enable systemd status output.
+/etc/ask-cloud-init.sh:    if ! dbus-send --system --print-reply \
+/etc/ask-cloud-init.sh:        --dest=org.freedesktop.systemd1 \
+/etc/ask-cloud-init.sh:        /org/freedesktop/systemd1 \
+/etc/ask-cloud-init.sh:        org.freedesktop.systemd1.Manager.SetShowStatus string: \
+/etc/ask-cloud-init.sh:        &>/dev/null; then
+/etc/ask-cloud-init.sh:        kill -s SIGRTMAX-10 1 2>/dev/null || true
+/etc/ask-cloud-init.sh:    fi
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:    # Re-enable kernel messages on console.
+/etc/ask-cloud-init.sh:    setterm -msg on 2>/dev/null || true
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:    echo
+/etc/ask-cloud-init.sh:}
+/etc/ask-cloud-init.sh:trap cleanup EXIT INT TERM
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:# Disable kernel messages on console.
+/etc/ask-cloud-init.sh:setterm -msg off 2>/dev/null || true
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:# Disable systemd status messages on console.
+/etc/ask-cloud-init.sh:if ! dbus-send --system --print-reply \
+/etc/ask-cloud-init.sh:    --dest=org.freedesktop.systemd1 \
+/etc/ask-cloud-init.sh:    /org/freedesktop/systemd1 \
+/etc/ask-cloud-init.sh:    org.freedesktop.systemd1.Manager.SetShowStatus string:off \
+/etc/ask-cloud-init.sh:    &>/dev/null; then
+/etc/ask-cloud-init.sh:    kill -s SIGRTMAX-9 1 2>/dev/null || true
+/etc/ask-cloud-init.sh:    sleep 1
+/etc/ask-cloud-init.sh:fi
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:stty sane 2>/dev/null || true
+/etc/ask-cloud-init.sh:clear || true
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:echo
+/etc/ask-cloud-init.sh:echo "=================================================="
+/etc/ask-cloud-init.sh:echo "          INITIAL SYSTEM CONFIGURATION"
+/etc/ask-cloud-init.sh:echo "=================================================="
+/etc/ask-cloud-init.sh:echo
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:read -rp "Enter System Hostname (e.g. suse-node01): " CHOSEN_HOSTNAME
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:read -r MAC <<< "$(
+/etc/ask-cloud-init.sh:    ip -o link show |
+/etc/ask-cloud-init.sh:    awk '$2 !~ /^lo:/ {
+/etc/ask-cloud-init.sh:        for (i = 1; i <= NF; i++) {
+/etc/ask-cloud-init.sh:            if ($i == "link/ether") {
+/etc/ask-cloud-init.sh:                print $(i + 1)
+/etc/ask-cloud-init.sh:                exit
+/etc/ask-cloud-init.sh:            }
+/etc/ask-cloud-init.sh:        }
+/etc/ask-cloud-init.sh:    }'
+/etc/ask-cloud-init.sh:)"
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:echo
+/etc/ask-cloud-init.sh:echo "Detected primary interface with HW address: $MAC"
+/etc/ask-cloud-init.sh:echo "--------------------------------------------------"
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:read -rp "Enter Static IP with Prefix (e.g. 192.168.1.50/24): " IP_ADDR
+/etc/ask-cloud-init.sh:read -rp "Enter Gateway IP (e.g. 192.168.1.1): " GATEWAY
+/etc/ask-cloud-init.sh:read -rp "Enter DNS Server IP (e.g. 8.8.8.8): " DNS_SERVER
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:cat > "$CFG_FILE" <<EOF
+/etc/ask-cloud-init.sh:datasource_list: [ NoCloud, None ]
+/etc/ask-cloud-init.sh:datasource:
+/etc/ask-cloud-init.sh:  NoCloud:
+/etc/ask-cloud-init.sh:    meta-data: |
+/etc/ask-cloud-init.sh:      instance-id: iid-$CHOSEN_HOSTNAME
+/etc/ask-cloud-init.sh:      local-hostname: $CHOSEN_HOSTNAME
+/etc/ask-cloud-init.sh:    user-data: |
+/etc/ask-cloud-init.sh:      #cloud-config
+/etc/ask-cloud-init.sh:      {}
+/etc/ask-cloud-init.sh:network:
+/etc/ask-cloud-init.sh:  version: 2
+/etc/ask-cloud-init.sh:  ethernets:
+/etc/ask-cloud-init.sh:    interface0:
+/etc/ask-cloud-init.sh:      match:
+/etc/ask-cloud-init.sh:        macaddress: '$MAC'
+/etc/ask-cloud-init.sh:      set-name: eth0
+/etc/ask-cloud-init.sh:      dhcp4: false
+/etc/ask-cloud-init.sh:      dhcp6: false
+/etc/ask-cloud-init.sh:      addresses:
+/etc/ask-cloud-init.sh:        - $IP_ADDR
+/etc/ask-cloud-init.sh:      routes:
+/etc/ask-cloud-init.sh:        - to: 0.0.0.0/0
+/etc/ask-cloud-init.sh:          via: $GATEWAY
+/etc/ask-cloud-init.sh:      nameservers:
+/etc/ask-cloud-init.sh:        addresses:
+/etc/ask-cloud-init.sh:          - $DNS_SERVER
+/etc/ask-cloud-init.sh:EOF
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:chmod 0644 "$CFG_FILE"
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:echo
+/etc/ask-cloud-init.sh:echo "--> NoCloud configuration written successfully:"
+/etc/ask-cloud-init.sh:echo "    $CFG_FILE"
+/etc/ask-cloud-init.sh:echo
+/etc/ask-cloud-init.sh:echo "--> Hostname: $CHOSEN_HOSTNAME"
+/etc/ask-cloud-init.sh:echo "--> Interface HW address: $MAC"
+/etc/ask-cloud-init.sh:echo "--> IP address: $IP_ADDR"
+/etc/ask-cloud-init.sh:echo "--> Gateway: $GATEWAY"
+/etc/ask-cloud-init.sh:echo "--> DNS: $DNS_SERVER"
+/etc/ask-cloud-init.sh:echo
+/etc/ask-cloud-init.sh:echo "--> Handing control over to cloud-init..."
+/etc/ask-cloud-init.sh:sleep 2
+/etc/cloud/cloud.cfg.d/00-datasource.cfg:datasource_list: [ NoCloud, None ]
+/etc/systemd/system/ask-cloud-init.service:[Unit]
+/etc/systemd/system/ask-cloud-init.service:Description=Interactive cloud-init setup
+/etc/systemd/system/ask-cloud-init.service:DefaultDependencies=no
+/etc/systemd/system/ask-cloud-init.service:After=local-fs.target plymouth-start.service
+/etc/systemd/system/ask-cloud-init.service:Conflicts=plymouth-start.service
+/etc/systemd/system/ask-cloud-init.service:Before=cloud-init-local.service
+/etc/systemd/system/ask-cloud-init.service:Before=getty@tty1.service serial-getty@ttyS0.service systemd-user-sessions.service
+/etc/systemd/system/ask-cloud-init.service:ConditionPathExists=!/etc/cloud/cloud.cfg.d/80_ask_cloud_init.cfg
+/etc/systemd/system/ask-cloud-init.service:
+/etc/systemd/system/ask-cloud-init.service:[Service]
+/etc/systemd/system/ask-cloud-init.service:Type=oneshot
+/etc/systemd/system/ask-cloud-init.service:Environment=TERM=linux
+/etc/systemd/system/ask-cloud-init.service:ExecStartPre=/bin/sh -c "/usr/bin/plymouth quit 2>/dev/null || :"
+/etc/systemd/system/ask-cloud-init.service:ExecStart=/etc/ask-cloud-init.sh
+/etc/systemd/system/ask-cloud-init.service:StandardInput=tty
+/etc/systemd/system/ask-cloud-init.service:StandardOutput=tty
+/etc/systemd/system/ask-cloud-init.service:StandardError=tty
+/etc/systemd/system/ask-cloud-init.service:TTYPath=/dev/console
+/etc/systemd/system/ask-cloud-init.service:RemainAfterExit=yes
+/etc/systemd/system/ask-cloud-init.service:
+/etc/systemd/system/ask-cloud-init.service:[Install]
+/etc/systemd/system/ask-cloud-init.service:WantedBy=sysinit.target
+/etc/systemd/system/cloud-init-local.service.d/override.conf:[Unit]
+/etc/systemd/system/cloud-init-local.service.d/override.conf:Requires=ask-cloud-init.service
+/etc/systemd/system/cloud-init-local.service.d/override.conf:After=ask-cloud-init.service
+```
+
+```
+journalctl -b 0 | grep -P '(Start|Finished).*cloud-init'
+Jun 05 20:32:42 brokolice systemd[1]: Starting Interactive cloud-init setup...
+Jun 05 20:32:57 brokolice systemd[1]: Finished Interactive cloud-init setup.
+Jun 05 20:32:57 brokolice systemd[1]: Starting Initial cloud-init job (pre-networking)...
+Jun 05 20:32:59 okurka systemd[1]: Finished Initial cloud-init job (pre-networking).
+Jun 05 20:33:05 okurka systemd[1]: Starting Initial cloud-init job (metadata service crawler)...
+Jun 05 20:33:06 okurka systemd[1]: Finished Initial cloud-init job (metadata service crawler).
 ```
 
 
