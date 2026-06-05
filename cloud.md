@@ -201,6 +201,56 @@ Some _cloud-init_ commands:
   ```
 
 
+### Interactive cloud-init during the first boot
+
+The script using `read` should be improved to check if there's no null
+input etc...  This is just a demonstration.
+
+``` shell
+$ grep -H '' /etc/cloud/cloud.cfg.d/95_local_nocloud.cfg
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:datasource_list: [ NoCloud, None ]
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:datasource:
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:  NoCloud:
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:    meta-data: |
+??? /etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:      instance-id: agama-non-ask-
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:    user-data: |
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:      #cloud-config
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:      chpasswd:
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:        list: |
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          root:very-secure-password
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:        expire: False
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:      bootcmd:
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:        - |
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          sh -c '
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          # Redirect standard input and output to the primary TTY
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          exec </dev/console >/dev/console 2>&1
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          clear
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          stty sane 2>/dev/null
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          echo "------------------------------------------------"
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          read -p "Define hostname for this system: " REPLY
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          echo "Hostname is: $REPLY"
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          hostnamectl set-hostname $REPLY
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          echo "------------------------------------------------"
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          sleep 2
+/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          '
+```
+
+And, during the boot:
+
+```
+------------------------------------------------
+Define hostname for this system: testovic
+Hostname is: testovic
+         Starting Hostname Service...
+[  OK  ] Started Hostname Service.
+------------------------------------------------
+```
+``` shell
+testovic:~ # hostname
+testovic
+```
+
+
 ## Ignition
 
 Note, that *ignition* needs to match `ignition.platform.id` and
