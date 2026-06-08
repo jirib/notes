@@ -715,6 +715,20 @@ git submodule update
 exists
 ```
 
+Specific branch for submodules and specific local path for that:
+
+``` shell
+$ cat ../.gitmodules ; \
+  grep third_party ansible.cfg ; \
+  PAGER=cat ansible-doc -t module ansible.legacy.targetcli_iscsi_tpg | grep Ji
+[submodule "ansible_ng/third_party/ansible.targetcli_modules"]
+	path = ansible_ng/third_party/ansible.targetcli_modules
+	url = https://github.com/jirib/ansible.targetcli_modules.git
+	branch = jirib-improvements
+library = ./third_party/ansible.targetcli_modules/plugins/modules
+AUTHOR: Jiří Bělka (@jirib79)
+```
+
 
 #### GIT-LFS
 
