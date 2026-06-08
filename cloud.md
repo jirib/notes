@@ -203,68 +203,26 @@ Some _cloud-init_ commands:
 
 ### Interactive cloud-init during the first boot
 
-The script using `read` should be improved to check if there's no null
-input etc...  This is just a demonstration.
+Just a proof of concept. BTW, `bootcmd` runs too late! Some code
+stolen fro JeOS-firstboot ;)
+
+(FYI, 'seedfrom' needs >= cloud-init-25...)
 
 ``` shell
-$ grep -H '' /etc/cloud/cloud.cfg.d/95_local_nocloud.cfg
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:datasource_list: [ NoCloud, None ]
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:datasource:
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:  NoCloud:
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:    meta-data: |
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:    user-data: |
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:      #cloud-config
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:      chpasswd:
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:        list: |
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          root:very-secure-password
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:        expire: False
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:      bootcmd:
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:        - |
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          sh -c '
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          # Redirect standard input and output to the primary TTY
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          exec </dev/console >/dev/console 2>&1
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          clear
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          stty sane 2>/dev/null
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          echo "------------------------------------------------"
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          read -p "Define hostname for this system: " REPLY
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          echo "Hostname is: $REPLY"
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          hostnamectl set-hostname $REPLY
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          echo "------------------------------------------------"
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          sleep 2
-/etc/cloud/cloud.cfg.d/95_local_nocloud.cfg:          '
-```
-
-And, during the boot:
-
-```
-------------------------------------------------
-Define hostname for this system: testovic
-Hostname is: testovic
-         Starting Hostname Service...
-[  OK  ] Started Hostname Service.
-------------------------------------------------
-```
-``` shell
-testovic:~ # hostname
-testovic
-```
-
-And, what about IP address? `bootcmd` runs too late! That's a bit more complicated!
-
-Some code stolen fro JeOS-firstboot ;)
-
-``` shell
+$ grep -H '' \
+  /etc/cloud/cloud.cfg.d/00-datasource.cfg \
+  /etc/ask-cloud-init.sh \
+  /etc/systemd/system/ask-cloud-init.service \
+  /etc/systemd/system/cloud-init-local.service.d/override.conf
+/etc/cloud/cloud.cfg.d/00-datasource.cfg:datasource_list: [ NoCloud, None ]
+/etc/cloud/cloud.cfg.d/00-datasource.cfg:datasource:
+/etc/cloud/cloud.cfg.d/00-datasource.cfg:  NoCloud:
+/etc/cloud/cloud.cfg.d/00-datasource.cfg:    seedfrom: file:///etc/cloud/seed/nocloud
 /etc/ask-cloud-init.sh:#!/bin/bash
 /etc/ask-cloud-init.sh:set -euo pipefail
 /etc/ask-cloud-init.sh:
-/etc/ask-cloud-init.sh:CFG_DIR="/etc/cloud/cloud.cfg.d"
-/etc/ask-cloud-init.sh:CFG_FILE="$CFG_DIR/80_ask_cloud_init.cfg"
-/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:CFG_DIR="/etc/cloud/seed/nocloud"
 /etc/ask-cloud-init.sh:mkdir -p "$CFG_DIR"
-/etc/ask-cloud-init.sh:
-/etc/ask-cloud-init.sh:if [ -f "$CFG_FILE" ]; then
-/etc/ask-cloud-init.sh:    exit 0
-/etc/ask-cloud-init.sh:fi
 /etc/ask-cloud-init.sh:
 /etc/ask-cloud-init.sh:exec </dev/console >/dev/console 2>&1
 /etc/ask-cloud-init.sh:
@@ -285,6 +243,15 @@ Some code stolen fro JeOS-firstboot ;)
 /etc/ask-cloud-init.sh:}
 /etc/ask-cloud-init.sh:trap cleanup EXIT INT TERM
 /etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:read_nonempty() {
+/etc/ask-cloud-init.sh:    local input=""
+/etc/ask-cloud-init.sh:    local prompt="$1"
+/etc/ask-cloud-init.sh:    while [[ -z "$input" ]]; do
+/etc/ask-cloud-init.sh:        read -r -p "$prompt" input
+/etc/ask-cloud-init.sh:    done
+/etc/ask-cloud-init.sh:    printf '%s\n' "$input"
+/etc/ask-cloud-init.sh:}
+/etc/ask-cloud-init.sh:
 /etc/ask-cloud-init.sh:# Disable kernel messages on console.
 /etc/ask-cloud-init.sh:setterm -msg off 2>/dev/null || true
 /etc/ask-cloud-init.sh:
@@ -299,6 +266,7 @@ Some code stolen fro JeOS-firstboot ;)
 /etc/ask-cloud-init.sh:fi
 /etc/ask-cloud-init.sh:
 /etc/ask-cloud-init.sh:stty sane 2>/dev/null || true
+/etc/ask-cloud-init.sh:stty erase '^H' 2>/dev/null || true
 /etc/ask-cloud-init.sh:clear || true
 /etc/ask-cloud-init.sh:
 /etc/ask-cloud-init.sh:echo
@@ -307,7 +275,7 @@ Some code stolen fro JeOS-firstboot ;)
 /etc/ask-cloud-init.sh:echo "=================================================="
 /etc/ask-cloud-init.sh:echo
 /etc/ask-cloud-init.sh:
-/etc/ask-cloud-init.sh:read -rp "Enter System Hostname (e.g. suse-node01): " CHOSEN_HOSTNAME
+/etc/ask-cloud-init.sh:CHOSEN_HOSTNAME="$(read_nonempty 'Enter System Hostname (e.g. suse-node01): ')"
 /etc/ask-cloud-init.sh:
 /etc/ask-cloud-init.sh:read -r MAC <<< "$(
 /etc/ask-cloud-init.sh:    ip -o link show |
@@ -325,20 +293,22 @@ Some code stolen fro JeOS-firstboot ;)
 /etc/ask-cloud-init.sh:echo "Detected primary interface with HW address: $MAC"
 /etc/ask-cloud-init.sh:echo "--------------------------------------------------"
 /etc/ask-cloud-init.sh:
-/etc/ask-cloud-init.sh:read -rp "Enter Static IP with Prefix (e.g. 192.168.1.50/24): " IP_ADDR
-/etc/ask-cloud-init.sh:read -rp "Enter Gateway IP (e.g. 192.168.1.1): " GATEWAY
-/etc/ask-cloud-init.sh:read -rp "Enter DNS Server IP (e.g. 8.8.8.8): " DNS_SERVER
+/etc/ask-cloud-init.sh:IP_ADDR="$(read_nonempty 'nter Static IP with Prefix (e.g. 192.168.1.50/24): ')"
+/etc/ask-cloud-init.sh:GATEWAY="$(read_nonempty 'Enter Gateway IP (e.g. 192.168.1.1): ')"
+/etc/ask-cloud-init.sh:DNS_SERVER="$(read_nonempty 'Enter DNS Server IP (e.g. 8.8.8.8): ')"
 /etc/ask-cloud-init.sh:
-/etc/ask-cloud-init.sh:cat > "$CFG_FILE" <<EOF
-/etc/ask-cloud-init.sh:datasource_list: [ NoCloud, None ]
-/etc/ask-cloud-init.sh:datasource:
-/etc/ask-cloud-init.sh:  NoCloud:
-/etc/ask-cloud-init.sh:    meta-data: |
-/etc/ask-cloud-init.sh:      instance-id: iid-$CHOSEN_HOSTNAME
-/etc/ask-cloud-init.sh:      local-hostname: $CHOSEN_HOSTNAME
-/etc/ask-cloud-init.sh:    user-data: |
-/etc/ask-cloud-init.sh:      #cloud-config
-/etc/ask-cloud-init.sh:      {}
+/etc/ask-cloud-init.sh:cat > "$CFG_DIR/meta-data" <<EOF
+/etc/ask-cloud-init.sh:instance-id: iid-$CHOSEN_HOSTNAME
+/etc/ask-cloud-init.sh:local-hostname: $CHOSEN_HOSTNAME
+/etc/ask-cloud-init.sh:dsmode: local
+/etc/ask-cloud-init.sh:EOF
+/etc/ask-cloud-init.sh:
+/etc/ask-cloud-init.sh:cat > "$CFG_DIR/user-data" <<EOF
+/etc/ask-cloud-init.sh:#cloud-config
+/etc/ask-cloud-init.sh:{}
+/etc/ask-cloud-init.sh:EOF
+/etc/ask-cloud-init.sh: 
+/etc/ask-cloud-init.sh:cat > "$CFG_DIR/network-config" <<EOF
 /etc/ask-cloud-init.sh:network:
 /etc/ask-cloud-init.sh:  version: 2
 /etc/ask-cloud-init.sh:  ethernets:
@@ -358,11 +328,10 @@ Some code stolen fro JeOS-firstboot ;)
 /etc/ask-cloud-init.sh:          - $DNS_SERVER
 /etc/ask-cloud-init.sh:EOF
 /etc/ask-cloud-init.sh:
-/etc/ask-cloud-init.sh:chmod 0644 "$CFG_FILE"
+/etc/ask-cloud-init.sh:chmod 644 "$CFG_DIR"/{meta-data,user-data,network-config}
 /etc/ask-cloud-init.sh:
 /etc/ask-cloud-init.sh:echo
 /etc/ask-cloud-init.sh:echo "--> NoCloud configuration written successfully:"
-/etc/ask-cloud-init.sh:echo "    $CFG_FILE"
 /etc/ask-cloud-init.sh:echo
 /etc/ask-cloud-init.sh:echo "--> Hostname: $CHOSEN_HOSTNAME"
 /etc/ask-cloud-init.sh:echo "--> Interface HW address: $MAC"
@@ -372,7 +341,6 @@ Some code stolen fro JeOS-firstboot ;)
 /etc/ask-cloud-init.sh:echo
 /etc/ask-cloud-init.sh:echo "--> Handing control over to cloud-init..."
 /etc/ask-cloud-init.sh:sleep 2
-/etc/cloud/cloud.cfg.d/00-datasource.cfg:datasource_list: [ NoCloud, None ]
 /etc/systemd/system/ask-cloud-init.service:[Unit]
 /etc/systemd/system/ask-cloud-init.service:Description=Interactive cloud-init setup
 /etc/systemd/system/ask-cloud-init.service:DefaultDependencies=no
@@ -401,13 +369,29 @@ Some code stolen fro JeOS-firstboot ;)
 ```
 
 ```
-journalctl -b 0 | grep -P '(Start|Finished).*cloud-init'
-Jun 05 20:32:42 brokolice systemd[1]: Starting Interactive cloud-init setup...
-Jun 05 20:32:57 brokolice systemd[1]: Finished Interactive cloud-init setup.
-Jun 05 20:32:57 brokolice systemd[1]: Starting Initial cloud-init job (pre-networking)...
-Jun 05 20:32:59 okurka systemd[1]: Finished Initial cloud-init job (pre-networking).
-Jun 05 20:33:05 okurka systemd[1]: Starting Initial cloud-init job (metadata service crawler)...
-Jun 05 20:33:06 okurka systemd[1]: Finished Initial cloud-init job (metadata service crawler).
+==================================================
+          INITIAL SYSTEM CONFIGURATION
+==================================================
+
+Enter System Hostname (e.g. suse-node01): kukurice
+
+Detected primary interface with HW address: 52:54:00:57:fc:7b
+--------------------------------------------------
+nter Static IP with Prefix (e.g. 192.168.1.50/24): 192.168.252.78/24
+Enter Gateway IP (e.g. 192.168.1.1): 192.168.252.1
+Enter DNS Server IP (e.g. 8.8.8.8): 1.1.1.1
+
+--> NoCloud configuration written successfully:
+
+--> Hostname: kukurice
+--> Interface HW address: 52:54:00:57:fc:7b
+--> IP address: 192.168.252.78/24
+--> Gateway: 192.168.252.1
+--> DNS: 1.1.1.1
+
+--> Handing control over to cloud-init...
+
+[  OK  ] Finished Interactive cloud-init setup.
 ```
 
 
