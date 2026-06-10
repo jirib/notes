@@ -764,6 +764,132 @@ krb5_validate: false
 ```
 
 
+### shadowAccount objectClass
+
+``` shell
+$ dsidm FOOINTERNAL user get demo_user
+dn: uid=demo_user,ou=people,dc=foo,dc=internal
+cn: Demo User
+displayName: Demo User
+gidNumber: 99998
+homeDirectory: /var/empty
+legalName: Demo User Name
+loginShell: /bin/bash
+objectClass: top
+objectClass: nsPerson
+objectClass: nsAccount
+objectClass: nsOrgPerson
+objectClass: posixAccount
+uid: demo_user
+uidNumber: 99998
+```
+
+Adding _shadownAccount` object class to a user.
+
+``` shell
+$ dsidm FOOINTERNAL user modify demo_user add:objectClass:shadowAccount
+Successfully modified uid=demo_user,ou=people,dc=foo,dc=internal
+```
+
+``` shell
+$ dsidm FOOINTERNAL user get demo_user
+dn: uid=demo_user,ou=people,dc=foo,dc=internal
+cn: Demo User
+displayName: Demo User
+gidNumber: 99998
+homeDirectory: /var/empty
+legalName: Demo User Name
+loginShell: /bin/bash
+objectClass: top
+objectClass: nsPerson
+objectClass: nsAccount
+objectClass: nsOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+uid: demo_user
+uidNumber: 99998
+```
+
+Now, see what happens if the user having auxiliary shadowAccount object class gets his password updated:
+
+``` shell
+$ dsidm FOOINTERNAL account change_password uid=demo_user,ou=people,dc=foo,dc=internal Linux123
+changed password for uid=demo_user,ou=people,dc=foo,dc=internal
+
+dsidm FOOINTERNAL user get demo_user
+dn: uid=demo_user,ou=people,dc=foo,dc=internal
+cn: Demo User
+displayName: Demo User
+gidNumber: 99998
+homeDirectory: /var/empty
+legalName: Demo User Name
+loginShell: /bin/bash
+objectClass: top
+objectClass: nsPerson
+objectClass: nsAccount
+objectClass: nsOrgPerson
+objectClass: posixAccount
+objectClass: shadowAccount
+shadowLastChange: 20614
+uid: demo_user
+uidNumber: 99998
+userPassword: {PBKDF2-SHA512}100000$SZZcDr/f7TBqS64YzuMbG78WNF8Mu1Mh$f6FAtTz/bgjV8bavWG913J9o5ydIM0qj6radyzFs1MNOG4SDGFVPyEmqGzo5bi/OeaPUOdKr8qCujw96F5hs3A==
+```
+
+We can see, `shadowLastChange` got updated with `userPassword`.
+
+`shadowLastChange` is days since Epoch:
+
+``` shell
+$ dsidm -j FOOINTERNAL user get demo_user | jq -r '.attrs.shadowlastchange[]'
+20614
+$ date +%s | awk '{ print int($1/86400) }'
+20614
+```
+
+Let's simulate expired password directly via `shadowMax`, first decrease `shadowLastChage` to yesterday:
+
+``` shell
+$ date +%s | awk '{ print int($1/86400) }'
+20614
+
+$ dsidm FOOINTERNAL user modify demo_user replace:shadowLastChange:$(($(date +%s | awk '{ print int($1/86400) }') -1))
+Successfully modified uid=demo_user,ou=people,dc=foo,dc=internal
+
+$ dsidm FOOINTERNAL user get demo_user  |grep shadowLastChange
+shadowLastChange: 20613
+
+$ dsidm FOOINTERNAL user modify demo_user add:shadowMax:0
+Successfully modified uid=demo_user,ou=people,dc=foo,dc=internal
+
+$ dsidm FOOINTERNAL user get demo_user | grep shadownMax
+0
+```
+
+A SSH session attempt:
+
+``` shell
+$ ssh -l demo_user@foointernal 192.168.252.100
+(demo_user@foointernal@192.168.252.100) Password: 
+Your password has expired.
+Password expired. Change your password now.
+(demo_user@foointernal@192.168.252.100) Current Password:
+```
+
+``` sssd_foointernal.log
+(2026-06-10 14:43:32): [be[foointernal]] [find_password_expiration_attributes] (0x4000): [RID#6] Found shadow password expiration attributes.
+(2026-06-10 14:43:32): [be[foointernal]] [check_pwexpire_shadow] (0x0100): [RID#6] Password expired.
+(2026-06-10 14:43:32): [be[foointernal]] [sdap_account_expired_shadow] (0x0400): [RID#7] Performing access shadow check for user [demo_user@foointernal]
+(2026-06-10 14:43:32): [be[foointernal]] [sdap_account_expired_shadow] (0x0080): [RID#7] Shadow expire attribute not found. Access will be granted.
+```
+
+``` sssd_pam.log
+(2026-06-10 14:43:32): [pam] [pam_dp_send_req_done] (0x0200): [CID#1] received: [12 (Authentication token is no longer valid; new one required)][foointernal]
+(2026-06-10 14:43:32): [pam] [pam_reply] (0x4000): [CID#1] pam_reply initially called with result [12]: Authentication token is no longer valid; new one required. this result might be changed during processing
+(2026-06-10 14:43:32): [pam] [pam_reply] (0x0200): [CID#1] Returning [12]: Authentication token is no longer valid; new one required to the client
+```
+
+
 ### user, group management
 
 If you create an instance without sample entries, you need OU:
