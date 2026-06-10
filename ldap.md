@@ -784,7 +784,7 @@ uid: demo_user
 uidNumber: 99998
 ```
 
-Adding _shadownAccount` object class to a user.
+Adding _shadownAccount_ object class to a user.
 
 ``` shell
 $ dsidm FOOINTERNAL user modify demo_user add:objectClass:shadowAccount
