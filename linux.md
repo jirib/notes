@@ -211,6 +211,45 @@ Unit sssd.service (/system.slice/sssd.service):
 
 #### SSSD troubleshooting
 
+1. Account locked in LDAP:
+
+   ```
+   (2026-06-10 13:34:55): [be[foointernal]] [sdap_process_message] (0x4000): [RID#6] Message type: [LDAP_RES_BIND]
+   (2026-06-10 13:34:55): [be[foointernal]] [sdap_call_op_callback] (0x20000): [RID#6] Handling LDAP operation [2][server: [192.168.252.1:7389] simple bind: [uid=demo_user,ou=people,dc=foo,dc=internal]] took [0.370] milliseconds.
+   (2026-06-10 13:34:55): [be[foointernal]] [simple_bind_done] (0x2000): [RID#6] Server returned control [1.3.6.1.4.1.42.2.27.8.5.1].
+   ...
+   (2026-06-10 13:34:55): [be[foointernal]] [simple_bind_done] (0x0400): [RID#6] Bind result: Server is unwilling to perform(53), Account inactivated. Contact system administrator.
+   (2026-06-10 13:34:55): [be[foointernal]] [sdap_op_destructor] (0x2000): [RID#6] Operation 2 finished
+   ```
+   
+   Solution:
+   
+   ``` shel
+   $ dsidm -j FOOINTERNAL account unlock "uid=demo_user,ou=people,dc=foo,dc=internal"
+   Entry uid=demo_user,ou=people,dc=foo,dc=internal is unlocked
+   The entry was directly locked
+   ```
+
+2. Access filter:
+
+   ```
+   (2026-06-10 13:45:24): [be[foointernal]] [dp_get_options] (0x0400): Option ldap_access_order has value filter, expire
+   (2026-06-10 13:45:24): [be[foointernal]] [get_access_filter] (0x0010): Warning: LDAP access rule 'filter' is set, but no ldap_access_filter configured. All domain users will be denied access.
+   (2026-06-10 13:45:30): [be[foointernal]] [sdap_access_filter_send] (0x0400): [RID#8] No filter set. Access is denied.
+   (2026-06-10 13:45:30): [be[foointernal]] [sdap_access_done] (0x0400): [RID#8] Access was denied.
+   ```
+
+   ``` shell
+   $ sed -n '/\/foointernal/,$p' /etc/sssd/sssd.conf | grep -P '(order|filter)'
+   ldap_access_order = filter, expire
+   ```
+   
+   Solution:
+   
+   - read `sssd-ldap(5)`
+   - either add `ldap_access_filter` or remove _filter_ from `ldap_access_order`
+
+
 *sssd* validates CN in TLS cert!
 
 ``` shell
