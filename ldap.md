@@ -876,6 +876,14 @@ Password expired. Change your password now.
 (demo_user@foointernal@192.168.252.100) Current Password:
 ```
 
+The client SSSD used:
+
+``` sssd.conf
+ldap_access_order = expire
+ldap_account_expire_policy = shadow
+ldap_pwd_policy = shadow
+```
+
 ``` sssd_foointernal.log
 (2026-06-10 14:43:32): [be[foointernal]] [find_password_expiration_attributes] (0x4000): [RID#6] Found shadow password expiration attributes.
 (2026-06-10 14:43:32): [be[foointernal]] [check_pwexpire_shadow] (0x0100): [RID#6] Password expired.
