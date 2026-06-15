@@ -656,7 +656,7 @@ molecule/default/verify.yml:        that: true
    # copying molecule vagrant plugin playbooks to prepare instances
  
    $ for i in create destroy prepare; do \
-        cat .venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/playbooks/${i}.yml > molecule/default/${i##*/}; \
+        cat .venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/playbooks/${i}.yml > molecule/default/${i##*/}.yml; \
       done
    ```
 
