@@ -319,6 +319,602 @@ version. After saving and closing, if checked outside VSCode, the file
 is SOPS-protected.
 
 
+### Ansible testing
+
+
+#### Molecule
+
+``` shell
+$ yq -o yaml '.dependency-groups' pyproject.toml 
+dev:
+  - ansible-dev-tools
+  - molecule-plugins[vagrant]
+  - pyright
+  - pytest-testinfra
+  - ruff
+
+$ uv pip list | grep -P '(ansible|molecule|pytest)'
+ansible-builder           3.1.1
+ansible-compat            26.3.0
+ansible-core              2.21.0
+ansible-creator           26.4.3
+ansible-dev-environment   26.4.0
+ansible-dev-tools         26.4.6
+ansible-lint              26.4.0
+ansible-navigator         26.4.0
+ansible-runner            2.4.3
+ansible-sign              0.1.5
+molecule                  26.4.0
+molecule-plugins          25.8.12
+pytest                    9.1.0
+pytest-ansible            26.4.0
+pytest-testinfra          10.2.2
+pytest-xdist              3.8.0
+tox-ansible               26.6.0
+```
+
+``` shell
+$ molecule drivers
+ec2
+docker
+azure
+gce
+vagrant
+containers
+podman
+default
+openstack
+```
+
+``` shell
+$ molecule list
+CRITICAL 'molecule/*/molecule.yml' glob failed.  Exiting.
+ERROR    'molecule/*/molecule.yml' glob failed.  Exiting.
+```
+
+``` shell
+$ grep ^roles_path ansible.cfg 
+roles_path = roles
+
+$ molecule init scenario
+INFO     default ➜ init: Initializing new scenario default...
+
+PLAY [Create a new molecule scenario] ******************************************
+
+TASK [Check if destination folder exists] **************************************
+Sunday 14 June 2026  21:52:55 +0200 (0:00:00.008)       0:00:00.008 ***********
+Sunday 14 June 2026  21:52:55 +0200 (0:00:00.007)       0:00:00.007 ***********
+changed: [localhost]
+
+TASK [Check if destination folder is empty] ************************************
+Sunday 14 June 2026  21:52:56 +0200 (0:00:00.230)       0:00:00.238 ***********
+Sunday 14 June 2026  21:52:56 +0200 (0:00:00.230)       0:00:00.237 ***********
+ok: [localhost]
+
+TASK [Fail if destination folder is not empty] *********************************
+Sunday 14 June 2026  21:52:56 +0200 (0:00:00.220)       0:00:00.459 ***********
+Sunday 14 June 2026  21:52:56 +0200 (0:00:00.220)       0:00:00.458 ***********
+skipping: [localhost]
+
+TASK [Expand templates] ********************************************************
+Sunday 14 June 2026  21:52:56 +0200 (0:00:00.013)       0:00:00.472 ***********
+Sunday 14 June 2026  21:52:56 +0200 (0:00:00.013)       0:00:00.472 ***********
+changed: [localhost] => (item=molecule/default/converge.yml)
+changed: [localhost] => (item=molecule/default/create.yml)
+changed: [localhost] => (item=molecule/default/destroy.yml)
+changed: [localhost] => (item=molecule/default/molecule.yml)
+changed: [localhost] => (item=molecule/default/verify.yml)
+
+PLAY RECAP *********************************************************************
+localhost                  : ok=3    changed=2    unreachable=0    failed=0    skipped=1    rescued=0    ignored=0
+
+
+TASKS RECAP ********************************************************************
+Sunday 14 June 2026  21:52:58 +0200 (0:00:01.543)       0:00:02.016 ***********
+===============================================================================
+Expand templates -------------------------------------------------------- 1.54s
+Check if destination folder exists -------------------------------------- 0.23s
+Check if destination folder is empty ------------------------------------ 0.22s
+Fail if destination folder is not empty --------------------------------- 0.01s
+
+ROLES RECAP ********************************************************************
+Sunday 14 June 2026  21:52:58 +0200 (0:00:01.543)       0:00:02.015 ***********
+===============================================================================
+ansible.builtin.template ------------------------------------------------ 1.54s
+ansible.builtin.file ---------------------------------------------------- 0.23s
+ansible.builtin.find ---------------------------------------------------- 0.22s
+ansible.builtin.fail ---------------------------------------------------- 0.01s
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+total ------------------------------------------------------------------- 2.01s
+
+PLAYBOOK RECAP *****************************************************************
+Playbook run took 0 days, 0 hours, 0 minutes, 2 seconds
+
+INFO     default ➜ init: Initialized scenario in /home/jiri/Sync/Documents/personal/src/github.com/jirib/student-lab_ng/molecule/default successfully.
+
+$ grep -RH '' molecule/
+molecule/default/converge.yml:---
+molecule/default/converge.yml:# Purpose: bring the instance to the desired state by running the role under test.
+molecule/default/converge.yml:# Molecule calls this playbook with `molecule converge`.
+molecule/default/converge.yml:- name: Converge
+molecule/default/converge.yml:  hosts: all
+molecule/default/converge.yml:  gather_facts: true # Disable if your role does not rely on facts
+molecule/default/converge.yml:  tasks:
+molecule/default/converge.yml:    - name: Apply role under test
+molecule/default/converge.yml:      ansible.builtin.include_role:
+molecule/default/converge.yml:        name: yournamespace.yourcollection.yourrole
+molecule/default/create.yml:---
+molecule/default/create.yml:- name: Create
+molecule/default/create.yml:  hosts: localhost
+molecule/default/create.yml:  connection: local
+molecule/default/create.yml:  gather_facts: false
+molecule/default/create.yml:  # no_log: "{{ molecule_no_log }}"
+molecule/default/create.yml:  tasks:
+molecule/default/create.yml:    # TODO: Developer must implement and populate 'server' variable
+molecule/default/create.yml:
+molecule/default/create.yml:    - name: Create instance config
+molecule/default/create.yml:      when: server.changed | default(false) | bool  # noqa no-handler
+molecule/default/create.yml:      block:
+molecule/default/create.yml:        - name: Populate instance config dict  # noqa jinja
+molecule/default/create.yml:          ansible.builtin.set_fact:
+molecule/default/create.yml:            instance_conf_dict: {}
+molecule/default/create.yml:            # instance': "{{ }}",
+molecule/default/create.yml:            # address': "{{ }}",
+molecule/default/create.yml:            # user': "{{ }}",
+molecule/default/create.yml:            # port': "{{ }}",
+molecule/default/create.yml:            # 'identity_file': "{{ }}", }
+molecule/default/create.yml:          with_items: "{{ server.results }}"
+molecule/default/create.yml:          register: instance_config_dict
+molecule/default/create.yml:
+molecule/default/create.yml:        - name: Convert instance config dict to a list
+molecule/default/create.yml:          ansible.builtin.set_fact:
+molecule/default/create.yml:            instance_conf: "{{ instance_config_dict.results | map(attribute='ansible_facts.instance_conf_dict') | list }}"
+molecule/default/create.yml:
+molecule/default/create.yml:        - name: Dump instance config
+molecule/default/create.yml:          ansible.builtin.copy:
+molecule/default/create.yml:            content: |
+molecule/default/create.yml:              # Molecule managed
+molecule/default/create.yml:
+molecule/default/create.yml:              {{ instance_conf | to_json | from_json | to_yaml }}
+molecule/default/create.yml:            dest: "{{ molecule_instance_config }}"
+molecule/default/create.yml:            mode: "0600"
+molecule/default/destroy.yml:---
+molecule/default/destroy.yml:- name: Destroy
+molecule/default/destroy.yml:  hosts: localhost
+molecule/default/destroy.yml:  connection: local
+molecule/default/destroy.yml:  gather_facts: false
+molecule/default/destroy.yml:  # no_log: "{{ molecule_no_log }}"
+molecule/default/destroy.yml:  tasks:
+molecule/default/destroy.yml:    # Developer must implement.
+molecule/default/destroy.yml:
+molecule/default/destroy.yml:    # Mandatory configuration for Molecule to function.
+molecule/default/destroy.yml:
+molecule/default/destroy.yml:    - name: Populate instance config
+molecule/default/destroy.yml:      ansible.builtin.set_fact:
+molecule/default/destroy.yml:        instance_conf: {}
+molecule/default/destroy.yml:
+molecule/default/destroy.yml:    - name: Dump instance config
+molecule/default/destroy.yml:      ansible.builtin.copy:
+molecule/default/destroy.yml:        content: |
+molecule/default/destroy.yml:          # Molecule managed
+molecule/default/destroy.yml:
+molecule/default/destroy.yml:          {{ instance_conf | to_json | from_json | to_yaml }}
+molecule/default/destroy.yml:        dest: "{{ molecule_instance_config }}"
+molecule/default/destroy.yml:        mode: "0600"
+molecule/default/destroy.yml:      when: server.changed | default(false) | bool  # noqa no-handler
+molecule/default/molecule.yml:---
+molecule/default/molecule.yml:# Dependency management (download roles/collections)
+molecule/default/molecule.yml:dependency:
+molecule/default/molecule.yml:  name: galaxy
+molecule/default/molecule.yml:  options:
+molecule/default/molecule.yml:    ignore-certs: false
+molecule/default/molecule.yml:    ignore-errors: false
+molecule/default/molecule.yml:    role-file: requirements.yml
+molecule/default/molecule.yml:    requirements-file: requirements.yml
+molecule/default/molecule.yml:
+molecule/default/molecule.yml:
+molecule/default/molecule.yml:ansible:
+molecule/default/molecule.yml:  cfg:
+molecule/default/molecule.yml:    defaults:
+molecule/default/molecule.yml:      host_key_checking: false
+molecule/default/molecule.yml:      verbosity: 1
+molecule/default/molecule.yml:    ssh_connection:
+molecule/default/molecule.yml:      pipelining: true
+molecule/default/molecule.yml:  env:
+molecule/default/molecule.yml:    ANSIBLE_FORCE_COLOR: "1"
+molecule/default/molecule.yml:    ANSIBLE_LOAD_CALLBACK_PLUGINS: "1"
+molecule/default/molecule.yml:
+molecule/default/molecule.yml:  executor:
+molecule/default/molecule.yml:    backend: ansible-playbook
+molecule/default/molecule.yml:    args:
+molecule/default/molecule.yml:      ansible_playbook:
+molecule/default/molecule.yml:        - --diff
+molecule/default/molecule.yml:        - --force-handlers
+molecule/default/molecule.yml:        - --inventory=/path/to/inventory.yml
+molecule/default/molecule.yml:      ansible_navigator:
+molecule/default/molecule.yml:        - --mode stdout
+molecule/default/molecule.yml:        - --pull-policy missing
+molecule/default/molecule.yml:        - --execution-environment-image ghcr.io/ansible/community-ansible-dev-tools:latest
+molecule/default/molecule.yml:
+molecule/default/molecule.yml:  playbooks:
+molecule/default/molecule.yml:    create: create.yml
+molecule/default/molecule.yml:    converge: converge.yml
+molecule/default/molecule.yml:    destroy: destroy.yml
+molecule/default/molecule.yml:    cleanup: cleanup.yml
+molecule/default/molecule.yml:    prepare: prepare.yml
+molecule/default/molecule.yml:    side_effect: side_effect.yml
+molecule/default/molecule.yml:    verify: verify.yml
+molecule/default/molecule.yml:
+molecule/default/molecule.yml:scenario:
+molecule/default/molecule.yml:  name: default
+molecule/default/molecule.yml:  test_sequence:
+molecule/default/molecule.yml:    - dependency
+molecule/default/molecule.yml:    - cleanup
+molecule/default/molecule.yml:    - destroy
+molecule/default/molecule.yml:    - syntax
+molecule/default/molecule.yml:    - create
+molecule/default/molecule.yml:    - prepare
+molecule/default/molecule.yml:    - converge
+molecule/default/molecule.yml:    - idempotence
+molecule/default/molecule.yml:    - side_effect
+molecule/default/molecule.yml:    - verify
+molecule/default/molecule.yml:    - cleanup
+molecule/default/molecule.yml:    - destroy
+molecule/default/verify.yml:---
+molecule/default/verify.yml:# Purpose: assert that the instance really ended up in the expected state.
+molecule/default/verify.yml:# Molecule calls this playbook with `molecule verify`.
+molecule/default/verify.yml:- name: Verify
+molecule/default/verify.yml:  hosts: instance
+molecule/default/verify.yml:  gather_facts: false # Quicker, if you do not need facts
+molecule/default/verify.yml:  tasks:
+molecule/default/verify.yml:    - name: Assert something
+molecule/default/verify.yml:      ansible.builtin.assert:
+molecule/default/verify.yml:        that: true
+```
+
+1. What's _scenario_? Well, a _scenario_ is an isolated test workflow/environment
+   having its own platforms/VMs/containers, inventory, variables, playbooks,
+   verification tests, lifecycle.
+2. What will _molecule_ use as a destination for tests? Well, _molecule_ seems to
+   move from explicit classic drivers towards the newer [_Ansible-Native Configuration_](
+   https://docs.ansible.com/projects/molecule/ansible-native/). OK, but how to make it
+   work with, eg. Vagrant?
+
+   ``` shell
+   $ uv pip show molecule_plugins
+   Name: molecule-plugins
+   Version: 25.8.12
+   Location: /home/jiri/Sync/Documents/personal/src/github.com/jirib/student-lab_ng/.venv/lib/python3.13/site-packages
+   Requires: molecule
+   Required-by:
+   
+   $ uv pip show -f molecule_plugins  |grep vagrant/playbooks/
+   molecule_plugins/vagrant/playbooks/create.yml
+   molecule_plugins/vagrant/playbooks/destroy.yml
+   molecule_plugins/vagrant/playbooks/prepare.yml
+
+   $ ls -1 .venv/lib/python3.13/site-packages/molecule_plugins/vagrant/playbooks/
+   create.yml
+   destroy.yml
+   prepare.yml
+
+   $ grep task -A 2 .venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/playbooks/create.yml 
+     tasks:
+       - name: Create molecule instance(s) # noqa fqcn[action]
+         vagrant:
+  
+   # 'vagrant' module?
+
+   $ ansible-doc -M .venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/modules vagrant | head -n3
+   > MODULE vagrant (/home/jiri/Sync/Documents/personal/src/github.com/jirib/student-lab_ng/.venv/lib/python3.13/site-packages/molecule_plugins/vagrant/modules/vagrant.py)
+
+   Manage the life cycle of Vagrant instances.
+
+   # variables needed?
+
+   $ grep -hPo '{{\s*\K(molecule_yml[^\}]+)' .venv/lib/python3.13/site-packages/molecule_plugins/vagrant/playbooks/* | sort -u | \
+       sed -n -e 's/^molecule_yml\.//;s/\./\./g; s/^/./p'
+   .driver.cachier | default(omit) 
+   .driver.default_box | default('generic/alpine316') 
+   .driver.parallel | default(omit) 
+   .driver.provider.name | default(omit, true) 
+   .driver.provision | default(omit) 
+   .platforms 
+
+   For some **unknown** reason, this seems to be needed to add into `molecule/default/molecule.yml`:
+ 
+   ``` shell
+    $ yq -i '                          
+    .ansible.env.ANSIBLE_LIBRARY = "${MOLECULE_PROJECT_DIRECTORY}/.venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/modules" |
+    .ansible.env.ANSIBLE_LIBRARY style="double"
+    ' molecule/default/molecule.yml
+   ```
+   
+   Now, instructing _molecule_ to use _vagrant_:
+ 
+   ``` shell
+   $ yq -i '                          
+   . *= {
+     "driver": {
+       "name": "vagrant",
+       "provider": {
+         "name": "libvirt"
+       },
+       "default_box": "opensuse/Leap-15.6.x86_64"
+     },
+     "platforms": [
+       {
+         "name": "opensuse",
+         "memory": 4096,
+         "cpus": 2
+       }
+     ]
+   }
+   ' molecule/default/molecule.yml
+ 
+   # copying molecule vagrant plugin playbooks to prepare instances
+ 
+   $ for i in create destroy prepare; do \
+        cat .venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/playbooks/${i}.yml > molecule/default/${i##*/}; \
+      done
+ 
+   # to relax an Ansible warning
+   # sed -i 's/connection/ansible_connection/' molecule/default/{create,destroy}.yml
+   ```
+
+Now, finally, let's create a _molecule_ instance:
+
+``` shell
+$ molecule create
+...
+
+$ molecule list
+WARNING  Driver vagrant does not provide a schema.
+INFO     default ➜ list: Executing
+INFO     default ➜ list: Executed: Successful
+                ╷             ╷                  ╷               ╷         ╷            
+  Instance Name │ Driver Name │ Provisioner Name │ Scenario Name │ Created │ Converged  
+╶───────────────┼─────────────┼──────────────────┼───────────────┼─────────┼───────────╴
+  opensuse      │ vagrant     │ ansible          │ default       │ true    │ false      
+                ╵             ╵                  ╵               ╵         ╵
+```
+
+What did happen in the background?
+
+``` shell
+$ virsh list --all
+ Id   Name                             State
+------------------------------------------------
+ 2    molecule.pZjZ.default_opensuse   running
+
+$ virsh vol-list default
+ Name                                                                           Path
+-----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------
+ molecule.pZjZ.default_opensuse.img                                             /home/jiri/.local/share/libvirt/images/molecule.pZjZ.default_opensuse.img
+ opensuse-VAGRANTSLASH-Leap-15.6.x86_64_vagrant_box_image_15.6.13.356_box.img   /home/jiri/.local/share/libvirt/images/opensuse-VAGRANTSLASH-Leap-15.6.x86_64_vagrant_box_image_15.6.13.356_box.img
+
+$ ss -tnlp | grep $(pgrep -f 'qemu.*molecule')
+LISTEN 0      1          127.0.0.1:5900       0.0.0.0:*    users:(("qemu-system-x86",pid=892255,fd=33))
+LISTEN 0      1          127.0.0.1:5700       0.0.0.0:*    users:(("qemu-system-x86",pid=892255,fd=34))
+
+$ ls -l ~/.ansible/tmp/$(virsh list --all --name | grep -Po '^molecule[^_]+')
+total 28
+-rw-r--r--. 1 jiri jiri  277 Jun 15 00:14 ansible.cfg
+-rw-------. 1 jiri jiri  186 Jun 15 00:13 instance_config.yml
+drwxr-xr-x. 2 jiri jiri   35 Jun 15 00:07 inventory
+-rw-r--r--. 1 jiri jiri 2229 Jun 15 00:14 molecule.yml
+-rw-r--r--. 1 jiri jiri  199 Jun 15 00:14 state.yml
+-rw-r--r--. 1 jiri jiri  268 Jun 15 00:13 vagrant.err
+-rw-r--r--. 1 jiri jiri  521 Jun 15 00:13 Vagrantfile
+-rw-r--r--. 1 jiri jiri 2738 Jun 15 00:13 vagrant.out
+
+# molecule-ansible temporary files
+
+$ (cd ~/.ansible/tmp/$(virsh list --all --name | grep -Po '^molecule[^_]+')/ && \
+    find . -maxdepth 2 -mindepth 1 -type f -regextype egrep ! -regex '.*([Vv]agrant|molecule).*' | xargs grep -H '')
+./inventory/ansible_inventory.yml:# Molecule managed
+./inventory/ansible_inventory.yml:
+./inventory/ansible_inventory.yml:---
+./inventory/ansible_inventory.yml:all:
+./inventory/ansible_inventory.yml:  hosts:
+./inventory/ansible_inventory.yml:    opensuse: &id001
+./inventory/ansible_inventory.yml:      ansible_host: 192.168.122.72
+./inventory/ansible_inventory.yml:      ansible_port: '22'
+./inventory/ansible_inventory.yml:      ansible_private_key_file: /home/jiri/.ansible/tmp/molecule.pZjZ.default/.vagrant/machines/opensuse/libvirt/private_key
+./inventory/ansible_inventory.yml:      ansible_ssh_common_args: -o UserKnownHostsFile=/dev/null -o ControlMaster=auto
+./inventory/ansible_inventory.yml:        -o ControlPersist=60s -o ForwardX11=no -o LogLevel=ERROR -o IdentitiesOnly=yes
+./inventory/ansible_inventory.yml:        -o StrictHostKeyChecking=no
+./inventory/ansible_inventory.yml:      ansible_user: vagrant
+./inventory/ansible_inventory.yml:      connection: ssh
+./inventory/ansible_inventory.yml:  vars: &id002
+./inventory/ansible_inventory.yml:    molecule_ephemeral_directory: '{{ lookup(''env'', ''MOLECULE_EPHEMERAL_DIRECTORY'')
+./inventory/ansible_inventory.yml:      }}'
+./inventory/ansible_inventory.yml:    molecule_file: '{{ lookup(''env'', ''MOLECULE_FILE'') }}'
+./inventory/ansible_inventory.yml:    molecule_instance_config: '{{ lookup(''env'', ''MOLECULE_INSTANCE_CONFIG'') }}'
+./inventory/ansible_inventory.yml:    molecule_no_log: '{{ lookup(''env'', ''MOLECULE_NO_LOG'') or not molecule_yml.provisioner.log|default(False)
+./inventory/ansible_inventory.yml:      | bool }}'
+./inventory/ansible_inventory.yml:    molecule_scenario_directory: '{{ lookup(''env'', ''MOLECULE_SCENARIO_DIRECTORY'')
+./inventory/ansible_inventory.yml:      }}'
+./inventory/ansible_inventory.yml:    molecule_yml: '{{ lookup(''file'', molecule_file) | from_yaml }}'
+./inventory/ansible_inventory.yml:ungrouped:
+./inventory/ansible_inventory.yml:  hosts:
+./inventory/ansible_inventory.yml:    opensuse: *id001
+./inventory/ansible_inventory.yml:  vars: *id002
+./state.yml:# Molecule managed
+./state.yml:
+./state.yml:---
+./state.yml:converged: false
+./state.yml:created: true
+./state.yml:driver: vagrant
+./state.yml:is_parallel: false
+./state.yml:molecule_yml_date_modified: 1781474997.1177776
+./state.yml:prepared: true
+./state.yml:run_uuid: 86eb594a-a3b1-451f-a286-8fdfb0640eb4
+./ansible.cfg:# Molecule managed
+./ansible.cfg:
+./ansible.cfg:[defaults]
+./ansible.cfg:display_failed_stderr = True
+./ansible.cfg:forks = 50
+./ansible.cfg:retry_files_enabled = False
+./ansible.cfg:host_key_checking = False
+./ansible.cfg:nocows = 1
+./ansible.cfg:interpreter_python = auto_silent
+./ansible.cfg:verbosity = 1
+./ansible.cfg:[ssh_connection]
+./ansible.cfg:scp_if_ssh = True
+./ansible.cfg:control_path = %(directory)s/%%h-%%p-%%r
+./ansible.cfg:pipelining = True
+./instance_config.yml:- {address: 192.168.122.72, identity_file: /home/jiri/.ansible/tmp/molecule.pZjZ.default/.vagrant/machines/opensuse/libvirt/private_key,
+./instance_config.yml:  instance: opensuse, port: '22', user: vagrant}
+
+$ ssh -i ~/.ansible/tmp/molecule.pZjZ.default/.vagrant/machines/opensuse/libvirt/private_key vagrant@192.168.122.72
+Last login: Sun Jun 14 22:37:36 2026 from 192.168.122.1
+vagrant@opensuse:~> sudo -i
+opensuse:~ # cat /etc/os-release 
+NAME="openSUSE Leap"
+VERSION="15.6"
+ID="opensuse-leap"
+ID_LIKE="suse opensuse"
+VERSION_ID="15.6"
+PRETTY_NAME="openSUSE Leap 15.6"
+ANSI_COLOR="0;32"
+CPE_NAME="cpe:/o:opensuse:leap:15.6"
+BUG_REPORT_URL="https://bugs.opensuse.org"
+HOME_URL="https://www.opensuse.org/"
+DOCUMENTATION_URL="https://en.opensuse.org/Portal:Leap"
+LOGO="distributor-logo-Leap"
+```
+
+Maybe using [_Test Kitchen_](https://kitchen.ci/) with [_Testinfra_](https://testinfra.readthedocs.io/en/latest/)
+is a bit easier to setup for Vagrant...
+
+
+#### Test Kitchen with Vagrant
+
+Well, a bit mess again...
+
+- Vagrant wants 3.4 Ruby (too old on Fedora 44)
+- Budle will be used to manager Ruby GEMs
+
+Mise way, the easiest one:
+
+``` toml
+[tasks."setup:vagrant"]
+description = "Install Vagrant and other tools"
+run = '''
+#!/usr/bin/env bash
+set -xeu
+set -o pipefail
+
+if ! bundle list | grep -qP '^\s*\* vagrant '; then
+    cat <<EOF > Gemfile
+# Gemfile
+source "https://rubygems.org"
+
+ruby "{{ env.RUBY_VERSION }}"
+
+gem "vagrant", "~> {{ env.VAGRANT_VERSION }}"
+EOF
+
+    bundle config set --local path vendor/bundle
+    bundle install
+fi
+
+# for convenience
+test ! -d {{ config_root }}/bin && mkdir {{ config_root }}/bin
+
+if ! test -x bin/vagrant; then
+    cat <<EOF > bin/vagrant
+#!/usr/bin/env bash
+exec bundle exec vagrant "\$@"
+EOF
+    chmod +x bin/vagrant
+fi
+
+if ! bundle exec vagrant plugin list | grep -q libvirt; then
+    bundle exec vagrant plugin install vagrant-libvirt
+fi
+'''
+
+[tasks."setup:test-kitchen"]
+description = "Install Test Kitchen and all Ruby GEMs needed"
+depends = ["setup:vagrant"]
+run = '''
+#!/usr/bin/env bash
+
+if (( $(bundle list | grep -P '^\s*\* (test-kitchen|kitchen-(ansible|vagrant)) ' | wc -l) != 3)); then
+    cat >> Gemfile <<EOF
+gem "test-kitchen", "~> {{ env.TEST_KITCHEN_VERSION }}"
+gem "kitchen-ansible", "~> {{ env.KITCHEN_ANSIBLE_VERSION }}"
+gem "kitchen-vagrant", "~> {{ env.KITCHEN_VAGRANT_VERSION }}"
+EOF
+
+    bundle install
+fi
+
+if test -x bin/kitchen; then
+    cat > bin/kitchen <<'EOF'
+#!/usr/bin/env bash
+exec bundle exec kitchen "\$@"
+EOF
+
+    chmod +x bin/kitchen
+fi
+'''
+```
+
+``` shell
+$ mise install
+$ mise run setup:vagrant
+$ mise run setup:test-kitchen
+```
+
+``` shell
+$ kitchen create
+$ kitchen list
+Instance          Driver   Provisioner      Verifier  Transport  Last Action  Last Error
+default-opensuse  Vagrant  AnsiblePlaybook  Shell     Ssh        Created      <None>
+```
+
+``` shell
+$ pgrep -f 'qemu.*default-opensuse_default'
+1028549
+
+$ kitchen exec default-opensuse -c 'cat /etc/os-release'
+-----> Execute command on default-opensuse.
+       NAME="openSUSE Leap"
+       VERSION="15.6"
+       ID="opensuse-leap"
+       ID_LIKE="suse opensuse"
+       VERSION_ID="15.6"
+       PRETTY_NAME="openSUSE Leap 15.6"
+       ANSI_COLOR="0;32"
+       CPE_NAME="cpe:/o:opensuse:leap:15.6"
+       BUG_REPORT_URL="https://bugs.opensuse.org"
+       HOME_URL="https://www.opensuse.org/"
+       DOCUMENTATION_URL="https://en.opensuse.org/Portal:Leap"
+       LOGO="distributor-logo-Leap"
+
+$ kitchen login default-opensuse
+Have a lot of fun...
+Last login: Mon Jun 15 01:29:29 2026 from 192.168.121.1
+vagrant@default-opensuse:~> cat /etc/os-release
+NAME="openSUSE Leap"
+VERSION="15.6"
+ID="opensuse-leap"
+ID_LIKE="suse opensuse"
+VERSION_ID="15.6"
+PRETTY_NAME="openSUSE Leap 15.6"
+ANSI_COLOR="0;32"
+CPE_NAME="cpe:/o:opensuse:leap:15.6"
+BUG_REPORT_URL="https://bugs.opensuse.org"
+HOME_URL="https://www.opensuse.org/"
+DOCUMENTATION_URL="https://en.opensuse.org/Portal:Leap"
+LOGO="distributor-logo-Leap"
+vagrant@default-opensuse:~> logout
+```
+
+
 ## OpenTofu/Terraform
 
 
