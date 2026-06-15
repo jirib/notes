@@ -572,93 +572,96 @@ molecule/default/verify.yml:      ansible.builtin.assert:
 molecule/default/verify.yml:        that: true
 ```
 
-1. What's _scenario_? Well, a _scenario_ is an isolated test workflow/environment
-   having its own platforms/VMs/containers, inventory, variables, playbooks,
-   verification tests, lifecycle.
-2. What will _molecule_ use as a destination for tests? Well, _molecule_ seems to
-   move from explicit classic drivers towards the newer [_Ansible-Native Configuration_](
-   https://docs.ansible.com/projects/molecule/ansible-native/). OK, but how to make it
-   work with, eg. Vagrant?
+What's _scenario_? Well, a _scenario_ is an isolated test
+workflow/environment having its own platforms/VMs/containers, inventory,
+variables, playbooks, verification tests, lifecycle.
 
-   ``` shell
-   $ uv pip show molecule_plugins
-   Name: molecule-plugins
-   Version: 25.8.12
-   Location: /home/jiri/Sync/Documents/personal/src/github.com/jirib/student-lab_ng/.venv/lib/python3.13/site-packages
-   Requires: molecule
-   Required-by:
-   
-   $ uv pip show -f molecule_plugins  |grep vagrant/playbooks/
-   molecule_plugins/vagrant/playbooks/create.yml
-   molecule_plugins/vagrant/playbooks/destroy.yml
-   molecule_plugins/vagrant/playbooks/prepare.yml
+What will _molecule_ use as a destination for tests? Well, _molecule_ seems to
+move from explicit classic drivers towards the newer [_Ansible-Native Configuration_](
+https://docs.ansible.com/projects/molecule/ansible-native/).
 
-   $ ls -1 .venv/lib/python3.13/site-packages/molecule_plugins/vagrant/playbooks/
-   create.yml
-   destroy.yml
-   prepare.yml
 
-   $ grep task -A 2 .venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/playbooks/create.yml 
-     tasks:
-       - name: Create molecule instance(s) # noqa fqcn[action]
-         vagrant:
+##### Molecule with Vagrant
+
+``` shell
+$ uv pip show molecule_plugins
+Name: molecule-plugins
+Version: 25.8.12
+Location: /home/jiri/Sync/Documents/personal/src/github.com/jirib/student-lab_ng/.venv/lib/python3.13/site-packages
+Requires: molecule
+Required-by:
+
+$ uv pip show -f molecule_plugins  |grep vagrant/playbooks/
+molecule_plugins/vagrant/playbooks/create.yml
+molecule_plugins/vagrant/playbooks/destroy.yml
+molecule_plugins/vagrant/playbooks/prepare.yml
+
+$ ls -1 .venv/lib/python3.13/site-packages/molecule_plugins/vagrant/playbooks/
+create.yml
+destroy.yml
+prepare.yml
+
+$ grep task -A 2 .venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/playbooks/create.yml 
+  tasks:
+    - name: Create molecule instance(s) # noqa fqcn[action]
+      vagrant:
   
-   # 'vagrant' module?
+# 'vagrant' module?
 
-   $ ansible-doc -M .venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/modules vagrant | head -n3
-   > MODULE vagrant (/home/jiri/Sync/Documents/personal/src/github.com/jirib/student-lab_ng/.venv/lib/python3.13/site-packages/molecule_plugins/vagrant/modules/vagrant.py)
+$ ansible-doc -M .venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/modules vagrant | head -n3
+> MODULE vagrant (/home/jiri/Sync/Documents/personal/src/github.com/jirib/student-lab_ng/.venv/lib/python3.13/site-packages/molecule_plugins/vagrant/modules/vagrant.py)
 
-   Manage the life cycle of Vagrant instances.
+Manage the life cycle of Vagrant instances.
 
-   # variables needed?
+# variables needed?
 
-   $ grep -hPo '{{\s*\K(molecule_yml[^\}]+)' .venv/lib/python3.13/site-packages/molecule_plugins/vagrant/playbooks/* | sort -u | \
-       sed -n -e 's/^molecule_yml\.//;s/\./\./g; s/^/./p'
-   .driver.cachier | default(omit) 
-   .driver.default_box | default('generic/alpine316') 
-   .driver.parallel | default(omit) 
-   .driver.provider.name | default(omit, true) 
-   .driver.provision | default(omit) 
-   .platforms 
-   ```
+$ grep -hPo '{{\s*\K(molecule_yml[^\}]+)' .venv/lib/python3.13/site-packages/molecule_plugins/vagrant/playbooks/* | sort -u | \
+    sed -n -e 's/^molecule_yml\.//;s/\./\./g; s/^/./p'
+.driver.cachier | default(omit) 
+.driver.default_box | default('generic/alpine316') 
+.driver.parallel | default(omit) 
+.driver.provider.name | default(omit, true) 
+.driver.provision | default(omit) 
+.platforms 
+```
 
-   For some **unknown** reason, this seems to be needed to add into `molecule/default/molecule.yml`:
+For some **unknown** reason, this seems to be needed to add into `molecule/default/molecule.yml`:
  
-   ``` shell
-    $ yq -i '                          
-    .ansible.env.ANSIBLE_LIBRARY = "${MOLECULE_PROJECT_DIRECTORY}/.venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/modules" |
-    .ansible.env.ANSIBLE_LIBRARY style="double"
-    ' molecule/default/molecule.yml
-   ```
-   
-   Now, instructing _molecule_ to use _vagrant_:
+``` shell
+ $ yq -i '                          
+ .ansible.env.ANSIBLE_LIBRARY = "${MOLECULE_PROJECT_DIRECTORY}/.venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/modules" |
+ .ansible.env.ANSIBLE_LIBRARY style="double"
+ ' molecule/default/molecule.yml
+```
+
+Now, instructing _molecule_ to use _vagrant_:
  
-   ``` shell
-   $ yq -i '                          
-   . *= {
-     "driver": {
-       "name": "vagrant",
-       "provider": {
-         "name": "libvirt"
-       },
-       "default_box": "opensuse/Leap-15.6.x86_64"
-     },
-     "platforms": [
-       {
-         "name": "opensuse",
-         "memory": 4096,
-         "cpus": 2
-       }
-     ]
-   }
-   ' molecule/default/molecule.yml
+``` shell
+$ yq -i '                          
+. *= {
+  "driver": {
+    "name": "vagrant",
+    "provider": {
+      "name": "libvirt"
+    },
+    "default_box": "opensuse/Leap-15.6.x86_64"
+  },
+  "platforms": [
+    {
+      "name": "opensuse",
+      "memory": 4096,
+      "cpus": 2
+    }
+  ]
+}
+' molecule/default/molecule.yml
  
-   # copying molecule vagrant plugin playbooks to prepare instances
+# copying molecule vagrant plugin playbooks to prepare instances
  
-   $ for i in create destroy prepare; do \
-        cat .venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/playbooks/${i}.yml > molecule/default/${i##*/}.yml; \
-      done
-   ```
+$ for i in create destroy prepare; do \
+     cat .venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/playbooks/${i}.yml > molecule/default/${i##*/}.yml; \
+   done
+```
 
 Now, finally, let's create a _molecule_ instance:
 
@@ -670,7 +673,7 @@ $ molecule list
 WARNING  Driver vagrant does not provide a schema.
 INFO     default ➜ list: Executing
 INFO     default ➜ list: Executed: Successful
-                ╷             ╷                  ╷               ╷         ╷            
+             ╷             ╷                  ╷               ╷         ╷            
   Instance Name │ Driver Name │ Provisioner Name │ Scenario Name │ Created │ Converged  
 ╶───────────────┼─────────────┼──────────────────┼───────────────┼─────────┼───────────╴
   opensuse      │ vagrant     │ ansible          │ default       │ true    │ false      
@@ -783,8 +786,49 @@ DOCUMENTATION_URL="https://en.opensuse.org/Portal:Leap"
 LOGO="distributor-logo-Leap"
 ```
 
-Maybe using [_Test Kitchen_](https://kitchen.ci/) with [_Testinfra_](https://testinfra.readthedocs.io/en/latest/)
-is a bit easier to setup for Vagrant...
+
+#### Molecule with Libvirt
+
+``` shell
+$ uv pip list | grep libvirt
+libvirt-python            12.4.0
+molecule-libvirt-ng       1.0.3
+```
+
+``` shell
+$ cp -av .venv/lib/python3.13/site-packages/molecule_libvirt/playbooks/* molecule/default/
+$ $ sed -n '/driver/,$p' molecule/default/molecule.yml
+driver:
+  name: libvirt
+platforms:
+  - name: opensuse
+    image_url: "https://download.opensuse.org/repositories/Cloud:/Images:/Leap_15.6/images/openSUSE-Leap-15.6.x86_64-NoCloud.qcow2"
+    memory: 4
+    vcpu: 2
+    disk_size: 21G
+    timezone: Europe/Madrid
+    image_volume: /dev/sda3
+```
+
+``` shell
+$ molecule create
+...
+
+$ molecule list
+WARNING  Driver libvirt does not provide a schema.
+INFO     default ➜ list: Executing
+INFO     default ➜ list: Executed: Successful
+                ╷             ╷                  ╷               ╷         ╷            
+  Instance Name │ Driver Name │ Provisioner Name │ Scenario Name │ Created │ Converged  
+╶───────────────┼─────────────┼──────────────────┼───────────────┼─────────┼───────────╴
+  opensuse      │ libvirt     │ ansible          │ default       │ true    │ false      
+                ╵             ╵                  ╵               ╵         ╵
+```
+
+``` shell
+$ ssh -i ~/.ansible/tmp/molecule.pZjZ.default/id_ssh_rsa molecule@10.10.10.176 uname -a
+Linux opensuse 6.4.0-150600.23.115-default #1 SMP PREEMPT_DYNAMIC Wed Jun  3 14:06:30 UTC 2026 (38cb52f) x86_64 x86_64 x86_64 GNU/Linux
+```
 
 
 #### Test Kitchen with Vagrant
