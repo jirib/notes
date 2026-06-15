@@ -620,6 +620,7 @@ molecule/default/verify.yml:        that: true
    .driver.provider.name | default(omit, true) 
    .driver.provision | default(omit) 
    .platforms 
+   ```
 
    For some **unknown** reason, this seems to be needed to add into `molecule/default/molecule.yml`:
  
@@ -657,9 +658,6 @@ molecule/default/verify.yml:        that: true
    $ for i in create destroy prepare; do \
         cat .venv/lib64/python3.13/site-packages/molecule_plugins/vagrant/playbooks/${i}.yml > molecule/default/${i##*/}; \
       done
- 
-   # to relax an Ansible warning
-   # sed -i 's/connection/ansible_connection/' molecule/default/{create,destroy}.yml
    ```
 
 Now, finally, let's create a _molecule_ instance:
@@ -796,9 +794,24 @@ Well, a bit mess again...
 - Vagrant wants 3.4 Ruby (too old on Fedora 44)
 - Budle will be used to manager Ruby GEMs
 
-Mise way, the easiest one:
+IMO, the best is to automate the setup with Mise tasks (parts of `mise.toml`):
 
 ``` toml
+[env]
+RUBY_VERSION = "3.4.9"
+RUBY_API_VERSION = "3.4.0"
+TEST_KITCHEN_VERSION = "4.0.0"
+KITCHEN_ANSIBLE_VERSION = "0.58.0"
+KITCHEN_VAGRANT_VERSION = "2.2.1"
+VAGRANT_VERSION = "2.4.9"
+VAGRANT_LIBVIRT_VERSION = "0.12.2"
+_.path = [
+  "{{ config_root }}/bin"
+]
+
+[tools]
+ruby = "{{ env.RUBY_VERSION }}"
+
 [tasks."setup:vagrant"]
 description = "Install Vagrant and other tools"
 run = '''
