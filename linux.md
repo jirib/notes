@@ -4701,6 +4701,19 @@ $ grep -RH '' /sys/kernel/config/target/ 2>/dev/null | tr -d '-' | grep -P 'wwn/
 /sys/kernel/config/target/core/fileio_5/jbelka001/wwn/vpd_unit_serial:T10 VPD Unit Serial Number: b04d547a91c34546bb46cf59799cce12
 ```
 
+When LIO target is used to provide luns for VM disks, then if such a
+guest VM deletes a 10 GB file, the guest OS marks that space as free.
+However, unless configured otherwise, LVM Thin and LIO will still think
+that 10 GB is being utilized, preventing the space from being reclaimed
+in the thin pool.
+
+Solution:
+
+- LIO: Ensure `emulate_tpu=1` (Thin Provisioning Unmap) is enabled on
+  the LIO block backstore configuration.
+- Guest VM: Ensure the filesystem is mounted with the discard option (or
+  run a weekly fstrim).
+
 
 ### mdraid
 
