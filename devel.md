@@ -657,6 +657,26 @@ $ xsltproc --output - valve.xslt server.xml | sed -n -e '1,4p' -e '/port="999[89
 ### GIT
 
 
+#### git-archive
+
+``` shell
+$ git archive \
+  --format=tar.gz \
+  --prefix=foo-0.1.0/ \
+  -o ~/rpmbuild/SOURCES/foo-0.1.0.tar.gz \
+  HEAD
+```
+
+``` shell
+$ git tag v0.1.0
+$ git archive \
+  --format=tar.gz \
+  --prefix=foo-0.1.0/ \
+  -o ~/rpmbuild/SOURCES/foo-0.1.0.tar.gz \
+  v0.1.0
+```
+
+
 #### GIT attributes
 
 How to make a custom `diff` for a binary file?
