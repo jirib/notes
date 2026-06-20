@@ -179,7 +179,7 @@ Cool extensions:
 - YAML (from Red Hat)
 
 
-#### Debugging in VSCode
+##### Debugging in VSCode
 
 _VSCode_ uses `.vscode/launch.json` to provide more specific configuration for
 debugging (if such a configuration does not exists, the debugging
@@ -220,6 +220,15 @@ An example for a python app, here debugging the app with a specific argument:
 * _request_: how to associate to debugging, either _launch_ (launching
   the app) or _attach_ (attaching to a runnnig process)
 * _name_: a friendly name of the configuration
+
+
+##### VSCode Remote-SSH
+
+For SLES to act as SSH target, _jitter_ needs to be disabled in `/etc/ssl/openssl.cnf`.
+
+Also, do not forget that if you want to "export" local
+directory/project code to a remote system, you need to sync or use
+"reverse SSHFS", the latter is possible via a reverse port forwarding.
 
 
 ### Mise
