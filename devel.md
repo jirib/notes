@@ -246,10 +246,6 @@ Eglot is a client for the LSP. An example:
 My workaround, comments inline:
 
 ``` shell
-solved
-
-$ grep -H '' .config/emacs/lisp/{lib-tools,init-eglot}.el
-now tools are started via wrapper, which checks if mise is present, if so, using mise x -- <tool> if not using the tool command literally (comments inline):
 $ grep -H '' .config/emacs/lisp/{lib-tools,init-eglot}.el
 .config/emacs/lisp/lib-tools.el:;;; lib-tools.el -*- lexical-binding: t; -*-
 .config/emacs/lisp/lib-tools.el:
