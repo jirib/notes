@@ -166,7 +166,179 @@ clean:
 ```
 
 
-### IDE
+### IDE & editors
+
+
+#### Emacs
+
+- [TRAMP](https://www.gnu.org/software/tramp/): Transparent Remote Access, Multi Protocol - a built-in
+  package allowing seamlessly edit files on remote servers
+
+- [Eglog](https://github.com/joaotavora/eglot): Emacs client for the Languae Server Protocol (LSP)
+
+- Corfu: in-buffer completion with a small completion popup
+
+- [Dape](https://github.com/svaante/dape): [Debug Adapter
+  Protocol](https://github.com/microsoft/debug-adapter-protocol) for
+  Emacs - a client for DAP, aiming to establish a common API for
+  (debugging and) programming tools
+
+
+##### TRAMP
+
+``` shell
+$ emacs '/ssh:10.156.233.50:.'
+```
+```
+  1   /ssh:10.156.233.50:/root: (3.8 GiB available)                                              
+  2   drwx------. 1 root           root                 1516 Jun 25 11:32 .                      
+  3   drwxr-xr-x. 1 root           root                  210 Jun 10 11:47 ..                     
+  4   drwxr-xr-x. 1 root           root                   20 Apr 24 15:47 ~                      
+  5   drwx------. 1 root           root                    6 May 31 23:29 .ansible               
+  6   -rw-------. 1 root           root                   64 Jun 24 16:29 .authinfo              
+  7   -rw-------. 1 root           root                54084 Jun 25 11:32 .bash_history          
+  8   -rw-r--r--. 1 root           root                   46 Apr 15 12:48 .bashrc                
+  9   drwxr-xr-x. 1 root           root                  100 Apr  7 14:16 bin                    
+ 10   drwxr-xr-x. 1 root           root                  126 Jun 24 16:29 .cache                 
+ 11   -rw-r-----. 1 root           root                 1959 Jun 13 03:42 ca.crt                 
+ 12   -rw-r--r--. 1 root           root                 3999 May 14 21:14 check_pam.py           
+-UUU:%%@  F1  ~                   Top   (4,70)     (Dired by name) ------------------------------
+```
+
+If a jumphost is needed, then:
+
+``` shell
+$ emacs '/ssh:jumphost|ssh:root@192.168.252.150:/root/'
+```
+
+
+##### Eglot
+
+Eglot is a client for the LSP. An example:
+
+``` lisp
+(require 'eglot)
+
+(setq eglot-autoshutdown t)
+(setq eglot-confirm-server-initiated-edits nil)
+(setq eglot-events-buffer-size 0)
+
+;; Language server commands.
+;;
+;; These commands are executed on the remote host when the buffer is opened via
+;; TRAMP, provided the binaries are in tramp-remote-path.
+(add-to-list 'eglot-server-programs
+             '(python-mode . ("pyright-langserver" "--stdio")))
+
+(add-to-list 'eglot-server-programs
+             '(go-mode . ("gopls")))
+
+(add-to-list 'eglot-server-programs
+             '(yaml-mode . ("yaml-language-server" "--stdio")))
+
+;; Prefer Taplo for TOML if installed.
+(add-to-list 'eglot-server-programs
+             '(toml-mode . ("taplo" "lsp" "stdio")))
+```
+
+**WARNING**: If you define full path for LSP, this full path is propaged via TRAMP too!
+
+My workaround, comments inline:
+
+``` shell
+solved
+
+$ grep -H '' .config/emacs/lisp/{lib-tools,init-eglot}.el
+now tools are started via wrapper, which checks if mise is present, if so, using mise x -- <tool> if not using the tool command literally (comments inline):
+$ grep -H '' .config/emacs/lisp/{lib-tools,init-eglot}.el
+.config/emacs/lisp/lib-tools.el:;;; lib-tools.el -*- lexical-binding: t; -*-
+.config/emacs/lisp/lib-tools.el:
+.config/emacs/lisp/lib-tools.el:(defun jiri/tool-command (program &rest args)  <---+--- wrapper
+.config/emacs/lisp/lib-tools.el:  (let ((cmd (mapconcat #'shell-quote-argument
+.config/emacs/lisp/lib-tools.el:                        (cons program args)
+.config/emacs/lisp/lib-tools.el:                        " ")))
+.config/emacs/lisp/lib-tools.el:    (list
+.config/emacs/lisp/lib-tools.el:     "sh" "-c"
+.config/emacs/lisp/lib-tools.el:     (format
+.config/emacs/lisp/lib-tools.el:      "if command -v mise >/dev/null 2>&1; then exec mise x -- %s; else exec %s; fi"  <---+--- testing mise, works even remotely
+.config/emacs/lisp/lib-tools.el:      cmd cmd))))
+.config/emacs/lisp/lib-tools.el:
+.config/emacs/lisp/lib-tools.el:(defun jiri/project-root ()
+.config/emacs/lisp/lib-tools.el:  "Return current project root, or `default-directory' if no project exists."
+.config/emacs/lisp/lib-tools.el:  (if-let ((project (project-current nil)))
+.config/emacs/lisp/lib-tools.el:      (project-root project)
+.config/emacs/lisp/lib-tools.el:    default-directory))
+.config/emacs/lisp/lib-tools.el:
+.config/emacs/lisp/lib-tools.el:(defun jiri/project-python ()
+.config/emacs/lisp/lib-tools.el:  "Return project-local .venv Python if present, otherwise plain python3."
+.config/emacs/lisp/lib-tools.el:  (let* ((root (jiri/project-root))
+.config/emacs/lisp/lib-tools.el:         (python (expand-file-name ".venv/bin/python" root)))
+.config/emacs/lisp/lib-tools.el:    (if (file-executable-p python)
+.config/emacs/lisp/lib-tools.el:        python
+.config/emacs/lisp/lib-tools.el:      "python3")))
+.config/emacs/lisp/lib-tools.el:
+.config/emacs/lisp/lib-tools.el:(defun jiri/project-command (program &rest args)
+.config/emacs/lisp/lib-tools.el:  "Run PROGRAM ARGS through project .venv if present, otherwise maybe mise.
+.config/emacs/lisp/lib-tools.el:
+.config/emacs/lisp/lib-tools.el:For Python tools inside a project, prefer .venv/bin/PROGRAM.
+.config/emacs/lisp/lib-tools.el:Otherwise use `jiri/tool-command'."
+.config/emacs/lisp/lib-tools.el:  (let* ((root (jiri/project-root))
+.config/emacs/lisp/lib-tools.el:         (venv-program (expand-file-name
+.config/emacs/lisp/lib-tools.el:                        (concat ".venv/bin/" program)
+.config/emacs/lisp/lib-tools.el:                        root)))
+.config/emacs/lisp/lib-tools.el:    (if (file-executable-p venv-program)
+.config/emacs/lisp/lib-tools.el:        (cons venv-program args)
+.config/emacs/lisp/lib-tools.el:      (apply #'jiri/tool-command program args))))
+.config/emacs/lisp/lib-tools.el:
+.config/emacs/lisp/lib-tools.el:(provide 'lib-tools)
+.config/emacs/lisp/init-eglot.el:;;; init-eglot.el -*- lexical-binding: t; -*-
+.config/emacs/lisp/init-eglot.el:
+.config/emacs/lisp/init-eglot.el:(require 'eglot)
+.config/emacs/lisp/init-eglot.el:(require 'lib-tools)
+.config/emacs/lisp/init-eglot.el:
+.config/emacs/lisp/init-eglot.el:(setq eglot-autoshutdown t)
+.config/emacs/lisp/init-eglot.el:(setq eglot-confirm-server-initiated-edits nil)
+.config/emacs/lisp/init-eglot.el:(setq eglot-events-buffer-size 0)
+.config/emacs/lisp/init-eglot.el:
+.config/emacs/lisp/init-eglot.el:(with-eval-after-load 'eglot
+.config/emacs/lisp/init-eglot.el:  ;; Python
+.config/emacs/lisp/init-eglot.el:  (setf (alist-get 'python-mode eglot-server-programs)
+.config/emacs/lisp/init-eglot.el:        (lambda (_interactive)
+.config/emacs/lisp/init-eglot.el:          (jiri/tool-command "pyright-langserver" "--stdio")))  <---+--- wrapper use
+.config/emacs/lisp/init-eglot.el:
+.config/emacs/lisp/init-eglot.el:  ;; BASH
+.config/emacs/lisp/init-eglot.el:  (setf (alist-get 'shell-mode eglot-server-programs)
+.config/emacs/lisp/init-eglot.el:        (lambda (_interactive)
+.config/emacs/lisp/init-eglot.el:          (jiri/tool-command "bash-language-server" "--stdio")))
+.config/emacs/lisp/init-eglot.el:  ;; Go
+.config/emacs/lisp/init-eglot.el:  (setf (alist-get 'go-mode eglot-server-programs)
+.config/emacs/lisp/init-eglot.el:        (lambda (_interactive)
+.config/emacs/lisp/init-eglot.el:          (jiri/tool-command "gopls")))
+.config/emacs/lisp/init-eglot.el:
+.config/emacs/lisp/init-eglot.el:  ;; YAML
+.config/emacs/lisp/init-eglot.el:  (setf (alist-get 'yaml-mode eglot-server-programs)
+.config/emacs/lisp/init-eglot.el:        (lambda (_interactive)
+.config/emacs/lisp/init-eglot.el:          (jiri/tool-command "yaml-language-server" "--stdio")))
+.config/emacs/lisp/init-eglot.el:
+.config/emacs/lisp/init-eglot.el:  ;; TOML
+.config/emacs/lisp/init-eglot.el:  (setf (alist-get 'toml-mode eglot-server-programs)
+.config/emacs/lisp/init-eglot.el:        (lambda (_interactive)
+.config/emacs/lisp/init-eglot.el:          (jiri/tool-command "taplo" "lsp" "stdio")))
+.config/emacs/lisp/init-eglot.el:
+.config/emacs/lisp/init-eglot.el:  ;; Ansible
+.config/emacs/lisp/init-eglot.el:  (setf (alist-get 'ansible-mode eglot-server-programs)
+.config/emacs/lisp/init-eglot.el:        (lambda (_interactive)
+.config/emacs/lisp/init-eglot.el:          (jiri/tool-command "ansible-language-server" "--stdio"))))
+.config/emacs/lisp/init-eglot.el:
+.config/emacs/lisp/init-eglot.el:(global-set-key (kbd "C-c l f") #'eglot-format)
+.config/emacs/lisp/init-eglot.el:(global-set-key (kbd "C-c l r") #'eglot-rename)
+.config/emacs/lisp/init-eglot.el:(global-set-key (kbd "C-c l a") #'eglot-code-actions)
+.config/emacs/lisp/init-eglot.el:(global-set-key (kbd "C-c l d") #'xref-find-definitions)
+.config/emacs/lisp/init-eglot.el:(global-set-key (kbd "C-c l R") #'xref-find-references)
+.config/emacs/lisp/init-eglot.el:(global-set-key (kbd "C-c l e") #'flymake-show-buffer-diagnostics)
+.config/emacs/lisp/init-eglot.el:
+.config/emacs/lisp/init-eglot.el:(provide 'init-eglot)
+```
 
 
 #### Visual Studio Code
