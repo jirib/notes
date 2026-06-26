@@ -1,5 +1,6 @@
 ## VMware cheatsheet
 
+
 ### esxi
 
 A bit old boot parameters are described at [ESXi 7.0 Update 3i Build
@@ -10,7 +11,7 @@ A bit old boot parameters are described at [ESXi 7.0 Update 3i Build
 #### cli
 
 ``` shell
-# esxcli system version get
+$ esxcli system version get
    Product: VMware ESXi
    Version: 6.7.0
    Build: Releasebuild-14320388
@@ -19,8 +20,10 @@ A bit old boot parameters are described at [ESXi 7.0 Update 3i Build
 
 # esxcli system time get
 2021-08-13T08:46:15Z
+```
 
-# esxcli storage core device list | \
+``` shell
+$ esxcli storage core device list | \
   grep -e '^t' -e 'Is SSD:' -e 'Size:' -e 'Model:'
 t10.ATA_____Crucial_CT500MX200SSD1__________________________16151246A1D2
    Size: 476940
@@ -37,8 +40,28 @@ t10.ATA_____ST1000VN0002D1HJ162__________________________________W513PRQF
    Model: ST1000VN000-1HJ1
    Is SSD: false
    Queue Full Sample Size: 0
+```
 
-# esxcli storage filesystem list
+``` shell
+$ esxcli storage core adapter list 
+HBA Name  Driver    Link State  UID          Capabilities  Description
+--------  --------  ----------  -----------  ------------  -----------
+vmhba0    vmw_ahci  link-n/a    sata.vmhba0                (0000:00:1f.2) Intel Corporation 82801IR/IO/IH (ICH9R/DO/DH) 6 port SATA AHCI Controller
+```
+
+Rescan - seems to work only for specific controller types (eg., it did
+not work with SATA for me - ESXi under KVM).
+
+``` shell
+$ esxcli storage core device list | grep -e '^ *Size:'
+   Size: 65536
+   Size: 102400
+
+$ esxcli storage core adapter rescan --adapter vmhba0
+```
+
+``` shell
+$ esxcli storage filesystem list
 Mount Point                                        Volume Name  UUID                                 Mounted  Type            Size          Free
 -------------------------------------------------  -----------  -----------------------------------  -------  ------  ------------  ------------
 /vmfs/volumes/611624d3-0014912e-65a2-525400f29a2a  datastore1   611624d3-0014912e-65a2-525400f29a2a     true  VMFS-6   77846282240   76336332800
@@ -49,11 +72,13 @@ Mount Point                                        Volume Name  UUID            
 /vmfs/volumes/67d90978-7172b177-19e6-fd87141790fe               67d90978-7172b177-19e6-fd87141790fe     true  vfat       261853184     261849088
 ```
 
+
 #### logs
 
 See [ESXi Log File
 Locations](https://web.archive.org/web/20231107212236/https://docs.vmware.com/en/VMware-vSphere/6.7/com.vmware.vsphere.monitoring.doc/GUID-832A2618-6B11-4A28-9672-93296DA931D0.html)
 for ESXi logs details.
+
 
 #### ssh
 
@@ -122,7 +147,10 @@ E..IV9@.@.k.
 
 The above is an example of new SSH connection only.
 
+
 #### esxi on KVM
+
+ESXi has some hardware prereqs, eg. disk size for _OSDATA_!
 
 ``` shell
 # customize for kvm_intel if not using amd
