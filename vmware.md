@@ -52,7 +52,7 @@ Mount Point                                        Volume Name  UUID            
 #### logs
 
 See [ESXi Log File
-Locations](https://docs.vmware.com/en/VMware-vSphere/6.7/com.vmware.vsphere.monitoring.doc/GUID-832A2618-6B11-4A28-9672-93296DA931D0.html)
+Locations](https://web.archive.org/web/20231107212236/https://docs.vmware.com/en/VMware-vSphere/6.7/com.vmware.vsphere.monitoring.doc/GUID-832A2618-6B11-4A28-9672-93296DA931D0.html)
 for ESXi logs details.
 
 #### ssh
