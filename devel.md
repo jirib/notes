@@ -900,16 +900,20 @@ $ git clone --depth 1 git@github.com:torvalds/linux.git
 #### GIT submodules
 
 ``` shell
-git clone <repo_url>
+$ git add submodule <url> <path>
+$ grep path .gitmodules 
+	path = third-party/ansible.rtslib_fb
+```
+
+``` shell
+$ git clone <repo_url>
+
 # after initial cloning, repo does not have submodules
-grep path .gitmodules ; [[ -z $(ls -A <submodule_path) ]] && \
-    echo empty || echo exists
-        path = <submodule_path>
-empty
-git submodule init
-git submodule update
-[[ -z $(ls -A <submodule_path>) ]] && echo empty || echo exists
-exists
+$ grep path .gitmodules
+$ ls -A <submodule_path>
+
+$ git submodule init
+$ git submodule update
 ```
 
 Specific branch for submodules and specific local path for that:

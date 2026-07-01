@@ -40,6 +40,37 @@ requirements.yml:  - name: community.libvirt
 requirements.yml:  - name: community.general
 ```
 
+### Configuration
+
+Adding a custom path for modules:
+
+``` shell
+$ grep '^library' ansible.cfg 
+library = ./third-party/ansible.rtslib_fb/
+
+$ ansible --version | grep 'search path'
+  configured module search path = ['/home/jiri/Sync/Documents/personal/src/github.com/jirib/student-lab_ng/third-party/ansible.rtslib_fb']
+  
+$ ls -1 third-party/ansible.rtslib_fb/plugins/modules/
+targetcli_backstore.py
+targetcli_iscsi_acl_mapped_lun.py
+targetcli_iscsi_acl.py
+targetcli_iscsi_lun.py
+targetcli_iscsi_portal.py
+targetcli_iscsi.py
+targetcli_iscsi_tpg.py
+
+$ ansible-doc -l 2>/dev/null | grep rtslib_fb
+jbelka.rtslib_fb.targetcli_backstore                       Manage LIO backs...
+jbelka.rtslib_fb.targetcli_iscsi                           Manage TargetCLI...
+jbelka.rtslib_fb.targetcli_iscsi_acl                       TargetCLI iSCSI ...
+jbelka.rtslib_fb.targetcli_iscsi_acl_mapped_lun            TargetCLI iSCSI ...
+jbelka.rtslib_fb.targetcli_iscsi_lun                       Manage TargetCLI...
+jbelka.rtslib_fb.targetcli_iscsi_portal                    TargetCLI portal...
+jbelka.rtslib_fb.targetcli_iscsi_tpg                       Manage LIO iSCSI...
+```
+
+
 ### Inventory
 
 ``` shell
