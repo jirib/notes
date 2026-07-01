@@ -905,6 +905,21 @@ $ grep path .gitmodules
 	path = third-party/ansible.rtslib_fb
 ```
 
+How is submodule tracked?
+
+``` shell
+$ git submodule status
+ 5c4584a98126048a39c119d6efe7c579a6bba04f third-party/ansible.rtslib_fb (heads/main)
+
+$ git ls-files --stage third-party/ansible.rtslib_fb/
+160000 5c4584a98126048a39c119d6efe7c579a6bba04f 0	third-party/ansible.rtslib_fb
+
+^^ 160000 is a gitlink
+
+$ git --git-dir third-party/ansible.rtslib_fb/.git rev-parse HEAD
+5c4584a98126048a39c119d6efe7c579a6bba04f
+```
+
 ``` shell
 $ git clone <repo_url>
 
