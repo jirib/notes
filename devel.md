@@ -871,7 +871,194 @@ $ tail -n1 .gitattributes
 So, now `git diff` will use above _textconv_ script... Voila!
 
 
-#### GIT over SSH
+#### git-clone
+
+cloning a huge repo could take ages because of its history, adding `--depth 1`
+will copy only the latest revision of everything in the repository.
+
+``` shell
+$ git clone --depth 1 git@github.com:torvalds/linux.git
+```
+
+
+#### git filter-repo
+
+`git filter-repo` is an external python tool, installable via `pipx` etc.
+
+``` shell
+$ git filter-repo -h | head -n6
+Rewrite (or analyze) repository history
+
+    git-filter-repo destructively rewrites history (unless --analyze or
+    --dry-run are given) according to specified rules.  It refuses to do any
+    rewriting unless either run from a clean fresh clone, or --force was
+    given.
+```
+
+``` shell
+$ git filter-repo --analyze
+Processed 94 blob sizes
+Processed 18 commits
+Writing reports to .git/filter-repo/analysis...done.
+
+$ find .git/filter-repo/
+.git/filter-repo/
+.git/filter-repo/analysis
+.git/filter-repo/analysis/README
+.git/filter-repo/analysis/renames.txt
+.git/filter-repo/analysis/directories-deleted-sizes.txt
+.git/filter-repo/analysis/directories-all-sizes.txt
+.git/filter-repo/analysis/extensions-deleted-sizes.txt
+.git/filter-repo/analysis/extensions-all-sizes.txt
+.git/filter-repo/analysis/path-deleted-sizes.txt
+.git/filter-repo/analysis/path-all-sizes.txt
+.git/filter-repo/analysis/blob-shas-and-paths.txt
+```
+
+A real example: let's say that in a file, eg. `mise.toml` there's a
+secret that should have never been committed. Thus, it is not enough
+to modify the file, do a new commit, the secret would still be in the
+history.
+
+First, let's check which commit did touch that file:
+
+``` shell
+$ git log --oneline --name-status -- mise.toml
+d397e06 import
+A	mise.toml
+```
+
+But, if you use `git rev-list`, you will learn soon that it is not
+only about the commit:
+
+``` shell
+$ git rev-list --objects HEAD -- mise.toml
+d397e0655378208578bf0d8c3b70ea7ce5e6411d
+b867c49e8d9546a16d74e490016225217c1ab94c 
+1e9ea046d132572b25e5ff017fea2e1c4300419f mise.toml
+```
+
+Only first like matches `git log` output, here is why:
+
+``` shell
+$ git rev-list --objects HEAD -- mise.toml | \
+    while read commit rest ; do \
+        git cat-file -t $commit ; \
+    done
+commit
+tree
+blob
+```
+
+So, one has to treat all relevant and different kind of Git objects!
+
+Let's try to remove that `mise.toml` from the history:
+
+``` shell
+# first create a test copy
+$ cd /tmp
+$ git clone --mirror <repo url>
+$ cd <repo>
+
+$ git filter-repo --dry-run --path mise.toml --invert-paths
+Parsed 18 commits
+New history written in 0.02 seconds; now repacking/cleaning...
+NOTE: Not running fast-import or cleaning up; --dry-run passed.
+      Requested filtering can be seen by comparing:
+        ./filter-repo/fast-export.original
+        ./filter-repo/fast-export.filtered
+        
+$ grep -c mise.toml filter-repo/*
+filter-repo/fast-export.filtered:0
+filter-repo/fast-export.original:1
+```
+
+Now, without `--dry-run`:
+
+``` shell
+$ git filter-repo --path mise.toml --invert-paths
+NOTICE: Removing 'origin' remote; see 'Why is my origin removed?'
+        in the manual if you want to push back there.
+        (was git@github.com:jirib/ansible.rtslib_fb.git)
+Note: A branch outside the refs/remotes/ hierarchy was not removed;
+to delete it, use:
+  git branch -d main
+Parsed 18 commits
+New history written in 0.03 seconds; now repacking/cleaning...
+Repacking your repo and cleaning out old unneeded objects
+Enumerating objects: 175, done.
+Counting objects: 100% (175/175), done.
+Delta compression using up to 16 threads
+Compressing objects: 100% (58/58), done.
+Writing objects: 100% (175/175), done.
+Building bitmaps: 100% (18/18), done.
+Total 175 (delta 115), reused 139 (delta 99), pack-reused 0 (from 0)
+Completely finished after 0.06 seconds.
+```
+
+``` shell
+$ git remote add origin <remote url>
+
+$ git push --force --mirror
+```
+
+Of course, if the repo was public, or some subject could clone that,
+then the history can't be altered!
+
+
+### git-log
+
+Names status, one line, the last two commits:
+
+``` shell
+$ git log --oneline --name-status -2
+f507f79 (HEAD -> main, origin/main) update
+M	README.md
+M	plugins/modules/rtslib_fb_iscsi_acl_mapped_lun.py
+A	plugins/modules/rtslib_fb_iscsi_acl_mapped_lun_info.py
+M	tests/test_rtslib_fb_iscsi_children.py
+18ea5ae update
+M	plugins/modules/rtslib_fb_iscsi_acl_mapped_lun.py
+```
+
+Commits relevant to a specific path:
+
+``` shell
+$ git log --oneline --name-status -- plugins/modules/rtslib_fb_iscsi_acl_mapped_lun_info.py
+f507f79 (HEAD -> main, origin/main) update
+A	plugins/modules/rtslib_fb_iscsi_acl_mapped_lun_info.py
+```
+
+An example to print how are commits behind HEAD:
+
+``` shell
+$ git log --reverse --oneline --name-status -2 | \
+  awk 'BEGIN { i=0 } { if(/^[[:alnum:]]{6}/) { printf("%s # %d commits behind HEAD\n", $0, i); i++;} else { print $0 }}'
+18ea5ae update # 0 commits behind HEAD
+M	plugins/modules/rtslib_fb_iscsi_acl_mapped_lun.py
+f507f79 update # 1 commits behind HEAD
+M	README.md
+M	plugins/modules/rtslib_fb_iscsi_acl_mapped_lun.py
+A	plugins/modules/rtslib_fb_iscsi_acl_mapped_lun_info.py
+M	tests/test_rtslib_fb_iscsi_children.py
+```
+
+A simpler one, if one doesn't need to see names status:
+
+``` shell
+$ git log --format='%H %s' -2 | nl -v0
+     0	f507f792d627fc238c12995537bb9226473c8e19 update
+     1	18ea5aedec30e3172c716cf1022e302cff917ebd update
+```
+
+
+
+
+
+
+
+
+#### GIT sshCommand
 
 If one uses different SSH keys for various projects (which are hosted
 on same remote host and use same remote username,
@@ -884,16 +1071,6 @@ This is especially useful for initial `git clone`.
 GIT_SSH_COMMAND="ssh -i <keyfile>" git clone <user>@<server>:project/repo.github
 grep ssh .git/confg                           # no SSH settings configured
 git config core.sshCommand "ssh -i <keyfile>" # set SSH settings per repo
-```
-
-
-#### GIT operations
-
-cloning a huge repo could take ages because of its history, adding `--depth 1`
-will copy only the latest revision of everything in the repository.
-
-``` shell
-$ git clone --depth 1 git@github.com:torvalds/linux.git
 ```
 
 
