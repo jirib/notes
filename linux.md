@@ -7807,6 +7807,39 @@ drwxr-xr-x  20 root root 4096 Sep 25 06:46 ..
 
 ### libvirt
 
+If one wants to add QEMU command line arguments to a libvirt domain, the schema must defind:
+
+``` xml
+<domain type='kvm' xmlns:qemu='http://libvirt.org/schemas/domain/qemu/1.0'>
+  <name>QEMUGuest1</name>
+  <uuid>c7a5fdbd-edaf-9455-926a-d65c16db1809</uuid>
+  ...
+  <qemu:commandline>
+    <qemu:arg value='-newarg'/>
+    <qemu:arg value='parameter'/>
+    <qemu:env name='ID' value='wibble'/>
+    <qemu:env name='BAR'/>
+  </qemu:commandline>
+</domain>
+```
+
+And a real example:
+
+``` xml
+  <!-- cloud-init NoCloud seed. libvirt's <disk type='dir'> floppy/VVFAT
+       passthrough has no way to set a volume label (QEMU always names it
+       "QEMU VVFAT"), and NoCloud's ds-identify only matches a volume
+       labeled "cidata"/"CIDATA" - so raw qemu args are used instead to get
+       a labeled vvfat blockdev. -->
+  <qemu:commandline>
+    <qemu:arg value='-blockdev'/>
+    <qemu:arg value='driver=vvfat,node-name=cidata,read-only=on,dir={{ ci_floppy_dir }},label=CIDATA'/>
+    <qemu:arg value='-device'/>
+    <qemu:arg value='virtio-blk-pci,drive=cidata,bus=pcie.0,addr=0x1e'/>
+  </qemu:commandline>
+</domain>
+```
+
 
 #### ACL
 
