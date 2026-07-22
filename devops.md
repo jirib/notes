@@ -6,6 +6,38 @@
 
 ### Hashicorp: Packer
 
+#### ISO filenames in Packer cache directory
+
+Packer doesn't save ISOs as literal filenames, it saves in in its cache as `<hash>.iso`.
+
+``` shell
+$ sops decrypt .env.sops.yaml | yq -r 'to_entries | .[] | "\(.key)=\(.value)"' | grep SLES15_ISO
+SLES15_ISO_URL=https://<redacted>/ibs/SUSE/Products/SLE-Full/15-SP7-QU4/x86_64/iso/SLE-15-SP7-Full-x86_64-QU4-Media1.iso
+SLES15_ISO_CHECKSUM=sha256:4accfc0f1a4a2cfe2b702c44a4b1268468ae7fd7ec08109045b1167cde773f0e
+
+$ sha256sum  SLE-15-SP7-Full-x86_64-QU4-Media1.iso 
+4accfc0f1a4a2cfe2b702c44a4b1268468ae7fd7ec08109045b1167cde773f0e  SLE-15-SP7-Full-x86_64-QU4-Media1.iso
+
+$ printf 'sha256:%s' '4accfc0f1a4a2cfe2b702c44a4b1268468ae7fd7ec08109045b1167cde773f0e' | sha1sum | awk '{ print $1 ".iso" }'
+68153ffa2afee7e9833f691a7c1dfe5202f39f0e.iso
+
+$ isoinfo -d -s -i 68153ffa2afee7e9833f691a7c1dfe5202f39f0e.iso | grep -P '^(Volume|Publisher|Data preparer|Application) id:'
+Volume id: SLE-15-SP7-Full-x86_64128.11.001
+Publisher id: SUSE LINUX GmbH
+Data preparer id: KIWI - http://opensuse.github.com/kiwi
+Application id: SLE-15-SP7-Full-x86_64-Build128.1-Media1
+```
+
+However, is the _checksum_ is not used (eg. `iso_checksum`), then it is this way:
+
+``` shell
+$ url='https://example.com/path/to/image.iso'
+$ printf '%s' "$url" | sha1sum | awk '{print $1 ".iso"}'
+```
+
+
+#### Quickstart
+
 ``` shell
 $ git clone https://github.com/asdf-vm/asdf.git ~/.asdf --branch v0.14.0
 $ . "$HOME/.asdf/asdf.sh"
