@@ -1280,9 +1280,42 @@ egrep -v '^(\s*#|$)' /etc/sysconfig/btrfsmaintenance # SUSE btrfs maintenance co
 mount -o subvol=[<subvol_name> | <subvol_id>] <storage_dev> /<path>
 ```
 
-List subvols on non-mounted FS:
+List subvols on non-mounted FS (all subvols, getting default one):
 
 ``` shell
+$ btrfs inspect-internal dump-tree -t 1 /dev/sda3 | grep -P 'item \d+ key \(\d+ ROOT_ITEM'
+	item 11 key (256 ROOT_ITEM 0) itemoff 12965 itemsize 439
+	item 22 key (257 ROOT_ITEM 0) itemoff 12297 itemsize 439
+	item 25 key (258 ROOT_ITEM 0) itemoff 11811 itemsize 439
+	item 27 key (259 ROOT_ITEM 0) itemoff 11349 itemsize 439
+	item 29 key (260 ROOT_ITEM 0) itemoff 10889 itemsize 439
+	item 31 key (261 ROOT_ITEM 0) itemoff 10429 itemsize 439
+	item 33 key (262 ROOT_ITEM 0) itemoff 9969 itemsize 439
+	item 35 key (263 ROOT_ITEM 0) itemoff 9508 itemsize 439
+	item 37 key (264 ROOT_ITEM 0) itemoff 9041 itemsize 439
+	item 39 key (265 ROOT_ITEM 0) itemoff 8577 itemsize 439
+	item 50 key (266 ROOT_ITEM 0) itemoff 7876 itemsize 439
+	item 52 key (270 ROOT_ITEM 0) itemoff 7411 itemsize 439
+	item 18 key (656 ROOT_ITEM 2419270) itemoff 13927 itemsize 439
+	item 20 key (657 ROOT_ITEM 2419271) itemoff 13462 itemsize 439
+	item 18 key (712 ROOT_ITEM 2674553) itemoff 13927 itemsize 439
+	item 20 key (713 ROOT_ITEM 2674558) itemoff 13462 itemsize 439
+	item 22 key (714 ROOT_ITEM 2674571) itemoff 12997 itemsize 439
+	item 24 key (715 ROOT_ITEM 2674572) itemoff 12532 itemsize 439
+	item 26 key (716 ROOT_ITEM 2674574) itemoff 12067 itemsize 439
+	item 30 key (718 ROOT_ITEM 2674592) itemoff 11389 itemsize 439
+
+$ btrfs inspect-internal dump-tree -t 1 /dev/sda3 | grep -B 2 -P '^\s+name: default'
+		location key (266 ROOT_ITEM 0) type DIR
+		transid 0 data_len 0 name_len 7
+		name: default
+
+$ findmnt -no OPTIONS / | grep -Po 'subvolid=\K(\d+)'
+266
+
+$ btrfs subvol get-default /
+ID 266 gen 2717778 top level 265 path @/.snapshots/1/snapshot
+
 $ btrfs inspect-internal dump-tree -t 1 /dev/system/root | \
     grep -P 'item \d+ key \(\d+ ROOT_ITEM' | wc -l
 78
