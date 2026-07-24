@@ -818,7 +818,58 @@ LOGO="distributor-logo-Leap"
 ```
 
 
-##### Molecule with Libvirt
+##### Molecule with ansible-native (libvirt)
+
+Ansible-native means there's no "plugin", and everything is up to
+Ansible itself. So, eg. `create.yml` playbook creates "hosts" and
+populates ansible connection details.
+
+An example:
+
+``` yaml
+    - name: Write instance connection vars  # noqa: name[missing]
+      block:
+
+        - name: Ensure host_vars directory exists for each host
+          ansible.builtin.file:
+            path: "{{ lookup('env', 'MOLECULE_SCENARIO_DIRECTORY') }}/inventory/host_vars/{{ item }}"
+            state: directory
+            mode: "0755"
+          loop: "{{ groups['molecule'] }}"
+          loop_control:
+            label: "{{ item }}"
+
+        - name: Dump instance connection vars
+          ansible.builtin.copy:
+            content: |
+              ---
+              ansible_host: "{{ hostvars[item].molecule_ip }}"
+              ansible_port: "{{ hostvars[item].ssh_port | default(ssh_port) }}"
+              ansible_user: "{{ molecule_ssh_user }}"
+              ansible_ssh_private_key_file: "{{ molecule_private_key_path }}"
+            dest: "{{ lookup('env', 'MOLECULE_SCENARIO_DIRECTORY') }}/inventory/host_vars/{{ item }}/runtime.yml"
+            mode: "0600"
+          loop: "{{ groups['molecule'] }}"
+          loop_control:
+            label: "{{ item }}"
+```
+
+So, there's an inventory, defined in Molecule configuration:
+
+``` shell
+ansible:
+  executor:
+    backend: ansible-playbook
+    args:
+      ansible_playbook:
+        - --diff
+        - --inventory=${MOLECULE_SCENARIO_DIRECTORY}/inventory/
+```
+
+and the above task write connection details into `runtime.yml` _host_vars_ files, per host.
+
+
+##### Molecule with Libvirt plugin
 
 ``` shell
 $ uv pip list | grep libvirt
