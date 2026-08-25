@@ -659,6 +659,27 @@ int main() {
 ```
 
 
+### Go
+
+How to discover the executable entry points?
+
+``` shell
+$ go list -f '{{if eq .Name "main"}}{{.Dir}}{{end}}' ./...
+/home/jiri/Documents/personal/src/github.com/jirib/repo-source-mcp/cmd/mcp-server
+/home/jiri/Documents/personal/src/github.com/jirib/repo-source-mcp/tools/repo-crawler
+
+$ go list -f '{{if eq .Name "main"}}{{.Dir}}{{end}}' ./... | while read dir; do grep -nHE '^func main\(\)' "$dir"/*.go; done
+/home/jiri/Documents/personal/src/github.com/jirib/repo-source-mcp/cmd/mcp-server/main.go:139:func main() {
+/home/jiri/Documents/personal/src/github.com/jirib/repo-source-mcp/tools/repo-crawler/main.go:296:func main() {
+```
+
+And, start reading:
+
+``` shell
+$ sed -n '139,/^}/p' cmd/mcp-server/main.go  | bat --language=go --paging=auto
+```
+
+
 ### JSON
 
 Not really a langue or markup format but anyway... A [playgroun](https://jqplay.org/)
