@@ -1,6 +1,23 @@
 # Python
 
+How to discover Python executable entry points? An example:
+
+``` shell
+$ yq -p toml -o yaml '.project.scripts // {}' pyproject.toml
+dynamic-mcp: dynamic_mcp.server:main
+dynamic-mcp-http: dynamic_mcp.server:main_http
+dynamic-mcp-install-systemd: dynamic_mcp.systemd_installer:install_systemd_service
+
+$ find . -type f -name '*.py' ! -path './tests/*' ! -path './.venv/*' -print0 | \
+    xargs -0 grep -nE 'if __name__ *== *["'\'']__main__["'\'']'
+./src/dynamic_mcp/systemd_installer.py:236:if __name__ == "__main__":
+./src/dynamic_mcp/server.py:1579:if __name__ == "__main__":
+./setup.py:305:if __name__ == "__main__":
+```
+
+
 ## Debugging
+
 
 ### pdb
 
