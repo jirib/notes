@@ -223,6 +223,47 @@ Tunnel "socat -d0 STDIN\!\!STDOUT SOCKS4A:127.0.0.1:imap.gmail.com:993,socksport
 ```
 
 
+#### mbsync and XOAUTH2
+
+Gmail, for example, terminated plain login, it requires XOAUTH2. First
+you need to [setup](https://console.cloud.google.com/apis/credentials)
+a project etc...
+
+There are multiple way to get a token, below an example with `sasl-xoauth2` package:
+
+``` shell
+$ mkdir -p ~/.config/sasl-xoauth2
+$ chmod 700 $_
+$ cat > ~/.config/sasl-xoauth2/<email>.json <<'EOF'
+{
+  "client_id": "CLIENT_ID_GOES_HERE",
+  "client_secret": "CLIENT_SECRET_GOES_HERE"
+}
+EOF
+$ chmod 600 ~/.config/sasl-xoauth2/<email>.json
+
+$ sasl-xoauth2-tool get-token gmail \
+    ~/.config/sasl-xoauth2/<email>.json \
+    --overwrite-existing-token \
+    --client-id="$(jq -r .client_id ~/.config/sasl-xoauth2/<email>.json)" \
+    --client-secret="$(jq -r .client_secret ~/.config/sasl-xoauth2/<email>.json)" \
+    --scope='https://mail.google.com/'
+```
+
+Then, in `isyncrc` use:
+
+```
+Pass ~/.config/sasl-xoauth2/<email>.json
+TLSType IMAPS
+AuthMechs XOAUTH2
+```
+
+`mbsync` does not call `sasl-xoauth2-tool` at sync time. That tool is
+a one-shot bootstrap; `mbsync` `dlopen()`s the SASL plugin which does
+its own refresh: `mbsync` → `libsasl2` → `libsasl-xoauth2.so` →
+`libcurl` → accounts.google.com.
+
+
 ### mailx
 
 Sending mail with authentication via a relay.
