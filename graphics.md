@@ -349,6 +349,26 @@ Client                                                  Server (:515)
 
 The schema above shows how LPD works, that is, you can see 'foo' printer, control and data files.
 
+A a control file, usually starting with `cfA`, could look like this:
+
+```
+Hclienthost.example.com       # Host machine sending the job
+Pjohn_doe                     # Username who printed
+JQuarterly_Report.pdf         # Job name (often visible in print dialogs)
+CCompany_Confidential         # Class name for banner page
+Ljohn_doe                     # Banner page user
+NQuarterly_Report.pdf         # Name of source file
+dfA001clienthost.example.com  # Associated data file link
+```
+
+And a data file, usually starting with `dfA`, like this:
+
+```
+%!PS-Adobe-3.0
+%%Title: Quarterly_Report.pdf
+%%Creator: John Doe
+... [All raw document text, PostScript code, PCL, or PDF bytes] ...
+```
 
 ## scribus
 
