@@ -281,6 +281,74 @@ $ lpstat -o testovic
 testovic-39             root              2048   Thu 27 Jun 2024 04:02:01 PM CEST
 ```
 
+### CUPS and LPD
+
+First, a comparison between LPD and IPP:
+
+| Feature | **LPD / LPR** (RFC 1179) | **IPP** (Internet Printing Protocol) |
+| --- | --- | --- |
+| **Era** | 1990 (BSD Unix legacy) | Modern standard (powers CUPS & AirPrint) |
+| **Transport** | Raw TCP on port **515** | HTTP / HTTPS on port **631** |
+| **Communication** | **One-way spooling** ("fire and forget") | **Two-way, stateful interaction** |
+| **Security** | None (no native encryption or auth) | TLS/SSL encryption, Kerberos, basic/digest auth |
+| **Printer Capabilities** | Blind stream; cannot query duplex, color, trays, or media size dynamically | Full query support for ink/toner levels, paper jams, trays, and page-by-page progress |
+| **Job Control** | Basic queue/delete commands | Advanced control (hold, cancel, restart, modify attributes mid-stream) |
+
+**Key takeaway:** LPD simply sends a raw data stream into a queue blind to what happens next. IPP is a feature-rich, encrypted web service that allows clients and printers to negotiate capabilities, security, and real-time status.
+
+In systemd world, we have:
+
+```
+$ systemctl list-unit-files | grep cups-lpd
+cups-lpd@.service                                                                         static          -
+cups-lpd.socket                                                                           disabled        disabled
+
+$ systemctl cat cups-lpd.socket cups-lpd@.service
+# /usr/lib/systemd/system/cups-lpd.socket
+[Unit]
+Description=CUPS LPD Server Socket
+PartOf=cups-lpd.service
+
+[Socket]
+ListenStream=515
+Accept=yes
+
+[Install]
+WantedBy=sockets.target
+
+# /usr/lib/systemd/system/cups-lpd@.service
+[Unit]
+Description=CUPS LPD server
+Documentation=man:cups-lpd(8)
+
+[Service]
+ExecStart=-/usr/lib/cups/daemon/cups-lpd
+StandardInput=socket
+User=lp
+Slice=system-cups.slice
+```
+
+Enabling the socket, would instantiate `cups-lpd@.service`, eg. `cups-lpd@1503-10.164.44.108:515-10.164.195.94:40404.service`. Meaning, `cups-lpd(8)` forwards print job from 10.164.195.94:40404 to local cups (if it won't be a local CUPS, `cups-lpd@.service` would need `-h hostname[:port]`).
+
+```
+Client                                                  Server (:515)
+  |                                                           |
+  | -------- Command: \x02 foo \n --------------------------> |  1. Receive print job for "foo"
+  | <------- Ack: \x00 -------------------------------------- |     Server accepts
+  |                                                           |
+  | -------- Subcommand: \x02 <size> cfA<job><host> \n -----> |  2. Send Control File header
+  | <------- Ack: \x00 -------------------------------------- |     Server ready for metadata
+  | -------- Control File contents \x00 --------------------> |     Metadata payload
+  | <------- Ack: \x00 -------------------------------------- |     Server confirms metadata
+  |                                                           |
+  | -------- Subcommand: \x03 <size> dfA<job><host> \n -----> |  3. Send Data File header
+  | <------- Ack: \x00 -------------------------------------- |     Server ready for document
+  | -------- Data File contents (PostScript/PCL/PDF/text) --> |     Document payload
+  | <------- Ack: \x00 -------------------------------------- |     Server confirms print job
+```
+
+The schema above shows how LPD works, that is, you can see 'foo' printer, control and data files.
+
 
 ## scribus
 
